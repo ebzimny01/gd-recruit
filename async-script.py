@@ -18,6 +18,13 @@ async def create_DB():
                                         id INTEGER PRIMARY KEY,
                                         name TEXT,
                                         pos TEXT,
+                                        height TEXT,
+                                        weight INTEGER,
+                                        rating INTEGER,
+                                        rank INTEGER,
+                                        hometown TEXT,
+                                        miles INTEGER,
+                                        considering TEXT,
                                         ath INTEGER,
                                         spd INTEGER,
                                         dur INTEGER,
@@ -32,8 +39,6 @@ async def create_DB():
                                         tec INTEGER,
                                         tot INTEGER,
                                         gpa REAL,
-                                        miles INTEGER,
-                                        considering TEXT,
                                         pot TEXT
                                     ); """
 
@@ -78,16 +83,28 @@ async def create_table(conn, create_table_sql):
 async def get_recruitIDs(page_content):
     recruitIDs = []
     recruitpage_soup = BeautifulSoup(page_content, "lxml")
-    select_mainColumnWrapper = recruitpage_soup.find(class_="mainColumnWrapper")
-    recruitProfileLinks = select_mainColumnWrapper.find_all(class_="recruitProfileLink")
-    for each in recruitProfileLinks:
-        href_tag = each.attrs['href']
+    select_Main_divGeneral = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_divGeneral")
+    recruitRows = select_Main_divGeneral.find_all("tr", id=False)
+    for each in recruitRows:
+        recruit_link_tag = each.find(class_="recruitProfileLink")
+        href_tag = recruit_link_tag.attrs['href']
         href_tag_re = re.search(r'(\d{8})', href_tag)
         recruit = href_tag_re.group(1)
-        recruitIDs.append([int(recruit)])
+        rid = int(recruit)
+        td_tags = each.find_all("td")
+        recruitIDs.append({
+            'id' : rid,
+            'name' : td_tags[2].text,
+            'pos': td_tags[1].text,
+            'height' : td_tags[3].text,
+            'weight' : td_tags[4].text,
+            'rating' : td_tags[5].text,
+            'rank' : td_tags[6].text,
+            'hometown' : td_tags[7].text,
+            'miles' : td_tags[8].text
+        })
     next_link_tag = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_lnkNextPage")
     print(f"Number of recruits found on page = {len(recruitIDs)}")
-    print(recruitIDs)
     if next_link_tag is not None:
         return recruitIDs, True
     else:
@@ -102,8 +119,10 @@ async def create_recruit(conn, recruit):
     :return:
     """
 
-    sql = ''' INSERT INTO recruits(id,name,pos,ath,spd,dur,we,sta,str,blk,tkl,han,gi,elu,tec,tot,gpa,miles,considering,pot)
-              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
+    sql = ''' INSERT INTO recruits(id,name,pos,height,weight,rating,
+              rank,hometown,miles,considering,ath,spd,dur,we,sta,str,
+              blk,tkl,han,gi,elu,tec,tot,gpa,pot)
+              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '''
     cur = conn.cursor()
     cur.execute(sql, recruit)
     conn.commit()
@@ -114,7 +133,7 @@ async def initialize_recruitIDs_DB(conn, filename):
     recruitIDs = await recruitsImportCSV(filename)
     with conn:
         for each in recruitIDs:
-            temp = [int(each[0]),'','',0,0,0,0,0,0,0,0,0,0,0,0,0,0.0,0,'','']
+            temp = [each['id'],each['name'],each['pos'],each['height'],each['weight'],each['rating'],each['rank'],each['hometown'],each['miles'],'',0,0,0,0,0,0,0,0,0,0,0,0,0,0.0,'']
             await create_recruit(conn,temp)
 
 
@@ -195,10 +214,10 @@ async def initialize_recruit_static_data_without_playwright(conn):
         for rid in rids:
             recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={rid[0]}")
             recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-            name_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_name")
-            name = name_section.text
-            pos_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_position")
-            pos = pos_section.text
+            # name_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_name")
+            # name = name_section.text
+            # pos_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_position")
+            # pos = pos_section.text
             recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
             recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
             ath = int(recruit_ratings_values[0].text)
@@ -216,13 +235,11 @@ async def initialize_recruit_static_data_without_playwright(conn):
             tot = ath + spd + dur + we + sta + strength + blk + tkl + han + gi + elu + tec
             gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
             gpa = float(gpa_section.text)
-            hometown_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_homeTown")
-            hometown = hometown_section.text
+            # hometown_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_homeTown")
+            # hometown = hometown_section.text
 
             sql = ''' UPDATE recruits
-                SET name = ? ,
-                    pos = ? ,
-                    ath = ? ,
+                SET ath = ? ,
                     spd = ? ,
                     dur = ? ,
                     we = ? ,
@@ -237,7 +254,7 @@ async def initialize_recruit_static_data_without_playwright(conn):
                     tot = ? ,
                     gpa = ?
                 WHERE id = ?'''
-            tmp = (name, pos, ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec, tot, gpa, rid[0])
+            tmp = (ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec, tot, gpa, rid[0])
             cur.execute(sql, tmp)
             conn.commit()
             bar.next()
@@ -291,9 +308,9 @@ async def main():
         await page.goto(f"https://www.whatifsports.com/gd/TeamRedirect.aspx?tid={teamID}")
                 
         # Comment these out for testing for testing DB creation and updating
-        # recruitIDs = await scrapeRecruitIDs(page)
-        # await recruitsExportCSV(recruitIDs, filename)
-        # await initialize_recruitIDs_DB(conn, filename)
+        recruitIDs = await scrapeRecruitIDs(page)
+        await recruitsExportCSV(recruitIDs, filename)
+        await initialize_recruitIDs_DB(conn, filename)
         # await initialize_recruit_static_data(conn, page)
         await initialize_recruit_static_data_without_playwright(conn)
 
@@ -340,6 +357,7 @@ async def scrapeRecruitIDs(page):
             time.sleep(time3)
 
             contents = await page.content()
+            print(contents)
             # Need to replace this sleep statement with something that is event driven
             time4 = 3
             print(f"Sleeping {time3} seconds.")
@@ -354,19 +372,21 @@ async def scrapeRecruitIDs(page):
     return recruitIDs
 
 
-async def recruitsExportCSV(table, filename):
+async def recruitsExportCSV(dict, filename):
+    csv_columns = ['id','name','pos','height','weight','rating','rank','hometown','miles']
     with open(filename, mode='w', newline='') as f:
-        recruit_writer = csv.writer(f)
-        for each in table:
+        recruit_writer = csv.DictWriter(f, fieldnames=csv_columns)
+        recruit_writer.writeheader()
+        for each in dict:
             recruit_writer.writerow(each)
 
 
 async def recruitsImportCSV(filename):
     recruitIDs = []
     # reading csv file 
-    with open(filename, 'r') as csvfile: 
+    with open(filename, 'r',newline='') as csvfile: 
         # creating a csv reader object 
-        csvreader = csv.reader(csvfile)
+        csvreader = csv.DictReader(csvfile)
     
         # extracting each data row one by one 
         for row in csvreader: 
