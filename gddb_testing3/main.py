@@ -14,6 +14,92 @@ from PySide2.QtWidgets import *
 from PySide2.QtSql import *
 
 
+class Ui_DialogNewSeason(object):
+    def setupUi(self, DialogNewSeason):
+        if not DialogNewSeason.objectName():
+            DialogNewSeason.setObjectName(u"DialogNewSeason")
+        DialogNewSeason.setWindowModality(Qt.WindowModal)
+        DialogNewSeason.resize(400, 300)
+        self.buttonBox = QDialogButtonBox(DialogNewSeason)
+        self.buttonBox.setObjectName(u"buttonBox")
+        self.buttonBox.setGeometry(QRect(30, 240, 341, 32))
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Save)
+        self.labelTeamID = QLabel(DialogNewSeason)
+        self.labelTeamID.setObjectName(u"labelTeamID")
+        self.labelTeamID.setGeometry(QRect(60, 60, 47, 14))
+        self.labelSeasonNumber = QLabel(DialogNewSeason)
+        self.labelSeasonNumber.setObjectName(u"labelSeasonNumber")
+        self.labelSeasonNumber.setGeometry(QRect(40, 120, 91, 16))
+        self.lineEditTeamID = QLineEdit(DialogNewSeason)
+        self.lineEditTeamID.setObjectName(u"lineEditTeamID")
+        self.lineEditTeamID.setGeometry(QRect(200, 60, 113, 20))
+        self.lineEditSeasonNumber = QLineEdit(DialogNewSeason)
+        self.lineEditSeasonNumber.setObjectName(u"lineEditSeasonNumber")
+        self.lineEditSeasonNumber.setGeometry(QRect(200, 120, 113, 20))
+
+        self.retranslateUi(DialogNewSeason)
+        self.buttonBox.accepted.connect(self.save_NewSeason)
+        self.buttonBox.rejected.connect(DialogNewSeason.reject)
+
+        QMetaObject.connectSlotsByName(DialogNewSeason)
+    # setupUi
+
+    def retranslateUi(self, DialogNewSeason):
+        DialogNewSeason.setWindowTitle(QCoreApplication.translate("DialogNewSeason", u"New Season", None))
+        self.labelTeamID.setText(QCoreApplication.translate("DialogNewSeason", u"Team ID", None))
+        self.labelSeasonNumber.setText(QCoreApplication.translate("DialogNewSeason", u"Season Number", None))
+    # retranslateUi
+
+    def save_NewSeason(self):
+        teamID = self.lineEditTeamID.text()
+        season_num = self.lineEditSeasonNumber.text()
+        print(f"Team ID = {teamID}")
+        print(f"Season Number = {season_num}")
+
+class Ui_WISCredentialDialog(object):
+    def setupUi(self, WISCredentialDialog):
+        if not WISCredentialDialog.objectName():
+            WISCredentialDialog.setObjectName(u"WISCredentialDialog")
+        WISCredentialDialog.setWindowModality(Qt.WindowModal)
+        WISCredentialDialog.resize(400, 313)
+        WISCredentialDialog.setModal(True)
+        self.buttonBox = QDialogButtonBox(WISCredentialDialog)
+        self.buttonBox.setObjectName(u"buttonBox")
+        self.buttonBox.setGeometry(QRect(30, 240, 341, 32))
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Save)
+        self.labelWISUsername = QLabel(WISCredentialDialog)
+        self.labelWISUsername.setObjectName(u"labelWISUsername")
+        self.labelWISUsername.setGeometry(QRect(20, 50, 101, 16))
+        self.labelWISPassword = QLabel(WISCredentialDialog)
+        self.labelWISPassword.setObjectName(u"labelWISPassword")
+        self.labelWISPassword.setGeometry(QRect(20, 130, 91, 16))
+        self.lineEditWISUsername = QLineEdit(WISCredentialDialog)
+        self.lineEditWISUsername.setObjectName(u"lineEditWISUsername")
+        self.lineEditWISUsername.setGeometry(QRect(170, 50, 191, 20))
+        self.lineEditWISPassword = QLineEdit(WISCredentialDialog)
+        self.lineEditWISPassword.setObjectName(u"lineEditWISPassword")
+        self.lineEditWISPassword.setGeometry(QRect(170, 130, 191, 20))
+        self.lineEditWISPassword.setEchoMode(QLineEdit.Password)
+
+        self.retranslateUi(WISCredentialDialog)
+        self.buttonBox.accepted.connect(self.save_credentials)
+        self.buttonBox.rejected.connect(WISCredentialDialog.reject)
+
+        QMetaObject.connectSlotsByName(WISCredentialDialog)
+
+    def retranslateUi(self, WISCredentialDialog):
+        WISCredentialDialog.setWindowTitle(QCoreApplication.translate("WISCredentialDialog", u"Save WIS Credentials", None))
+        self.labelWISUsername.setText(QCoreApplication.translate("WISCredentialDialog", u"WIS Username", None))
+        self.labelWISPassword.setText(QCoreApplication.translate("WISCredentialDialog", u"WIS Password", None))
+
+    def save_credentials(self):
+        username = self.lineEditWISUsername.text()
+        password = self.lineEditWISPassword.text()
+        print(f"Username = {username}")
+        print(f"password = {password}")
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow, model):
         if not MainWindow.objectName():
@@ -70,7 +156,8 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionLoad_Season)
         self.menudata.addAction(self.actionInitialize_Recruits)
         self.menuSettings.addAction(self.actionWIS_Credentials)
-
+        self.actionNew_Season.triggered.connect(self.open_New_Season)
+        self.actionWIS_Credentials.triggered.connect(self.open_WIS_cred)
         self.retranslateUi(MainWindow)
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -78,15 +165,28 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
-        self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"New Season", None))
-        self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"Load Season", None))
-        self.actionInitialize_Recruits.setText(QCoreApplication.translate("MainWindow", u"Initialize Recruits", None))
-        self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"WIS Credentials", None))
-        self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
-        self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"Data", None))
-        self.menuSettings.setTitle(QCoreApplication.translate("MainWindow", u"Settings", None))
-    # retranslateUi
+        self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"&New Season", None))
+        self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"&Load Season", None))
+        self.actionInitialize_Recruits.setText(QCoreApplication.translate("MainWindow", u"&Initialize Recruits", None))
+        self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"&WIS Credentials", None))
+        self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
+        self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Data", None))
+        self.menuSettings.setTitle(QCoreApplication.translate("MainWindow", u"&Settings", None))
 
+    # retranslateUi
+    def open_WIS_cred(self):
+        dialog = QDialog()
+        dialog.ui = Ui_WISCredentialDialog()
+        dialog.ui.setupUi(dialog)
+        dialog.exec_()
+        dialog.show()
+
+    def open_New_Season(self):
+        dialog = QDialog()
+        dialog.ui = Ui_DialogNewSeason()
+        dialog.ui.setupUi(dialog)
+        dialog.exec_()
+        dialog.show()
 
 def initializeModel(model):
    model.setTable('recruits')
