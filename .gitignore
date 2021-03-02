@@ -1,3 +1,6 @@
 recruit.db
 recruits copy.csv
 recruits.csv
+config.ini
+*.pyc
+config.ini

@@ -36,6 +36,8 @@ class Ui_MainWindow(object):
         self.tableView.setSortingEnabled(True)
         header = self.tableView.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        headerv = self.tableView.verticalHeader()
+        headerv.setSectionResizeMode(QHeaderView.ResizeToContents)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
