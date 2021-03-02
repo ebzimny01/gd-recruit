@@ -101,7 +101,8 @@ async def get_recruitIDs(page_content):
             'rating' : td_tags[5].text,
             'rank' : td_tags[6].text,
             'hometown' : td_tags[7].text,
-            'miles' : td_tags[8].text
+            'miles' : td_tags[8].text,
+            'considering' : td_tags[9].text
         })
     next_link_tag = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_lnkNextPage")
     print(f"Number of recruits found on page = {len(recruitIDs)}")
@@ -133,7 +134,7 @@ async def initialize_recruitIDs_DB(conn, filename):
     recruitIDs = await recruitsImportCSV(filename)
     with conn:
         for each in recruitIDs:
-            temp = [each['id'],each['name'],each['pos'],each['height'],each['weight'],each['rating'],each['rank'],each['hometown'],each['miles'],'',0,0,0,0,0,0,0,0,0,0,0,0,0,0.0,'']
+            temp = [each['id'],each['name'],each['pos'],each['height'],each['weight'],each['rating'],each['rank'],each['hometown'],each['miles'],each['considering'],0,0,0,0,0,0,0,0,0,0,0,0,0,0.0,'']
             await create_recruit(conn,temp)
 
 
@@ -332,7 +333,7 @@ async def scrapeRecruitIDs(page):
                 10 : "P"
             }
 
-    for i in range(1,11):
+    for i in range(1,4):
         await page.goto("https://www.whatifsports.com/gd/recruiting/Search.aspx")
         # assert page.url == "https://www.whatifsports.com/gd/recruiting/Search.aspx"
 
@@ -373,7 +374,7 @@ async def scrapeRecruitIDs(page):
 
 
 async def recruitsExportCSV(dict, filename):
-    csv_columns = ['id','name','pos','height','weight','rating','rank','hometown','miles']
+    csv_columns = ['id','name','pos','height','weight','rating','rank','hometown','miles', 'considering']
     with open(filename, mode='w', newline='') as f:
         recruit_writer = csv.DictWriter(f, fieldnames=csv_columns)
         recruit_writer.writeheader()
