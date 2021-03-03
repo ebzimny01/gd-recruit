@@ -8,7 +8,7 @@ class Ui_DialogNewSeason(object):
     def setupUi(self, DialogNewSeason):
         if not DialogNewSeason.objectName():
             DialogNewSeason.setObjectName(u"DialogNewSeason")
-        DialogNewSeason.setWindowModality(Qt.WindowModal)
+        DialogNewSeason.setWindowModality(Qt.ApplicationModal)
         DialogNewSeason.resize(400, 300)
         self.buttonBox = QDialogButtonBox(DialogNewSeason)
         self.buttonBox.setObjectName(u"buttonBox")

@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from progress.bar import Bar
 import configparser
+from mypackages.world_lookup import wid_world_list
 
 async def create_DB():
     database = r"recruit.db"
@@ -309,13 +310,13 @@ async def find_GD_teams(page, config):
     time.sleep(s)
     contents = await page.content()
     lockerroom_soup = BeautifulSoup(contents, "lxml")
-    select_MyTeams_section = lockerroom_soup.find(id="MyTeams")
-    all_a_tags = select_MyTeams_section.find_all('a')
+    select_teamName_divs = lockerroom_soup.find_all(class_="teamName")
     baseURL = "../gd/TeamRedirect.aspx?tid="
-    for a in all_a_tags:
-        link = a.attrs['href']
+    for team in select_teamName_divs:
+        a_tag = team.find("a")
+        link = a_tag.attrs['href']
         if baseURL in link:
-            school = a.text
+            school = a_tag.text
             school_id_re = re.search(r'(\d{5})', link)
             school_id = school_id_re.group(1)
             if config.has_section('Schools'):
@@ -344,7 +345,7 @@ async def main():
         await wisLogin(page, config)
         
         # Need to replace this sleep statement with something that is event driven
-        time2 = 15
+        time2 = 5
         print(f"Sleeping {time2} seconds.")
         time.sleep(time2)
 

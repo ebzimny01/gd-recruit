@@ -8,7 +8,7 @@ class Ui_WISCredentialDialog(object):
     def setupUi(self, WISCredentialDialog, username, password):
         if not WISCredentialDialog.objectName():
             WISCredentialDialog.setObjectName(u"WISCredentialDialog")
-        WISCredentialDialog.setWindowModality(Qt.WindowModal)
+        WISCredentialDialog.setWindowModality(Qt.ApplicationModal)
         WISCredentialDialog.resize(400, 313)
         WISCredentialDialog.setModal(True)
         self.buttonBox = QDialogButtonBox(WISCredentialDialog)

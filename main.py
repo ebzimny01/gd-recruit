@@ -1,3 +1,5 @@
+import asyncio
+from playwright.async_api import async_playwright
 from PySide2.QtCore import *
 from PySide2.QtGui import *
 from PySide2.QtWidgets import *
@@ -5,10 +7,14 @@ from PySide2.QtSql import *
 from mypackages.mainwindow_ui import Ui_MainWindow
 from mypackages.wis_cred_dialog import Ui_WISCredentialDialog
 from mypackages.new_season_dialog import Ui_DialogNewSeason
+from mypackages.world_lookup import wid_world_list
+from mypackages.browser import *
 import configparser
 
 
 # https://stackoverflow.com/questions/61316258/how-to-overwrite-qdialog-accept
+
+
 
 class NewSeason(QDialog, Ui_DialogNewSeason):
     def __init__(self, parent=None):
@@ -16,7 +22,10 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         self.setupUi(self)
 
     def accept(self):
-        print("custom func")
+        teamID = self.lineEditTeamID.text()
+        seasonnum = self.lineEditSeasonNumber.text()
+        wid_world = wid_world_list()
+        world = wid_world[teamID]
         super().accept()
 
 
@@ -44,8 +53,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self, model)
+        self.recruit_tableView.setModel(model)
         self.actionWIS_Credentials.triggered.connect(self.open_WIS_cred)
         self.actionNew_Season.triggered.connect(self.open_New_Season)
+        if self.check_stored_creds():
+            try:
+                config = configparser.ConfigParser()
+                config.read('config.ini')
+                # self.browser, self.page = get_browser()
+                # auth = self.page.login(config)
+                # print(f"auth = {auth}")
+            except:
+                print("Exception trying to authenticate.")
+            
 
     def open_WIS_cred(self):
         dialog = WISCred()
@@ -54,6 +74,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         dialog.exec_()
         dialog.show()
+        self.check_stored_creds()
+
 
     def open_New_Season(self):
         dialog = NewSeason()
@@ -62,8 +84,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show()
 
+    def check_stored_creds(self):
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        if config['WISCreds']['username'] == '' or config['WISCreds']['password'] == '':
+            self.actionNew_Season.setEnabled(False)
+            self.actionLoad_Season.setEnabled(False)
+            return False
+        else:
+            self.actionNew_Season.setEnabled(True)
+            self.actionLoad_Season.setEnabled(True)
+            return True
+
         
+async def get_browser():
+    async with async_playwright() as p:
+        browser = await p.firefox.launch(headless=False)
+        page = await browser.new_page()
+
+
+        # Login to WIS website
+        await wisLogin(page, config)
         
+        # Need to replace this sleep statement with something that is event driven
+        time2 = 5
+        print(f"Sleeping {time2} seconds.")
+        time.sleep(time2)
+
+        await find_GD_teams(page, config)      
 
 def load_config():
     config = configparser.ConfigParser()
