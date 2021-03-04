@@ -11,12 +11,12 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>GD Recruit Helper</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <widget class="QTableView" name="tableView">
+     <widget class="QTableView" name="recruit_tableView">
       <property name="enabled">
        <bool>true</bool>
       </property>
@@ -49,6 +49,7 @@
     <property name="title">
      <string>File</string>
     </property>
+    <addaction name="actionWIS_Credentials"/>
     <addaction name="actionNew_Season"/>
     <addaction name="actionLoad_Season"/>
    </widget>
@@ -58,15 +59,8 @@
     </property>
     <addaction name="actionInitialize_Recruits"/>
    </widget>
-   <widget class="QMenu" name="menuSettings">
-    <property name="title">
-     <string>Settings</string>
-    </property>
-    <addaction name="actionWIS_Credentials"/>
-   </widget>
    <addaction name="menuFile"/>
    <addaction name="menudata"/>
-   <addaction name="menuSettings"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionNew_Season">
