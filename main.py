@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from playwright.async_api import async_playwright
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -20,6 +21,13 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        if config.has_section('Schools') and len(config['Schools']) > 0:
+            i = 0
+            for id in config['Schools']:
+                self.comboBoxTeamID.setItemText(i, QCoreApplication.translate("DialogNewSeason", f"{id}", None))
+                i += 1
 
     def accept(self):
         teamID = self.lineEditTeamID.text()
@@ -51,20 +59,27 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent),
         self.setupUi(self, model)
         self.recruit_tableView.setModel(model)
+        h_header = self.recruit_tableView.horizontalHeader()
+        h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        v_header = self.recruit_tableView.verticalHeader()
+        v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
         self.actionWIS_Credentials.triggered.connect(self.open_WIS_cred)
         self.actionNew_Season.triggered.connect(self.open_New_Season)
-        if self.check_stored_creds():
-            try:
-                config = configparser.ConfigParser()
-                config.read('config.ini')
-                # self.browser, self.page = get_browser()
-                # auth = self.page.login(config)
-                # print(f"auth = {auth}")
-            except:
-                print("Exception trying to authenticate.")
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        if self.check_stored_creds(config):
+            # Need to attempt to authenticate to WIS
+            # After successful auth then grab active GD teams
+            # Then store teams in config.ini
+            user = config['WISCreds']['username']
+            pwd = config['WISCreds']['password']
+            f = "updateteams"
+            # wis_browser(config, user, pwd, f)
+        else:
+            False
             
 
     def open_WIS_cred(self):
@@ -84,9 +99,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show()
 
-    def check_stored_creds(self):
-        config = configparser.ConfigParser()
-        config.read('config.ini')
+    def check_stored_creds(self, config):
         if config['WISCreds']['username'] == '' or config['WISCreds']['password'] == '':
             self.actionNew_Season.setEnabled(False)
             self.actionLoad_Season.setEnabled(False)
@@ -95,23 +108,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.actionNew_Season.setEnabled(True)
             self.actionLoad_Season.setEnabled(True)
             return True
-
-        
-async def get_browser():
-    async with async_playwright() as p:
-        browser = await p.firefox.launch(headless=False)
-        page = await browser.new_page()
-
-
-        # Login to WIS website
-        await wisLogin(page, config)
-        
-        # Need to replace this sleep statement with something that is event driven
-        time2 = 5
-        print(f"Sleeping {time2} seconds.")
-        time.sleep(time2)
-
-        await find_GD_teams(page, config)      
+   
 
 def load_config():
     config = configparser.ConfigParser()
@@ -165,8 +162,7 @@ def initializeModel(model):
    model.setHeaderData(24, Qt.Horizontal, "Pot")
 
 
-if __name__ == "__main__": 
-    import sys
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     db = QSqlDatabase.addDatabase('QSQLITE')
     db.setDatabaseName("recruit.db")
