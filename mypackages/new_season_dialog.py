@@ -25,8 +25,6 @@ class Ui_DialogNewSeason(object):
         self.lineEditSeasonNumber.setObjectName(u"lineEditSeasonNumber")
         self.lineEditSeasonNumber.setGeometry(QRect(200, 120, 113, 20))
         self.comboBoxTeamID = QComboBox(DialogNewSeason)
-        self.comboBoxTeamID.addItem("")
-        self.comboBoxTeamID.addItem("")
         self.comboBoxTeamID.setObjectName(u"comboBoxTeamID")
         self.comboBoxTeamID.setGeometry(QRect(200, 60, 111, 22))
 
