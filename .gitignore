@@ -6,3 +6,5 @@ config.ini
 config.ini
 config.ini
 *.pyc
+*.db
+config.ini
