@@ -3,7 +3,7 @@
  <class>DialogNewSeason</class>
  <widget class="QDialog" name="DialogNewSeason">
   <property name="windowModality">
-   <enum>Qt::WindowModal</enum>
+   <enum>Qt::ApplicationModal</enum>
   </property>
   <property name="geometry">
    <rect>
@@ -58,16 +58,6 @@
     <string>Season Number</string>
    </property>
   </widget>
-  <widget class="QLineEdit" name="lineEditTeamID">
-   <property name="geometry">
-    <rect>
-     <x>200</x>
-     <y>60</y>
-     <width>113</width>
-     <height>20</height>
-    </rect>
-   </property>
-  </widget>
   <widget class="QLineEdit" name="lineEditSeasonNumber">
    <property name="geometry">
     <rect>
@@ -75,6 +65,16 @@
      <y>120</y>
      <width>113</width>
      <height>20</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBoxTeamID">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>60</y>
+     <width>111</width>
+     <height>22</height>
     </rect>
    </property>
   </widget>
