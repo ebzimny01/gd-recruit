@@ -150,6 +150,41 @@ async def initialize_recruitIDs_DB(conn, filename):
             await create_recruit(conn,temp)
 
 
+async def update_considering(conn):
+    requests_session = requests.Session()
+    
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM recruits")
+    rids = cur.fetchall()
+
+    with Bar('Update Recruits Considering without Playwright', max=len(rids)) as bar:
+        for rid in rids:
+            recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid[0]}")
+            recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
+            teams_table = recruitpage_soup.find("table", id="tblTeams")
+            teams_table_body = teams_table.find("tbody")
+            team_rows = teams_table_body.find_all("tr")
+            considering = ''
+            for row in team_rows:
+                team_data = row.find_all("td")
+                if "undecided" in team_data[0].text:
+                    considering = "undecided\n"
+                else:
+                    school = team_data[0].text
+                    coach = team_data[1].text
+                    division = team_data[2].text
+                    scholarships_total = team_data[3].text
+                    scholarships_open = team_data[4].text
+                    distance = team_data[5].text # WIS bug always shows N/A for distance???
+                    considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
+            sql = ''' UPDATE recruits
+                SET considering = ?
+                    WHERE id = ?'''
+            tmp = (considering[:-1], rid[0]) # remove newline at end
+            cur.execute(sql, tmp)
+            conn.commit()
+            bar.next()
+
 async def initialize_recruit_static_data(conn, page):
     cur = conn.cursor()
     cur.execute("SELECT id FROM recruits")
@@ -214,7 +249,7 @@ async def initialize_recruit_static_data(conn, page):
             cur.execute(sql, tmp)
             conn.commit()
             bar.next()
-
+    
 
 async def initialize_recruit_static_data_without_playwright(conn):
     requests_session = requests.Session()
@@ -336,6 +371,7 @@ async def main():
     config.read('config.ini')
 
     recruitIDs = []
+    """
     async with async_playwright() as p:
         browser = await p.firefox.launch(headless=False)
         page = await browser.new_page()
@@ -356,14 +392,15 @@ async def main():
         await page.goto(f"https://www.whatifsports.com/gd/TeamRedirect.aspx?tid={teamID}")
                 
         # Comment these out for testing for testing DB creation and updating
-        recruitIDs = await scrapeRecruitIDs(page)
-        await recruitsExportCSV(recruitIDs, filename)
-        await initialize_recruitIDs_DB(conn, filename)
+        #recruitIDs = await scrapeRecruitIDs(page)
+        #await recruitsExportCSV(recruitIDs, filename)
+        #await initialize_recruitIDs_DB(conn, filename)
         # await initialize_recruit_static_data(conn, page)
-        await initialize_recruit_static_data_without_playwright(conn)
 
         await browser.close()
-
+    """
+    #await initialize_recruit_static_data_without_playwright(conn)
+    await update_considering(conn)
 
 async def scrapeRecruitIDs(page):
     recruitIDs = []
@@ -380,7 +417,7 @@ async def scrapeRecruitIDs(page):
                 10 : "P"
             }
     print("Scraping recruit IDs...")
-    for i in range(7,8):
+    for i in range(1,11):
         await page.goto("https://www.whatifsports.com/gd/recruiting/Search.aspx")
         # assert page.url == "https://www.whatifsports.com/gd/recruiting/Search.aspx"
 
@@ -399,17 +436,19 @@ async def scrapeRecruitIDs(page):
         
         next = True
         while next == True:
+            # Click .ContentBoxContent .resultswrapper
+            page.click(".ContentBoxContent .resultswrapper")
             # Need to replace this sleep statement with something that is event driven
-            time3 = 3
-            print(f"Sleeping {time3} seconds.")
-            time.sleep(time3)
+            # time3 = 3
+            # print(f"Sleeping {time3} seconds.")
+            # time.sleep(time3)
 
             contents = await page.content()
             # print(contents)
             # Need to replace this sleep statement with something that is event driven
-            time4 = 3
-            print(f"Sleeping {time3} seconds.")
-            time.sleep(time4)
+            # time4 = 3
+            # print(f"Sleeping {time3} seconds.")
+            # time.sleep(time4)
 
             temp, next = await get_recruitIDs(contents)
             recruitIDs += temp
