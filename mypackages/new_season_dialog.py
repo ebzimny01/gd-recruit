@@ -21,12 +21,14 @@ class Ui_DialogNewSeason(object):
         self.labelSeasonNumber = QLabel(DialogNewSeason)
         self.labelSeasonNumber.setObjectName(u"labelSeasonNumber")
         self.labelSeasonNumber.setGeometry(QRect(40, 120, 91, 16))
-        self.lineEditTeamID = QLineEdit(DialogNewSeason)
-        self.lineEditTeamID.setObjectName(u"lineEditTeamID")
-        self.lineEditTeamID.setGeometry(QRect(200, 60, 113, 20))
         self.lineEditSeasonNumber = QLineEdit(DialogNewSeason)
         self.lineEditSeasonNumber.setObjectName(u"lineEditSeasonNumber")
         self.lineEditSeasonNumber.setGeometry(QRect(200, 120, 113, 20))
+        self.comboBoxTeamID = QComboBox(DialogNewSeason)
+        self.comboBoxTeamID.addItem("")
+        self.comboBoxTeamID.addItem("")
+        self.comboBoxTeamID.setObjectName(u"comboBoxTeamID")
+        self.comboBoxTeamID.setGeometry(QRect(200, 60, 111, 22))
 
         self.retranslateUi(DialogNewSeason)
         self.buttonBox.accepted.connect(DialogNewSeason.accept)
@@ -40,9 +42,3 @@ class Ui_DialogNewSeason(object):
         self.labelTeamID.setText(QCoreApplication.translate("DialogNewSeason", u"Team ID", None))
         self.labelSeasonNumber.setText(QCoreApplication.translate("DialogNewSeason", u"Season Number", None))
     # retranslateUi
-
-    def save_NewSeason(self):
-        teamID = self.lineEditTeamID.text()
-        season_num = self.lineEditSeasonNumber.text()
-        print(f"Team ID = {teamID}")
-        print(f"Season Number = {season_num}")
