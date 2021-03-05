@@ -14,6 +14,7 @@ class Ui_MainWindow(object):
         self.actionLoad_Season.setObjectName(u"actionLoad_Season")
         self.actionInitialize_Recruits = QAction(MainWindow)
         self.actionInitialize_Recruits.setObjectName(u"actionInitialize_Recruits")
+        self.actionInitialize_Recruits.setEnabled(False)
         self.actionWIS_Credentials = QAction(MainWindow)
         self.actionWIS_Credentials.setObjectName(u"actionWIS_Credentials")
         self.centralwidget = QWidget(MainWindow)
