@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import time
 import re
 import requests
+from random import uniform
 import sys
 from PySide2.QtWidgets import *
 from PySide2.QtSql import *
@@ -34,11 +35,11 @@ def get_recruitIDs(page_content):
             'name' : td_tags[2].text,
             'pos': td_tags[1].text,
             'height' : td_tags[3].text,
-            'weight' : td_tags[4].text,
-            'rating' : td_tags[5].text,
-            'rank' : td_tags[6].text,
+            'weight' : int(td_tags[4].text),
+            'rating' : int(td_tags[5].text),
+            'rank' : int(td_tags[6].text),
             'hometown' : td_tags[7].text,
-            'miles' : td_tags[8].text,
+            'miles' : int(td_tags[8].text),
             'considering' : considering
         })
     next_link_tag = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_lnkNextPage")
@@ -49,7 +50,9 @@ def get_recruitIDs(page_content):
         return recruitIDs, False
 
 
-
+def randsleep():
+    s = uniform(0.5, 1.25)
+    return s
 
 def wis_browser(config, user, pwd, f, db):
 
@@ -64,42 +67,40 @@ def wis_browser(config, user, pwd, f, db):
         page.click("text=Login")
         # assert page.url == "https://idsrv.fanball.com/login?signin=2c7ce157635ba9eab815f3cb2bdb83ce"
         # Go to https://idsrv.fanball.com/login?signin=2c7ce157635ba9eab815f3cb2bdb83ce&__cf_chl_jschl_tk__=748937e860f9dfc589364946f2e8af8c1eefbe7e-1614806310-0-AYX5rk621iTj_xPBtx5a9cubtsH4r7FR5uoSr4UmdL_BcUZKav9FAu1Wzybc7YI4a9N5Q7g_QAJzNzcOluUW-o99hqqOQQP1VkLwiP7W5DSaQYNqJBydxXiojR1tdAdzfnP6vQtkY42I0K7ngy-2AlArSUUiVG41fr4Y9rwHHatCLYPVhB3sTGZ17ZH8TCiXaNVC7pGYWav1fmxuY8lJ-iLb-ktGqxbLn8vV2EcrCNyZUzkeMk3ruMsoq0w-P_OTtzCltc-5vzq5SOKxnZyY84RvXRJai02utdOsiceCgMHsEWfVX0tNdHhq7tEW0lb4ABOTPwOkMuXX8WeczHUJHH35Lpxp0QzQ2QMuddSwXjS0vCfJTswNn8f8mAS_bP0GLcXHvOzXMVdD31TNyZvOUtKxmyYIoIHeKIDNZW3mvHtb
-        page.goto("https://idsrv.fanball.com/login?signin=2c7ce157635ba9eab815f3cb2bdb83ce&__cf_chl_jschl_tk__=748937e860f9dfc589364946f2e8af8c1eefbe7e-1614806310-0-AYX5rk621iTj_xPBtx5a9cubtsH4r7FR5uoSr4UmdL_BcUZKav9FAu1Wzybc7YI4a9N5Q7g_QAJzNzcOluUW-o99hqqOQQP1VkLwiP7W5DSaQYNqJBydxXiojR1tdAdzfnP6vQtkY42I0K7ngy-2AlArSUUiVG41fr4Y9rwHHatCLYPVhB3sTGZ17ZH8TCiXaNVC7pGYWav1fmxuY8lJ-iLb-ktGqxbLn8vV2EcrCNyZUzkeMk3ruMsoq0w-P_OTtzCltc-5vzq5SOKxnZyY84RvXRJai02utdOsiceCgMHsEWfVX0tNdHhq7tEW0lb4ABOTPwOkMuXX8WeczHUJHH35Lpxp0QzQ2QMuddSwXjS0vCfJTswNn8f8mAS_bP0GLcXHvOzXMVdD31TNyZvOUtKxmyYIoIHeKIDNZW3mvHtb")
+        # page.goto("https://idsrv.fanball.com/login?signin=2c7ce157635ba9eab815f3cb2bdb83ce&__cf_chl_jschl_tk__=748937e860f9dfc589364946f2e8af8c1eefbe7e-1614806310-0-AYX5rk621iTj_xPBtx5a9cubtsH4r7FR5uoSr4UmdL_BcUZKav9FAu1Wzybc7YI4a9N5Q7g_QAJzNzcOluUW-o99hqqOQQP1VkLwiP7W5DSaQYNqJBydxXiojR1tdAdzfnP6vQtkY42I0K7ngy-2AlArSUUiVG41fr4Y9rwHHatCLYPVhB3sTGZ17ZH8TCiXaNVC7pGYWav1fmxuY8lJ-iLb-ktGqxbLn8vV2EcrCNyZUzkeMk3ruMsoq0w-P_OTtzCltc-5vzq5SOKxnZyY84RvXRJai02utdOsiceCgMHsEWfVX0tNdHhq7tEW0lb4ABOTPwOkMuXX8WeczHUJHH35Lpxp0QzQ2QMuddSwXjS0vCfJTswNn8f8mAS_bP0GLcXHvOzXMVdD31TNyZvOUtKxmyYIoIHeKIDNZW3mvHtb")
     
         print("Authenticating to WIS...")
         
         # Click input[name="username"]
         page.click("input[name=\"username\"]")
-        s = 0.50
+        s = randsleep()
         print(f"Sleeping for {s} seconds...")
         time.sleep(s)
         # Fill input[name="username"]
         page.fill("input[name=\"username\"]", user)
-        s = 0.65
+        s = randsleep()
         print(f"Sleeping for {s} seconds...")
         time.sleep(s)
         # Click input[name="password"]
         page.click("input[name=\"password\"]")
-        s = 0.75
+        s = randsleep()
         print(f"Sleeping for {s} seconds...")
         time.sleep(s)
         # Fill input[name="password"]
         page.fill("input[name=\"password\"]", pwd)
-        s = 0.85
+        s = randsleep()
         print(f"Sleeping for {s} seconds...")
         time.sleep(s)
         # Click button:has-text("Sign in")
-        page.click("button:has-text(\"Sign in\")")
-
+        # with page.expect_navigation(url="https://idsrv.fanball.com/connect/authorize?acr_values=ConfirmEmailRedirectUrl%3Ahttps%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&client_id=what-if-sports&nonce=637505041935753100.ZGYzYzIzNDktZTZkZC00YmUxLTg2MjQtZGY2N2JjOTY4OTNhNzJhYWM3OGEtNjkzNS00NzEwLTk3MmMtMTFhMTkwNzJhODQ0&redirect_uri=https%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&response_mode=form_post&response_type=id_token%20token&scope=openid%20profile%20social%20email%20wallet-readonly%20whatifsports-readonly%20connect-notifications-publish&state=OpenIdConnect.AuthenticationProperties%3D6wZySDpgbMTUvbl_WFJuybvrjFTor6ugKdSOvE-ILuNp3RT9OJPhi4DsybXR2lf9IeJYO7-6fo2paUWlFOSXk2ssF_8LTyeAUPaG7s6RPo8Zc_3rRZN63naxd2PLtIwYxCHsOg3u3yC9xANaxu6Odg-F3W3uE3agKx6-azhTl3E6KCX4PnB1EVcq5Ej09b3xGIfzR93OQ9WhT0PppfB4yeu1z2GzzKJs3Cl-p2tG5mXOTiMb3kwcCuzHjWb0JlOqy3jkjQ&x-client-SKU=ID_NET461&x-client-ver=5.4.0.0"):
+        with page.expect_navigation():
+            page.click("button:has-text(\"Sign in\")")
         # assert page.url == "https://idsrv.fanball.com/localregistration/silentlogin"
-        # Go to https://idsrv.fanball.com/connect/authorize?acr_values=ConfirmEmailRedirectUrl%3Ahttps%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&client_id=what-if-sports&nonce=637504031099333772.MDgxYWM3M2ItN2FkYS00ZjdmLWJmNjctNTlmYjZjMmZiNTFmMTUxNjkwM2UtMzcyOC00NDQyLTgzN2QtMTc0NTkzMjlhOTIy&redirect_uri=https%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&response_mode=form_post&response_type=id_token%20token&scope=openid%20profile%20social%20email%20wallet-readonly%20whatifsports-readonly%20connect-notifications-publish&state=OpenIdConnect.AuthenticationProperties%3DS-1Qk-uKkfLVgpGPcL7yB-qOVViBx8fSkGL7Z45PIM7qxFQ8hnUs9nxV0jVW2PaOGGLS7m8ACLhiygen6m72BjLQENcZU-F4LJPVQ4QhhO52NOkRA8b2wJRq-DCL8pmkb15Pdc6cX-L0X1Ij2WzzqSYsZNCaE2y--tRR7O1qVoVqIk7d34s6wbOA_D_jxH6lmTD_dQ7tVNHDL4lE7mXSYfJZQOsGG9zMBhctiqj8MxNpLAWQlBTDuaV0NrE--rx17vBEJg&x-client-SKU=ID_NET461&x-client-ver=5.4.0.0
-        page.goto("https://idsrv.fanball.com/connect/authorize?acr_values=ConfirmEmailRedirectUrl%3Ahttps%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&client_id=what-if-sports&nonce=637504031099333772.MDgxYWM3M2ItN2FkYS00ZjdmLWJmNjctNTlmYjZjMmZiNTFmMTUxNjkwM2UtMzcyOC00NDQyLTgzN2QtMTc0NTkzMjlhOTIy&redirect_uri=https%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&response_mode=form_post&response_type=id_token%20token&scope=openid%20profile%20social%20email%20wallet-readonly%20whatifsports-readonly%20connect-notifications-publish&state=OpenIdConnect.AuthenticationProperties%3DS-1Qk-uKkfLVgpGPcL7yB-qOVViBx8fSkGL7Z45PIM7qxFQ8hnUs9nxV0jVW2PaOGGLS7m8ACLhiygen6m72BjLQENcZU-F4LJPVQ4QhhO52NOkRA8b2wJRq-DCL8pmkb15Pdc6cX-L0X1Ij2WzzqSYsZNCaE2y--tRR7O1qVoVqIk7d34s6wbOA_D_jxH6lmTD_dQ7tVNHDL4lE7mXSYfJZQOsGG9zMBhctiqj8MxNpLAWQlBTDuaV0NrE--rx17vBEJg&x-client-SKU=ID_NET461&x-client-ver=5.4.0.0")
         # Go to https://www.whatifsports.com/locker/lockerroom.asp
-        print("Going to Lockerroom page...")
-        page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
+        # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
         
+
         if "updateteams" in f:
-            # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
             s = 10
             print(f"Sleeping for {s} seconds...")
             time.sleep(s)
@@ -147,6 +148,11 @@ def wis_browser(config, user, pwd, f, db):
                 9 : "K",
                 10 : "P"
                 }
+            
+            s = 10
+            print(f"Sleeping for {s} seconds...")
+            time.sleep(s)
+            
             print("Scraping recruit IDs...")
             
             page.goto(f"https://www.whatifsports.com/gd/TeamRedirect.aspx?tid={teamID.group()}")
@@ -186,18 +192,19 @@ def wis_browser(config, user, pwd, f, db):
                     # time.sleep(time4)
 
                     temp, next = get_recruitIDs(contents)
-                    createRecruitQuery.exec_(
-                        f"""
-                        INSERT INTO recruits(id,name,pos,height,weight,rating,
-                            rank,hometown,miles,considering,ath,spd,dur,we,sta,str,
-                            blk,tkl,han,gi,elu,tec,tot,gpa,pot)
-                            VALUES('{temp['id']}','{temp['name']}','{temp['pos']}',
-                                '{temp['height']}','{temp['weight']}','{temp['rating']}',
-                                '{temp['rank']}','{temp['hometown']}','{temp['miles']}',
-                                '{temp['considering']}',0,0,0,0,0,0,0,0,0,0,0,0,0,0.0,''
-                            )
-                        """
-                    )
+                    for i in temp:
+                        createRecruitQuery.exec_(
+                            f"""
+                            INSERT INTO recruits(id,name,pos,height,weight,rating,
+                                rank,hometown,miles,considering,ath,spd,dur,we,sta,str,
+                                blk,tkl,han,gi,elu,tec,tot,gpa,pot)
+                                VALUES('{i['id']}','{i['name']}','{i['pos']}',
+                                    '{i['height']}','{i['weight']}','{i['rating']}',
+                                    '{i['rank']}','{i['hometown']}','{i['miles']}',
+                                    '{i['considering']}',0,0,0,0,0,0,0,0,0,0,0,0,0,0.0,''
+                                )
+                            """
+                        )
                     recruitIDs += temp
                     if next == True:
                         # Click text=/.*Next \>\>.*/
