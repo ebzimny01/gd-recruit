@@ -8,3 +8,4 @@ config.ini
 *.pyc
 *.db
 config.ini
+*.pyc
