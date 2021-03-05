@@ -243,6 +243,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.ui = Ui_DialogNewSeason()
         dialog.exec_()
         dialog.show()
+        self.setWindowTitle(f"GD Recruit Helper - {db.databaseName()}")
+        self.actionInitialize_Recruits.setEnabled(True)
 
 
     def open_Load_Season(self):
@@ -251,6 +253,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show()
         self.setWindowTitle(f"GD Recruit Helper - {db.databaseName()}")
+        self.actionInitialize_Recruits.setEnabled(True)
 
 
     def open_Initialize_Recruits(self):
