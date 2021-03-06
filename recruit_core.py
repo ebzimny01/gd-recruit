@@ -178,8 +178,8 @@ async def update_considering(conn):
                     distance = team_data[5].text # WIS bug always shows N/A for distance???
                     considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
             sql = ''' UPDATE recruits
-                SET considering = ?
-                    WHERE id = ?'''
+                      SET considering = ?
+                      WHERE id = ?'''
             tmp = (considering[:-1], rid[0]) # remove newline at end
             cur.execute(sql, tmp)
             conn.commit()
