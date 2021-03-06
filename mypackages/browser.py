@@ -1,12 +1,26 @@
+from os import stat
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import time
+import datetime
 import re
 import requests
 from random import uniform
 import sys
 from PySide2.QtWidgets import *
 from PySide2.QtSql import *
+from mypackages.logging import *
+
+
+def openDB(db):
+    if not db.open():
+        QMessageBox.critical(
+            None,
+            "GD Recruiting App - Error!",
+            "Database Error: %s" % db.lastError().databaseText()
+            )
+        logging.error(f"{datetime.datetime.now()}: Failed to open {db.databaseName()}")
+        sys.exit(1)
 
 
 def get_recruitIDs(page_content):
@@ -37,7 +51,7 @@ def get_recruitIDs(page_content):
             'height' : td_tags[3].text,
             'weight' : int(td_tags[4].text),
             'rating' : int(td_tags[5].text),
-            'rank' : int(td_tags[6].text),
+            'rank' : td_tags[6].text,
             'hometown' : td_tags[7].text,
             'miles' : int(td_tags[8].text),
             'considering' : considering
@@ -51,14 +65,16 @@ def get_recruitIDs(page_content):
 
 
 def randsleep():
-    s = uniform(0.5, 1.25)
+    s = uniform(0.1, 0.5)
     return s
+
 
 def wis_browser(config, user, pwd, f, db):
 
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=False)
-        page = browser.new_page()
+        context = browser.new_context()
+        page = context.new_page()
 
         page.set_viewport_size({"width": 1900, "height": 1200})
         page.goto("https://www.whatifsports.com/locker/")
@@ -93,7 +109,7 @@ def wis_browser(config, user, pwd, f, db):
         time.sleep(s)
         # Click button:has-text("Sign in")
         # with page.expect_navigation(url="https://idsrv.fanball.com/connect/authorize?acr_values=ConfirmEmailRedirectUrl%3Ahttps%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&client_id=what-if-sports&nonce=637505041935753100.ZGYzYzIzNDktZTZkZC00YmUxLTg2MjQtZGY2N2JjOTY4OTNhNzJhYWM3OGEtNjkzNS00NzEwLTk3MmMtMTFhMTkwNzJhODQ0&redirect_uri=https%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&response_mode=form_post&response_type=id_token%20token&scope=openid%20profile%20social%20email%20wallet-readonly%20whatifsports-readonly%20connect-notifications-publish&state=OpenIdConnect.AuthenticationProperties%3D6wZySDpgbMTUvbl_WFJuybvrjFTor6ugKdSOvE-ILuNp3RT9OJPhi4DsybXR2lf9IeJYO7-6fo2paUWlFOSXk2ssF_8LTyeAUPaG7s6RPo8Zc_3rRZN63naxd2PLtIwYxCHsOg3u3yC9xANaxu6Odg-F3W3uE3agKx6-azhTl3E6KCX4PnB1EVcq5Ej09b3xGIfzR93OQ9WhT0PppfB4yeu1z2GzzKJs3Cl-p2tG5mXOTiMb3kwcCuzHjWb0JlOqy3jkjQ&x-client-SKU=ID_NET461&x-client-ver=5.4.0.0"):
-        with page.expect_navigation():
+        with page.expect_navigation(url='https://www.whatifsports.com/locker/lockerroom.asp', wait_until='networkidle'):
             page.click("button:has-text(\"Sign in\")")
         # assert page.url == "https://idsrv.fanball.com/localregistration/silentlogin"
         # Go to https://www.whatifsports.com/locker/lockerroom.asp
@@ -101,13 +117,15 @@ def wis_browser(config, user, pwd, f, db):
         
 
         if "updateteams" in f:
-            s = 10
-            print(f"Sleeping for {s} seconds...")
-            time.sleep(s)
+            #s = 10
+            #print(f"Sleeping for {s} seconds...")
+            #time.sleep(s)
             contents = page.content()
             lockerroom_soup = BeautifulSoup(contents, "lxml")
             select_teamName_divs = lockerroom_soup.find_all(class_="teamName")
             baseURL = "../gd/TeamRedirect.aspx?tid="
+            
+            # Need to add logic to detect stale school_ids and remove them
             for team in select_teamName_divs:
                 a_tag = team.find("a")
                 link = a_tag.attrs['href']
@@ -126,14 +144,7 @@ def wis_browser(config, user, pwd, f, db):
         
         if "scrape_recruit_IDs" in f:
             dbname = db.databaseName()
-            if not db.open():
-                QMessageBox.critical(
-                    None,
-                    "GD Recruiting App - Error!",
-                    "Database Error: %s" % db.lastError().databaseText()
-                    )
-                sys.exit(1)
-            createRecruitQuery = QSqlQuery()
+            openDB(db)            
             teamID = re.search(r"\d{5}", dbname)
             recruitIDs = []
             position_dropdown = {
@@ -149,17 +160,20 @@ def wis_browser(config, user, pwd, f, db):
                 10 : "P"
                 }
             
-            s = 10
-            print(f"Sleeping for {s} seconds...")
-            time.sleep(s)
-            
+            #s = 10
+            #print(f"Sleeping for {s} seconds...")
+            #time.sleep(s)
+            print("Post auth, waiting for network state to be idle . . . ")
+            page.wait_for_load_state(state='networkidle')
+
             print("Scraping recruit IDs...")
-            
-            page.goto(f"https://www.whatifsports.com/gd/TeamRedirect.aspx?tid={teamID.group()}")
-                
+            cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+            context.add_cookies([cookie_teamID])
             page.goto("https://www.whatifsports.com/gd/recruiting/Search.aspx")
             # assert page.url == "https://www.whatifsports.com/gd/recruiting/Search.aspx"
             
+            # This section covers unsigned recruits
+            print("Scraping unsigned recruit IDs...")
             for i in range(1,11):
                 
                 print(f"Selecting position {position_dropdown[i]}")           
@@ -173,42 +187,150 @@ def wis_browser(config, user, pwd, f, db):
                 page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
                 
                 # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
-                page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
+                with page.expect_navigation():
+                    page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
                 
+                createRecruitQuery = get__create_recruit_query_object()
+
                 next = True
                 while next == True:
-                    # Click .ContentBoxContent .resultswrapper
-                    page.click(".ContentBoxContent .resultswrapper")
-                    # Need to replace this sleep statement with something that is event driven
-                    # time3 = 3
-                    # print(f"Sleeping {time3} seconds.")
-                    # time.sleep(time3)
-
+                    div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
+                    div.wait_for_element_state(state="stable")
                     contents = page.content()
-                    # print(contents)
-                    # Need to replace this sleep statement with something that is event driven
-                    # time4 = 3
-                    # print(f"Sleeping {time3} seconds.")
-                    # time.sleep(time4)
-
                     temp, next = get_recruitIDs(contents)
                     for i in temp:
-                        createRecruitQuery.exec_(
-                            f"""
-                            INSERT INTO recruits(id,name,pos,height,weight,rating,
-                                rank,hometown,miles,considering,ath,spd,dur,we,sta,str,
-                                blk,tkl,han,gi,elu,tec,tot,gpa,pot)
-                                VALUES('{i['id']}','{i['name']}','{i['pos']}',
-                                    '{i['height']}','{i['weight']}','{i['rating']}',
-                                    '{i['rank']}','{i['hometown']}','{i['miles']}',
-                                    '{i['considering']}',0,0,0,0,0,0,0,0,0,0,0,0,0,0.0,''
-                                )
-                            """
-                        )
+                        bindRecruitQuery(createRecruitQuery, i, 0)
                     recruitIDs += temp
                     if next == True:
                         # Click text=/.*Next \>\>.*/
-                        page.click("text=/.*Next \>\>.*/")
+                        with page.expect_navigation():
+                            page.click("text=/.*Next \>\>.*/")
                 print(len(recruitIDs))
+
+            # This section covers signed recruits
+            print("Scraping signed recruit IDs...")
+            for i in range(1,11):
+                
+                print(f"Selecting position {position_dropdown[i]}")           
+                # Select 1
+                page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", f"{i}")
+                
+                # Click text=Recruit Search Options
+                page.click("text=Recruit Search Options")
+                
+                # Select 300 = number of search results
+                page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
+
+                # Select 1 = Signed
+                page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
+                
+                # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
+                with page.expect_navigation():
+                    page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
+                
+                createRecruitQuery = get__create_recruit_query_object()
+
+                next = True
+                while next == True:
+                    div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
+                    div.wait_for_element_state(state="stable")
+                    contents = page.content()
+                    temp, next = get_recruitIDs(contents)
+                    for i in temp:
+                        bindRecruitQuery(createRecruitQuery, i, 1)
+                    recruitIDs += temp
+                    if next == True:
+                        # Click text=/.*Next \>\>.*/
+                        with page.expect_navigation():
+                            page.click("text=/.*Next \>\>.*/")
+                print(len(recruitIDs))
+
+            createRecruitQuery.finish()
             db.close()
-            
+            browser.close()
+
+
+def get__create_recruit_query_object():
+    createRecruitQuery = QSqlQuery()
+    createRecruitQuery.prepare("INSERT INTO recruits(id,"
+                                                    "name,"
+                                                    "pos,"
+                                                    "height,"
+                                                    "weight,"
+                                                    "rating,"
+                                                    "rank,"
+                                                    "hometown,"
+                                                    "miles,"
+                                                    "considering,"
+                                                    "ath,"
+                                                    "spd,"
+                                                    "dur,"
+                                                    "we,"
+                                                    "sta,"
+                                                    "str,"
+                                                    "blk,"
+                                                    "tkl,"
+                                                    "han,"
+                                                    "gi,"
+                                                    "elu,"
+                                                    "tec,"
+                                                    "gpa,"
+                                                    "pot,"
+                                                    "signed) "
+                                    "VALUES (:id, "
+                                            ":name, "
+                                            ":pos, "
+                                            ":height, "
+                                            ":weight, "
+                                            ":rating, "
+                                            ":rank, "
+                                            ":hometown, "
+                                            ":miles, "
+                                            ":considering, "
+                                            ":ath, "
+                                            ":spd, "
+                                            ":dur, "
+                                            ":we, "
+                                            ":sta, "
+                                            ":str, "
+                                            ":blk, "
+                                            ":tkl, "
+                                            ":han, "
+                                            ":gi, "
+                                            ":elu, "
+                                            ":tec, "
+                                            ":gpa, "
+                                            ":pot, "
+                                            ":signed)")
+    return createRecruitQuery
+
+
+def bindRecruitQuery(query, i, signed = int()):
+    query.bindValue(":id", i['id'])
+    query.bindValue(":name", i['name'])
+    query.bindValue(":pos", i['pos'])
+    query.bindValue(":height", i['height'])
+    query.bindValue(":weight", i['weight'])
+    query.bindValue(":rating", i['rating'])
+    query.bindValue(":rank", i['rank'])
+    query.bindValue(":hometown", i['hometown'])
+    query.bindValue(":miles", i['miles'])
+    query.bindValue(":considering", i['considering'])
+    query.bindValue(":ath", 0)
+    query.bindValue(":spd", 0)
+    query.bindValue(":dur", 0)
+    query.bindValue(":we", 0)
+    query.bindValue(":sta", 0)
+    query.bindValue(":str", 0)
+    query.bindValue(":blk", 0)
+    query.bindValue(":tkl", 0)
+    query.bindValue(":han", 0)
+    query.bindValue(":gi", 0)
+    query.bindValue(":elu", 0)
+    query.bindValue(":tec", 0)
+    query.bindValue(":gpa", 0.0)
+    query.bindValue(":pot", '')
+    query.bindValue(":signed", signed)
+    if not query.exec_():
+        print(query.lastError())
+        logQueryError(query)
