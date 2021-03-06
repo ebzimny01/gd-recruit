@@ -1,3 +1,21 @@
 recruit.db
 recruits copy.csv
 recruits.csv
+config.ini
+*.pyc
+config.ini
+config.ini
+*.pyc
+*.db
+config.ini
+*.pyc
+*.pyc
+chat-database.sqlite3
+chat.log
+old/chat.qml
+mypackages/temp_detete.py
+old/sample_db_app/chat.qml
+old/sample_db_app/main.py
+old/sample_db_app/sqlDialog.py
+old/sqlDialog.py
+recruitDB.log
