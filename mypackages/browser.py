@@ -209,43 +209,62 @@ def wis_browser(config, user, pwd, f, db):
 
             # This section covers signed recruits
             print("Scraping signed recruit IDs...")
-            for i in range(1,11):
-                
-                print(f"Selecting position {position_dropdown[i]}")           
-                # Select 1
-                page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", f"{i}")
-                
-                # Click text=Recruit Search Options
-                page.click("text=Recruit Search Options")
-                
-                # Select 300 = number of search results
-                page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
 
-                # Select 1 = Signed
-                page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
-                
-                # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
-                with page.expect_navigation():
-                    page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
-                
-                createRecruitQuery = get__create_recruit_query_object()
+            # First need to check if there are any signings at all.
+            # If no signings then skip.
 
-                next = True
-                while next == True:
-                    div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
-                    div.wait_for_element_state(state="stable")
-                    contents = page.content()
-                    temp, next = get_recruitIDs(contents)
-                    for i in temp:
-                        bindRecruitQuery(createRecruitQuery, i, 1)
-                    recruitIDs += temp
-                    if next == True:
-                        # Click text=/.*Next \>\>.*/
-                        with page.expect_navigation():
-                            page.click("text=/.*Next \>\>.*/")
-                print(len(recruitIDs))
+            # Select All
+            page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", "")
+            
+            # Select 1 = Signed
+            page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
 
-            createRecruitQuery.finish()
+            # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
+            with page.expect_navigation():
+                page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
+
+
+            no_recruit_check = BeautifulSoup(page.content(), "lxml")
+            results_table = no_recruit_check.find(id="ctl00_ctl00_ctl00_Main_Main_Main_h3ResultsText")
+            if results_table.text == "No recruits found":
+                print("No signings found so skipping signed recruits section...")
+            else:
+                for i in range(1,11):
+                    
+                    print(f"Selecting position {position_dropdown[i]}")           
+                    # Select 1
+                    page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", f"{i}")
+                    
+                    # Click text=Recruit Search Options
+                    page.click("text=Recruit Search Options")
+                    
+                    # Select 300 = number of search results
+                    page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
+
+                    # Select 1 = Signed
+                    page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
+                    
+                    # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
+                    with page.expect_navigation():
+                        page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
+                    
+                    createRecruitQuery = get__create_recruit_query_object()
+
+                    next = True
+                    while next == True:
+                        div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
+                        div.wait_for_element_state(state="stable")
+                        contents = page.content()
+                        temp, next = get_recruitIDs(contents)
+                        for i in temp:
+                            bindRecruitQuery(createRecruitQuery, i, 1)
+                        recruitIDs += temp
+                        if next == True:
+                            # Click text=/.*Next \>\>.*/
+                            with page.expect_navigation():
+                                page.click("text=/.*Next \>\>.*/")
+                    print(len(recruitIDs))
+                createRecruitQuery.finish()
             db.close()
             browser.close()
 
