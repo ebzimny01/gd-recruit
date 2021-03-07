@@ -4,7 +4,7 @@ from PySide2.QtWidgets import *
 from PySide2.QtSql import *
 
 class Ui_MainWindow(object):
-    def setupUi(self, MainWindow, model):
+    def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(1754, 1154)
@@ -12,9 +12,9 @@ class Ui_MainWindow(object):
         self.actionNew_Season.setObjectName(u"actionNew_Season")
         self.actionLoad_Season = QAction(MainWindow)
         self.actionLoad_Season.setObjectName(u"actionLoad_Season")
-        self.actionInitialize_Recruits = QAction(MainWindow)
-        self.actionInitialize_Recruits.setObjectName(u"actionInitialize_Recruits")
-        self.actionInitialize_Recruits.setEnabled(False)
+        self.actionGrabSeasonData = QAction(MainWindow)
+        self.actionGrabSeasonData.setObjectName(u"actionGrabSeasonData")
+        self.actionGrabSeasonData.setEnabled(False)
         self.actionWIS_Credentials = QAction(MainWindow)
         self.actionWIS_Credentials.setObjectName(u"actionWIS_Credentials")
         self.centralwidget = QWidget(MainWindow)
@@ -52,7 +52,7 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionWIS_Credentials)
         self.menuFile.addAction(self.actionNew_Season)
         self.menuFile.addAction(self.actionLoad_Season)
-        self.menudata.addAction(self.actionInitialize_Recruits)
+        self.menudata.addAction(self.actionGrabSeasonData)
 
         self.retranslateUi(MainWindow)
 
@@ -63,7 +63,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"GD Recruit Helper", None))
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"Load Season", None))
-        self.actionInitialize_Recruits.setText(QCoreApplication.translate("MainWindow", u"Initialize Recruits", None))
+        self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"Grab Season Data", None))
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"WIS Credentials", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"Data", None))
