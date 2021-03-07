@@ -56,10 +56,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
 
     def initialize_recruit_data(self):
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        user = config['WISCreds']['username']
-        pwd = config['WISCreds']['password']
+        user, pwd, config = load_config()
         requests_session = requests.Session()
         
         openDB(db)
@@ -199,19 +196,6 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         queryUpdateConsidering.finish()
         db.close()
 
-class InitializeRecruits(QDialog, Ui_WidgetInitializeRecruits):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        user = config['WISCreds']['username']
-        pwd = config['WISCreds']['password']
-        initialize_recruit_data(config)
-    
-    def accept(self):
-        # Need to add functionality for loading season
-        super().accept()
 
 class LoadSeason(QDialog, Ui_DialogLoadSeason):
     def __init__(self, parent=None):
@@ -275,20 +259,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.recruit_tableView.setEditTriggers(QTableView.NoEditTriggers)
+        h_header = self.recruit_tableView.horizontalHeader()
+        h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        v_header = self.recruit_tableView.verticalHeader()
+        v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
         self.actionWIS_Credentials.triggered.connect(self.open_WIS_cred)
         self.actionNew_Season.triggered.connect(self.open_New_Season)
         self.actionLoad_Season.triggered.connect(self.open_Load_Season)
         self.actionGrabSeasonData.triggered.connect(self.open_Grab_Season_Data)
+        self.comboBoxPositionFilter.activated.connect(self.position_filter)
         if self.check_stored_creds():
             # Need to attempt to authenticate to WIS
             # After successful auth then grab active GD teams
             # Then store teams in config.ini
             user, pwd, config = load_config()
             f = "updateteams"
-            wis_browser(config, user, pwd, f, db)
+            # wis_browser(config, user, pwd, f, db)
         else:
             False
             
+    
+    def position_filter(self):
+        combo_box_filter = f"pos = '{self.comboBoxPositionFilter.currentText()}'"
+        if self.comboBoxPositionFilter.currentText() == "ALL":
+            print("Clearing Position Filter")
+            self.model.setFilter("")    
+        else:
+            print("Position Filter function called with:")
+            print(combo_box_filter)
+            self.model.setFilter(combo_box_filter)
+        self.model.select()
+
 
     def open_WIS_cred(self):
         dialog = WISCred()
@@ -308,15 +310,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.setWindowTitle(f"GD Recruit Helper - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
-            model = QSqlTableModel()
-            initializeModel(model)
-            self.recruit_tableView.setModel(model)
-            h_header = self.recruit_tableView.horizontalHeader()
-            h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-            v_header = self.recruit_tableView.verticalHeader()
-            v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-
-
+            self.loadModel()
+            
+            
     def open_Load_Season(self):
         dialog = LoadSeason()
         dialog.ui = Ui_DialogLoadSeason()
@@ -327,14 +323,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.setWindowTitle(f"GD Recruit Helper - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
-            model = QSqlTableModel()
-            initializeModel(model)
-            self.recruit_tableView.setModel(model)
-            h_header = self.recruit_tableView.horizontalHeader()
-            h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-            v_header = self.recruit_tableView.verticalHeader()
-            v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-
+            self.loadModel()
+            
 
     def open_Grab_Season_Data(self):
         dialog = GrabSeasonData()
@@ -344,13 +334,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print("Exiting Grab Season Data dialog")
         print(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
-            model = QSqlTableModel()
-            initializeModel(model)
-            self.recruit_tableView.setModel(model)
-            h_header = self.recruit_tableView.horizontalHeader()
-            h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-            v_header = self.recruit_tableView.verticalHeader()
-            v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+            self.loadModel()
         
 
     def check_stored_creds(self):
@@ -364,6 +348,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.actionLoad_Season.setEnabled(True)
             return True
    
+
+    def loadModel(self):
+        self.model = QSqlTableModel()
+        initializeModel(self.model)
+        self.recruit_tableView.setModel(self.model)
 
 def load_config():
     config = configparser.ConfigParser()
