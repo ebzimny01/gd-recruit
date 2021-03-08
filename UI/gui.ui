@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1169</width>
+    <height>1265</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>GD Recruit Helper</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <property name="spacing">
+       <number>10</number>
+      </property>
+      <property name="topMargin">
+       <number>5</number>
+      </property>
+      <property name="bottomMargin">
+       <number>5</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="labelPositionFilter">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>30</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Pos:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="comboBoxPositionFilter">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>45</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>45</width>
+          <height>30</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Position Filter</string>
+        </property>
+        <property name="maxVisibleItems">
+         <number>11</number>
+        </property>
+        <property name="maxCount">
+         <number>11</number>
+        </property>
+        <item>
+         <property name="text">
+          <string>ALL</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>QB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>RB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>WR</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>TE</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>OL</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>DL</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>LB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>DB</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>K</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>P</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxHideSigned">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>100</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Hide Signed</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxUndecided">
+        <property name="maximumSize">
+         <size>
+          <width>100</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Undecided</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>50</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>50</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Miles &lt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="comboBoxMilesFilter">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>Any</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>180</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>360</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>1400</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="leftMargin">
+       <number>5</number>
+      </property>
+      <property name="topMargin">
+       <number>5</number>
+      </property>
+      <property name="rightMargin">
+       <number>5</number>
+      </property>
+      <property name="bottomMargin">
+       <number>5</number>
+      </property>
+      <item row="1" column="3">
+       <widget class="QLineEdit" name="lineEditfilterDUR"/>
+      </item>
+      <item row="0" column="10">
+       <widget class="QLabel" name="labelfilterGI">
+        <property name="text">
+         <string>GI &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="9">
+       <widget class="QLineEdit" name="lineEditfilterHAN"/>
+      </item>
+      <item row="1" column="13">
+       <widget class="QPushButton" name="pushButtonApplyRatingsFilters">
+        <property name="text">
+         <string>Apply</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="7">
+       <widget class="QLabel" name="labelfilterBLK">
+        <property name="text">
+         <string>BLK &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="6">
+       <widget class="QLabel" name="labelfilterSTR">
+        <property name="text">
+         <string>STR &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="11">
+       <widget class="QLineEdit" name="lineEditfilterELU"/>
+      </item>
+      <item row="1" column="10">
+       <widget class="QLineEdit" name="lineEditfilterGI"/>
+      </item>
+      <item row="1" column="7">
+       <widget class="QLineEdit" name="lineEditfilterBLK"/>
+      </item>
+      <item row="0" column="4">
+       <widget class="QLabel" name="labelfilterWE">
+        <property name="text">
+         <string>WE &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="12">
+       <widget class="QLabel" name="labelfilterTEC">
+        <property name="text">
+         <string>TEC &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="4">
+       <widget class="QLineEdit" name="lineEditfilterWE"/>
+      </item>
+      <item row="0" column="11">
+       <widget class="QLabel" name="labelfilterELU">
+        <property name="text">
+         <string>ELU &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QLabel" name="labelfilterDUR">
+        <property name="text">
+         <string>DUR &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="6">
+       <widget class="QLineEdit" name="lineEditfilterSTR"/>
+      </item>
+      <item row="1" column="2">
+       <widget class="QLineEdit" name="lineEditfilterSPD"/>
+      </item>
+      <item row="0" column="13">
+       <widget class="QPushButton" name="pushButtonClearRatingsFilters">
+        <property name="text">
+         <string>Clear</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="lineEditfilterATH"/>
+      </item>
+      <item row="0" column="8">
+       <widget class="QLabel" name="labelfilterTKL">
+        <property name="text">
+         <string>TKL &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="5">
+       <widget class="QLineEdit" name="lineEditfilterSTA"/>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="labelfilterATH">
+        <property name="text">
+         <string>ATH &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="5">
+       <widget class="QLabel" name="labelfilterSTA">
+        <property name="text">
+         <string>STA &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="8">
+       <widget class="QLineEdit" name="lineEditfilterTKL"/>
+      </item>
+      <item row="0" column="9">
+       <widget class="QLabel" name="labelfilterHAN">
+        <property name="text">
+         <string>HAN &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="12">
+       <widget class="QLineEdit" name="lineEditfilterTEC"/>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLabel" name="labelfilterSPD">
+        <property name="text">
+         <string>SPD &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="labelConsideringTextSearch">
+        <property name="minimumSize">
+         <size>
+          <width>100</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>100</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Considering Search:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLineEdit" name="lineEditConsideringTextSearch">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>100</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>200</width>
+          <height>16777215</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QTableView" name="recruit_tableView">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="sizeAdjustPolicy">
+       <enum>QAbstractScrollArea::AdjustToContents</enum>
+      </property>
+      <property name="sortingEnabled">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1169</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionWIS_Credentials"/>
+    <addaction name="actionNew_Season"/>
+    <addaction name="actionLoad_Season"/>
+   </widget>
+   <widget class="QMenu" name="menudata">
+    <property name="title">
+     <string>Data</string>
+    </property>
+    <addaction name="actionGrabSeasonData"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menudata"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionNew_Season">
+   <property name="text">
+    <string>New Season</string>
+   </property>
+  </action>
+  <action name="actionLoad_Season">
+   <property name="text">
+    <string>Load Season</string>
+   </property>
+  </action>
+  <action name="actionGrabSeasonData">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Grab Season Data</string>
+   </property>
+  </action>
+  <action name="actionWIS_Credentials">
+   <property name="text">
+    <string>WIS Credentials</string>
+   </property>
+  </action>
+ </widget>
+ <tabstops>
+  <tabstop>comboBoxPositionFilter</tabstop>
+  <tabstop>checkBoxHideSigned</tabstop>
+  <tabstop>checkBoxUndecided</tabstop>
+  <tabstop>comboBoxMilesFilter</tabstop>
+  <tabstop>lineEditConsideringTextSearch</tabstop>
+  <tabstop>lineEditfilterATH</tabstop>
+  <tabstop>lineEditfilterSPD</tabstop>
+  <tabstop>lineEditfilterDUR</tabstop>
+  <tabstop>lineEditfilterWE</tabstop>
+  <tabstop>lineEditfilterSTA</tabstop>
+  <tabstop>lineEditfilterSTR</tabstop>
+  <tabstop>lineEditfilterBLK</tabstop>
+  <tabstop>lineEditfilterTKL</tabstop>
+  <tabstop>lineEditfilterHAN</tabstop>
+  <tabstop>lineEditfilterGI</tabstop>
+  <tabstop>lineEditfilterELU</tabstop>
+  <tabstop>lineEditfilterTEC</tabstop>
+  <tabstop>pushButtonClearRatingsFilters</tabstop>
+  <tabstop>pushButtonApplyRatingsFilters</tabstop>
+  <tabstop>recruit_tableView</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

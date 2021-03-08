@@ -19,3 +19,4 @@ old/sample_db_app/main.py
 old/sample_db_app/sqlDialog.py
 old/sqlDialog.py
 recruitDB.log
+*.pyc
