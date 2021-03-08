@@ -264,11 +264,55 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
         v_header = self.recruit_tableView.verticalHeader()
         v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        
+        # Allow only integeres to be entered into the ratings filter fields
+        self.onlyInt = QIntValidator()
+        self.lineEditfilterATH.setValidator(self.onlyInt)
+        self.lineEditfilterSPD.setValidator(self.onlyInt)
+        self.lineEditfilterDUR.setValidator(self.onlyInt)
+        self.lineEditfilterWE.setValidator(self.onlyInt)
+        self.lineEditfilterSTA.setValidator(self.onlyInt)
+        self.lineEditfilterSTR.setValidator(self.onlyInt)
+        self.lineEditfilterBLK.setValidator(self.onlyInt)
+        self.lineEditfilterTKL.setValidator(self.onlyInt)
+        self.lineEditfilterHAN.setValidator(self.onlyInt)
+        self.lineEditfilterGI.setValidator(self.onlyInt)
+        self.lineEditfilterELU.setValidator(self.onlyInt)
+        self.lineEditfilterTEC.setValidator(self.onlyInt)
+        
+        # UI triggers
         self.actionWIS_Credentials.triggered.connect(self.open_WIS_cred)
         self.actionNew_Season.triggered.connect(self.open_New_Season)
         self.actionLoad_Season.triggered.connect(self.open_Load_Season)
         self.actionGrabSeasonData.triggered.connect(self.open_Grab_Season_Data)
         self.comboBoxPositionFilter.activated.connect(self.position_filter)
+        self.comboBoxMilesFilter.activated.connect(self.miles_filter)
+        self.checkBoxHideSigned.stateChanged.connect(self.hide_signed_filter)
+        self.checkBoxUndecided.stateChanged.connect(self.undecided_filter)
+        self.pushButtonApplyRatingsFilters.clicked.connect(self.apply_ratings_filters)
+        self.pushButtonClearRatingsFilters.clicked.connect(self.clear_ratings_filter_fields)
+        
+        # Filter data structure used to track which filters are active
+        # And then used to build the filter string
+        self.string_filter = {
+            'pos' : "",
+            'hide_signed' : "",
+            'undecided' : "",
+            'miles' : "",
+            'ath' : "",
+            'spd' : "",
+            'dur' : "",
+            'we' : "",
+            'sta' : "",
+            'str' : "",
+            'blk' : "",
+            'tkl' : "",
+            'han' : "",
+            'gi' : "",
+            'elu' : "",
+            'tec' : ""
+        }
+        
         if self.check_stored_creds():
             # Need to attempt to authenticate to WIS
             # After successful auth then grab active GD teams
@@ -278,18 +322,166 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # wis_browser(config, user, pwd, f, db)
         else:
             False
-            
+
+
+    def newFilter(self, model):
+        filter = self.getFilterString()
+        print(f"New filter string = {filter}")
+        model.setFilter(filter)
+        model.select()
+
+
+    def getFilterString(self):
+        filter_string_list = []
+        separator = " and "
+        # Grab all the filter strings that are not empty
+        for v in self.string_filter.values():
+            if v:
+                filter_string_list.append(v)
+        l = len(filter_string_list)
+        if l == 0:
+            return ""
+        elif l == 1:
+            return filter_string_list[0]
+        else:
+            filter_string = separator.join(filter_string_list)
+            return filter_string
+
+    def clear_ratings_filter_fields(self):
+        print("Clear Ratings Filters button was clicked!")
+        print(f"Previous filter = {self.getFilterString()}")
+        self.lineEditConsideringTextSearch.setText("")
+        self.lineEditfilterATH.setText("")
+        self.lineEditfilterSPD.setText("")
+        self.lineEditfilterWE.setText("")
+        self.lineEditfilterDUR.setText("")
+        self.lineEditfilterSTA.setText("")
+        self.lineEditfilterSTR.setText("")
+        self.lineEditfilterBLK.setText("")
+        self.lineEditfilterTKL.setText("")
+        self.lineEditfilterHAN.setText("")
+        self.lineEditfilterGI.setText("")
+        self.lineEditfilterELU.setText("")
+        self.lineEditfilterTEC.setText("")
+        text_fields = {
+            'ath' : self.lineEditfilterATH.text(),
+            'spd' : self.lineEditfilterSPD.text(),
+            'we' : self.lineEditfilterWE.text(),
+            'dur' : self.lineEditfilterDUR.text(),
+            'sta' : self.lineEditfilterSTA.text(),
+            'str' : self.lineEditfilterSTR.text(),
+            'blk' : self.lineEditfilterBLK.text(),
+            'tkl' : self.lineEditfilterTKL.text(),
+            'han' : self.lineEditfilterHAN.text(),
+            'gi' : self.lineEditfilterGI.text(),
+            'elu' : self.lineEditfilterELU.text(),
+            'tec' : self.lineEditfilterTEC.text()
+            }
+        
+        for k,v in text_fields.items():
+            self.apply_helper(k, v)
+        
+        print(f"Clearing Considering filter...")
+        self.string_filter['considering'] = ""
+        
+        self.newFilter(self.model)
+
+
+    def apply_helper(self, k, v):
+            if v:
+                print(f"Enabling {k} filter...")
+                self.string_filter[k] = f"{k} > {int(v)}"
+            else:
+                print(f"Clearing {k} filter...")
+                self.string_filter[k] = ""
+
+
+    def apply_ratings_filters(self):
+        print("Ratings Filters Apply button was clicked!")
+        print(f"Previous filter = {self.getFilterString()}")
+        text_fields = {
+            'ath' : self.lineEditfilterATH.text(),
+            'spd' : self.lineEditfilterSPD.text(),
+            'we' : self.lineEditfilterWE.text(),
+            'dur' : self.lineEditfilterDUR.text(),
+            'sta' : self.lineEditfilterSTA.text(),
+            'str' : self.lineEditfilterSTR.text(),
+            'blk' : self.lineEditfilterBLK.text(),
+            'tkl' : self.lineEditfilterTKL.text(),
+            'han' : self.lineEditfilterHAN.text(),
+            'gi' : self.lineEditfilterGI.text(),
+            'elu' : self.lineEditfilterELU.text(),
+            'tec' : self.lineEditfilterTEC.text()
+            }
+        
+        for k,v in text_fields.items():
+            self.apply_helper(k, v)
+
+        # Considering handled separately since it needs different operator
+        considering = self.lineEditConsideringTextSearch.text()
+        if considering:
+            print(f"Enabling Considering filter...")
+            self.string_filter['considering'] = f"considering LIKE '%{considering}%'"
+        else:
+            print(f"Clearing Considering filter...")
+            self.string_filter['considering'] = ""
+
+        self.newFilter(self.model)
+
+    def undecided_filter(self):
+        state = self.checkBoxUndecided.checkState()
+        print(f"Previous filter = {self.getFilterString()}")
+        if state == 0:
+            print("Clearing Undecided filter...")
+            self.string_filter['undecided'] = ""
+        elif state == 2:
+            print("Enabling Undecided filter...")
+            self.string_filter['undecided'] = "considering = 'undecided'"
+        else:
+            raise Exception
+        
+        self.newFilter(self.model)
+
+
+    def hide_signed_filter(self):
+        state = self.checkBoxHideSigned.checkState()
+        print(f"Previous filter = {self.getFilterString()}")
+        if state == 0:
+            print("Clearing Hide Signed filter...")
+            self.string_filter['hide_signed'] = ""
+        elif state == 2:
+            print("Enabling Hide Signed filter...")
+            self.string_filter['hide_signed'] = "signed = 0"
+        else:
+            raise Exception
+        
+        self.newFilter(self.model)
     
+
+    def miles_filter(self):
+        combo_box_filter = f"miles < {self.comboBoxMilesFilter.currentText()}"
+        print(f"Previous filter = {self.getFilterString()}")
+        if self.comboBoxMilesFilter.currentText() == "Any":
+            print("Clearing Miles Filter...")
+            self.string_filter['miles'] = ""
+        else:
+            print("Adding Miles Filter...")
+            self.string_filter['miles'] = combo_box_filter
+        
+        self.newFilter(self.model)
+
+
     def position_filter(self):
         combo_box_filter = f"pos = '{self.comboBoxPositionFilter.currentText()}'"
+        print(f"Previous filter = {self.getFilterString()}")
         if self.comboBoxPositionFilter.currentText() == "ALL":
-            print("Clearing Position Filter")
-            self.model.setFilter("")    
+            print("Clearing Position Filter...")
+            self.string_filter['pos'] = ""
         else:
-            print("Position Filter function called with:")
-            print(combo_box_filter)
-            self.model.setFilter(combo_box_filter)
-        self.model.select()
+            print("Adding Position Filter...")
+            self.string_filter['pos'] = combo_box_filter
+        
+        self.newFilter(self.model)
 
 
     def open_WIS_cred(self):
@@ -300,7 +492,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.check_stored_creds()
 
 
-    def open_New_Season(self, model):
+    def open_New_Season(self):
         dialog = NewSeason()
         dialog.ui = Ui_DialogNewSeason()
         dialog.exec_()
