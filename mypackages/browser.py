@@ -72,7 +72,7 @@ def randsleep():
 def wis_browser(config, user, pwd, f, db):
 
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=False)
+        browser = p.firefox.launch(headless=True)
         context = browser.new_context()
         page = context.new_page()
 
