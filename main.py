@@ -1,9 +1,8 @@
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
-from mypackages.initialize_recruits_widget import Ui_WidgetInitializeRecruits
 import os
 import sys
 import asyncio
-import datetime
+import datetime, time
 import logging
 from playwright.async_api import async_playwright
 from PySide2.QtCore import *
@@ -43,19 +42,12 @@ def query_Recruit_IDs(type):
     return rids
 
 
-class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
-        self.pushButtonInitializeRecruits.clicked.connect(self.initialize_recruit_data)
-        self.pushButtonUpdateConsideringSigned.clicked.connect(self.update_considering)
+class InitializeWorker(QObject):
+    finished = Signal()
+    progress = Signal(int)
 
-
-    def accept(self):
-        super().accept()
-
-
-    def initialize_recruit_data(self):
+    def run(self):
+        """Long-running Initialize Recruit task goes here."""
         user, pwd, config = load_config()
         requests_session = requests.Session()
         
@@ -94,6 +86,162 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             """
         ):
             logQueryError(createRecruitTableQuery)
+        
+        # The above query only creates a new table if it doesn't already exist
+        # This next step ensures deletion of any prior data in recruits table
+        if db.tables() == ['recruits']:
+            if not createRecruitTableQuery.exec_("DELETE from recruits"):
+                logQueryError(createRecruitTableQuery)
+        createRecruitTableQuery.finish()
+        db.close()
+        self.progress.emit(1)
+        wis_browser(config, user, pwd, "scrape_recruit_IDs", db)
+        self.progress.emit(2)
+        rids = query_Recruit_IDs("all")
+        openDB(db)
+        queryUpdate = QSqlQuery()
+        queryUpdate.prepare("UPDATE recruits "
+                            "SET ath = :ath, "
+                                "spd = :spd, "
+                                "dur = :dur, "
+                                "we = :we, "
+                                "sta = :sta, "
+                                "str = :str, "
+                                "blk = :blk, "
+                                "tkl = :tkl, "
+                                "han = :han, "
+                                "gi = :gi, "
+                                "elu = :elu, "
+                                "tec = :tec, "
+                                "gpa = :gpa "
+                            "WHERE id = :id")
+        i = 3
+        with Bar('Initializing Recruit Static Data without Playwright', max=len(rids)) as bar:
+            for rid in rids:
+                recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={rid}")
+                recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
+                recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
+                recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
+                gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
+                gpa = float(gpa_section.text)
+                queryUpdate.bindValue(":ath", int(recruit_ratings_values[0].text))
+                queryUpdate.bindValue(":spd", int(recruit_ratings_values[1].text))
+                queryUpdate.bindValue(":dur", int(recruit_ratings_values[2].text))
+                queryUpdate.bindValue(":we", int(recruit_ratings_values[3].text))
+                queryUpdate.bindValue(":sta", int(recruit_ratings_values[4].text))
+                queryUpdate.bindValue(":str", int(recruit_ratings_values[5].text))
+                queryUpdate.bindValue(":blk", int(recruit_ratings_values[6].text))
+                queryUpdate.bindValue(":tkl", int(recruit_ratings_values[7].text))
+                queryUpdate.bindValue(":han", int(recruit_ratings_values[8].text))
+                queryUpdate.bindValue(":gi", int(recruit_ratings_values[9].text))
+                queryUpdate.bindValue(":elu", int(recruit_ratings_values[10].text))
+                queryUpdate.bindValue(":tec", int(recruit_ratings_values[11].text))
+                queryUpdate.bindValue(":gpa", gpa)
+                queryUpdate.bindValue(":id", rid)
+                
+                if not queryUpdate.exec_():
+                    logQueryError(queryUpdate)
+                self.progress.emit(i)
+                i += 1
+                bar.next()
+        queryUpdate.finish()
+        db.close()
+        self.finished.emit()
+
+class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.rids_all = query_Recruit_IDs("all")
+        self.rids_all_length = len(self.rids_all)
+        if self.rids_all_length == 0:
+            self.pushButtonUpdateConsideringSigned.setEnabled(False)
+        else:
+            self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
+            self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
+            self.pushButtonInitializeRecruits.setText("Re-Initialize Recruits")
+        self.progressBarInitializeRecruits.setVisible(False)
+        self.progressBarUpdateConsidering.setVisible(False)
+        self.progressBarUpdateConsidering.setValue(0)
+        self.labelUpdateProgressBarMax.setVisible(False)
+        #self.pushButtonInitializeRecruits.clicked.connect(self.initialize_recruit_data)
+        self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
+        self.pushButtonUpdateConsideringSigned.clicked.connect(self.update_considering)
+        
+
+    def accept(self):
+        super().accept()
+
+
+    def runInitializeJob(self):
+        # Step 1: Create a QThread object
+        self.thread = QThread()
+        # Step 2: Create a worker object
+        self.worker = InitializeWorker()
+        # Step 3: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 4: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.reportProgress)
+        # Step 6: Start the thread
+        self.thread.start()
+        # Final resets
+        self.pushButtonInitializeRecruits.setEnabled(False)
+        self.progressBarInitializeRecruits.setVisible(True)
+        self.thread.finished.connect(
+            lambda: self.pushButtonInitializeRecruits.setEnabled(True)
+        )
+
+    def reportProgress(self, n):
+        print(f"Long-Running Step: {n}")
+
+
+    def initialize_recruit_data(self):
+        self.progressBarInitializeRecruits.setVisible(True)
+        user, pwd, config = load_config()
+        requests_session = requests.Session()
+        
+        openDB(db)
+
+        createRecruitTableQuery = QSqlQuery()
+        if not createRecruitTableQuery.exec_(
+            """
+            CREATE TABLE IF NOT EXISTS recruits (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                pos TEXT,
+                height TEXT,
+                weight INTEGER,
+                rating INTEGER,
+                rank TEXT,
+                hometown TEXT,
+                miles INTEGER,
+                considering TEXT,
+                ath INTEGER,
+                spd INTEGER,
+                dur INTEGER,
+                we INTEGER,
+                sta INTEGER,
+                str INTEGER,
+                blk INTEGER,
+                tkl INTEGER,
+                han INTEGER,
+                gi INTEGER,
+                elu INTEGER,
+                tec INTEGER,
+                gpa REAL,
+                pot TEXT,
+                signed INTEGER
+            )
+            """
+        ):
+            logQueryError(createRecruitTableQuery)
+        
+        # The above query only creates a new table if it doesn't already exist
+        # This next step ensures deletion of any prior data in recruits table
         if db.tables() == ['recruits']:
             if not createRecruitTableQuery.exec_("DELETE from recruits"):
                 logQueryError(createRecruitTableQuery)
@@ -151,16 +299,24 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
 
     def update_considering(self):
-        requests_session = requests.Session()
-        rids = query_Recruit_IDs("unsigned")
+        i = 0
+        rids_unsigned = query_Recruit_IDs("unsigned")
+        rids_unsigned_length = len(rids_unsigned)
+        self.pushButtonInitializeRecruits.setEnabled(False)
+        self.progressBarUpdateConsidering.setMaximum(rids_unsigned_length)
+        mw.statusbar.showMessage(f"Updating {rids_unsigned_length} recruits . . . ")
+        self.progressBarUpdateConsidering.setVisible(True)
+        
         openDB(db)
         queryUpdateConsidering = QSqlQuery()
         queryUpdateConsidering.prepare("UPDATE recruits "
                                         "SET considering = :considering, "
                                         "signed = :signed "
                                         "WHERE id = :id")
-        with Bar('Update Recruits Considering without Playwright', max=len(rids)) as bar:
-            for rid in rids:
+
+        requests_session = requests.Session()
+        with Bar('Update Recruits Considering without Playwright', max=rids_unsigned_length) as bar:            
+            for rid in rids_unsigned:
                 recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
                 recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
                 teams_table = recruitpage_soup.find("table", id="tblTeams")
@@ -192,7 +348,14 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 queryUpdateConsidering.bindValue(":id", rid)
                 if not queryUpdateConsidering.exec_():
                     logQueryError(queryUpdateConsidering)
+                
+                # Increment counter and progress bar
+                i += 1
+                self.progressBarUpdateConsidering.setValue(i)
                 bar.next()
+
+        mw.statusbar.showMessage(f"Finished updating {rids_unsigned_length} recruits.")
+        self.pushButtonInitializeRecruits.setEnabled(True)
         queryUpdateConsidering.finish()
         db.close()
 
