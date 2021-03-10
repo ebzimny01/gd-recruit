@@ -72,7 +72,7 @@
    <property name="geometry">
     <rect>
      <x>180</x>
-     <y>480</y>
+     <y>490</y>
      <width>321</width>
      <height>31</height>
     </rect>
@@ -96,8 +96,8 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>523</x>
-     <y>490</y>
+     <x>510</x>
+     <y>498</y>
      <width>81</width>
      <height>16</height>
     </rect>
@@ -135,7 +135,169 @@
     <set>Qt::AlignCenter</set>
    </property>
   </widget>
+  <widget class="QLabel" name="labelProgressCreateRecruitDB">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>161</y>
+     <width>221</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Create / Re-create Recruit Database Table</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkCreateDB">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>160</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/checkmark_1.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkAuthWIS">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>190</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/checkmark_1.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelAuthWIS">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>190</y>
+     <width>221</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Authenticate to WIS - Gridiron Dynasty</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelGrabUnsigned">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>220</y>
+     <width>221</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Grab Unsigned Recruits</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkGrabUnsigned">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>220</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/checkmark_1.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelGrabSigned">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>250</y>
+     <width>221</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Grab Siigned Recruits</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkGrabSigned">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>250</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/checkmark_1.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelGrabStaticData">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>280</y>
+     <width>221</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Grab Recruit Static Data</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkGrabStaticData">
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>280</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/checkmark_1.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="../mypackages/res.qrc"/>
+ </resources>
  <connections/>
 </ui>

@@ -12,15 +12,17 @@ from PySide2.QtSql import *
 from mypackages.logging import *
 
 
-def openDB(db):
-    if not db.open():
+def openDB(database):
+    if not database.open():
         QMessageBox.critical(
             None,
             "GD Recruiting App - Error!",
-            "Database Error: %s" % db.lastError().databaseText()
+            "Database Error: %s" % database.lastError().databaseText()
             )
-        logging.error(f"{datetime.datetime.now()}: Failed to open {db.databaseName()}")
+        logging.error(f"{datetime.datetime.now()}: Failed to open {database.databaseName()} using connection {database.connectionName()}")
         sys.exit(1)
+    else:
+        print(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
 
 
 def get_recruitIDs(page_content):
@@ -69,7 +71,7 @@ def randsleep():
     return s
 
 
-def wis_browser(config, user, pwd, f, db):
+def wis_browser(config, user, pwd, f, d, progress = None):
 
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=True)
@@ -115,6 +117,8 @@ def wis_browser(config, user, pwd, f, db):
         # Go to https://www.whatifsports.com/locker/lockerroom.asp
         # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
         
+        # Thread progress emit signal indicating WIS Auth is complete
+        progress.emit(2)
 
         if "updateteams" in f:
             #s = 10
@@ -143,8 +147,17 @@ def wis_browser(config, user, pwd, f, db):
                 config.write(file)
         
         if "scrape_recruit_IDs" in f:
-            dbname = db.databaseName()
-            openDB(db)            
+            
+            openDB(d)            
+            dbname = d.databaseName()
+            print(f"Before scaping recruits:\n \
+                    Database name = {d.databaseName()}\n \
+                    Connection name = {d.connectionName()}\n \
+                    Tables = {d.tables()}")
+            print(f"DB is valid: {d.isValid()}")
+            print(f"DB is open: {d.isOpen()}")
+            print(f"DB is open error: {d.isOpenError()}")
+            
             teamID = re.search(r"\d{5}", dbname)
             recruitIDs = []
             position_dropdown = {
@@ -167,6 +180,7 @@ def wis_browser(config, user, pwd, f, db):
             page.wait_for_load_state(state='networkidle')
 
             print("Scraping recruit IDs...")
+            
             cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
             context.add_cookies([cookie_teamID])
             page.goto("https://www.whatifsports.com/gd/recruiting/Search.aspx")
@@ -174,6 +188,8 @@ def wis_browser(config, user, pwd, f, db):
             
             # This section covers unsigned recruits
             print("Scraping unsigned recruit IDs...")
+            # Thread progress signaling Scraping Unsigned recruits is beginning
+            progress.emit(100)
             for i in range(1,11):
                 
                 print(f"Selecting position {position_dropdown[i]}")           
@@ -190,7 +206,7 @@ def wis_browser(config, user, pwd, f, db):
                 with page.expect_navigation():
                     page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
                 
-                createRecruitQuery = get__create_recruit_query_object()
+                createRecruitQuery = get_create_recruit_query_object(d)
 
                 next = True
                 while next == True:
@@ -198,17 +214,24 @@ def wis_browser(config, user, pwd, f, db):
                     div.wait_for_element_state(state="stable")
                     contents = page.content()
                     temp, next = get_recruitIDs(contents)
-                    for i in temp:
-                        bindRecruitQuery(createRecruitQuery, i, 0)
+                    for t in temp:
+                        bindRecruitQuery(createRecruitQuery, t, 0)
                     recruitIDs += temp
                     if next == True:
                         # Click text=/.*Next \>\>.*/
                         with page.expect_navigation():
                             page.click("text=/.*Next \>\>.*/")
                 print(len(recruitIDs))
+                
+                createRecruitQuery.finish()
+                
+                # Thread signaling progress with grabbing unsigned recruits
+                progress.emit(100 + i)
 
             # This section covers signed recruits
             print("Scraping signed recruit IDs...")
+            # Thread progress signaling Scraping Unsigned recruits is beginning
+            progress.emit(200)
 
             # First need to check if there are any signings at all.
             # If no signings then skip.
@@ -228,6 +251,8 @@ def wis_browser(config, user, pwd, f, db):
             results_table = no_recruit_check.find(id="ctl00_ctl00_ctl00_Main_Main_Main_h3ResultsText")
             if results_table.text == "No recruits found":
                 print("No signings found so skipping signed recruits section...")
+                # Thread progress signaling Scraping Signed recruits is done
+                progress.emit(210)
             else:
                 for i in range(1,11):
                     
@@ -248,7 +273,7 @@ def wis_browser(config, user, pwd, f, db):
                     with page.expect_navigation():
                         page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
                     
-                    createRecruitQuery = get__create_recruit_query_object()
+                    createRecruitQuery = get_create_recruit_query_object(d)
 
                     next = True
                     while next == True:
@@ -256,71 +281,81 @@ def wis_browser(config, user, pwd, f, db):
                         div.wait_for_element_state(state="stable")
                         contents = page.content()
                         temp, next = get_recruitIDs(contents)
-                        for i in temp:
-                            bindRecruitQuery(createRecruitQuery, i, 1)
+                        for t in temp:
+                            bindRecruitQuery(createRecruitQuery, t, 1)
                         recruitIDs += temp
                         if next == True:
                             # Click text=/.*Next \>\>.*/
                             with page.expect_navigation():
                                 page.click("text=/.*Next \>\>.*/")
                     print(len(recruitIDs))
-                createRecruitQuery.finish()
-            db.close()
+
+                    createRecruitQuery.finish()
+
+                    # Thread signaling progress with grabbing signed recruits
+                    progress.emit(200 + i)
+
+                
+            d.close()
             browser.close()
+            print("Playwright browser closed.")
 
 
-def get__create_recruit_query_object():
-    createRecruitQuery = QSqlQuery()
-    createRecruitQuery.prepare("INSERT INTO recruits(id,"
-                                                    "name,"
-                                                    "pos,"
-                                                    "height,"
-                                                    "weight,"
-                                                    "rating,"
-                                                    "rank,"
-                                                    "hometown,"
-                                                    "miles,"
-                                                    "considering,"
-                                                    "ath,"
-                                                    "spd,"
-                                                    "dur,"
-                                                    "we,"
-                                                    "sta,"
-                                                    "str,"
-                                                    "blk,"
-                                                    "tkl,"
-                                                    "han,"
-                                                    "gi,"
-                                                    "elu,"
-                                                    "tec,"
-                                                    "gpa,"
-                                                    "pot,"
-                                                    "signed) "
-                                    "VALUES (:id, "
-                                            ":name, "
-                                            ":pos, "
-                                            ":height, "
-                                            ":weight, "
-                                            ":rating, "
-                                            ":rank, "
-                                            ":hometown, "
-                                            ":miles, "
-                                            ":considering, "
-                                            ":ath, "
-                                            ":spd, "
-                                            ":dur, "
-                                            ":we, "
-                                            ":sta, "
-                                            ":str, "
-                                            ":blk, "
-                                            ":tkl, "
-                                            ":han, "
-                                            ":gi, "
-                                            ":elu, "
-                                            ":tec, "
-                                            ":gpa, "
-                                            ":pot, "
-                                            ":signed)")
+def get_create_recruit_query_object(d):
+    print(f"get_create_recruit_query_object:\nDatabase name = {d.databaseName()}\nConnection name = {d.connectionName()}")
+    createRecruitQuery = QSqlQuery(d)
+    if not createRecruitQuery.prepare("INSERT INTO recruits(id,"
+                                                        "name,"
+                                                        "pos,"
+                                                        "height,"
+                                                        "weight,"
+                                                        "rating,"
+                                                        "rank,"
+                                                        "hometown,"
+                                                        "miles,"
+                                                        "considering,"
+                                                        "ath,"
+                                                        "spd,"
+                                                        "dur,"
+                                                        "we,"
+                                                        "sta,"
+                                                        "str,"
+                                                        "blk,"
+                                                        "tkl,"
+                                                        "han,"
+                                                        "gi,"
+                                                        "elu,"
+                                                        "tec,"
+                                                        "gpa,"
+                                                        "pot,"
+                                                        "signed) "
+                                            "VALUES (:id, "
+                                                    ":name, "
+                                                    ":pos, "
+                                                    ":height, "
+                                                    ":weight, "
+                                                    ":rating, "
+                                                    ":rank, "
+                                                    ":hometown, "
+                                                    ":miles, "
+                                                    ":considering, "
+                                                    ":ath, "
+                                                    ":spd, "
+                                                    ":dur, "
+                                                    ":we, "
+                                                    ":sta, "
+                                                    ":str, "
+                                                    ":blk, "
+                                                    ":tkl, "
+                                                    ":han, "
+                                                    ":gi, "
+                                                    ":elu, "
+                                                    ":tec, "
+                                                    ":gpa, "
+                                                    ":pot, "
+                                                    ":signed)"):
+        print(f"Last query error = {createRecruitQuery.lastError()}")
+        logQueryError(createRecruitQuery)
     return createRecruitQuery
 
 
@@ -351,5 +386,5 @@ def bindRecruitQuery(query, i, signed = int()):
     query.bindValue(":pot", '')
     query.bindValue(":signed", signed)
     if not query.exec_():
-        print(query.lastError())
+        print(f"Last query error = {query.lastError()}")
         logQueryError(query)
