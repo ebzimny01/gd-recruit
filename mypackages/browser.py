@@ -9,7 +9,7 @@ from random import uniform
 import sys
 from PySide2.QtWidgets import *
 from PySide2.QtSql import *
-from mypackages.logging import *
+#from mypackages.logging import *
 
 
 def openDB(database):
@@ -19,7 +19,7 @@ def openDB(database):
             "GD Recruiting App - Error!",
             "Database Error: %s" % database.lastError().databaseText()
             )
-        logging.error(f"{datetime.datetime.now()}: Failed to open {database.databaseName()} using connection {database.connectionName()}")
+        #logging.error(f"{datetime.datetime.now()}: Failed to open {database.databaseName()} using connection {database.connectionName()}")
         sys.exit(1)
     else:
         print(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
@@ -117,9 +117,7 @@ def wis_browser(config, user, pwd, f, d, progress = None):
         # Go to https://www.whatifsports.com/locker/lockerroom.asp
         # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
         
-        # Thread progress emit signal indicating WIS Auth is complete
-        progress.emit(2)
-
+        
         if "updateteams" in f:
             #s = 10
             #print(f"Sleeping for {s} seconds...")
@@ -147,7 +145,8 @@ def wis_browser(config, user, pwd, f, d, progress = None):
                 config.write(file)
         
         if "scrape_recruit_IDs" in f:
-            
+            # Thread progress emit signal indicating WIS Auth is complete
+            progress.emit(2, 1)    
             openDB(d)            
             dbname = d.databaseName()
             print(f"Before scaping recruits:\n \
@@ -189,7 +188,9 @@ def wis_browser(config, user, pwd, f, d, progress = None):
             # This section covers unsigned recruits
             print("Scraping unsigned recruit IDs...")
             # Thread progress signaling Scraping Unsigned recruits is beginning
-            progress.emit(100)
+            progress.emit(100, 1)
+            
+            # Range is 1 to 11 to cover the 10 player positions
             for i in range(1,11):
                 
                 print(f"Selecting position {position_dropdown[i]}")           
@@ -226,12 +227,12 @@ def wis_browser(config, user, pwd, f, d, progress = None):
                 createRecruitQuery.finish()
                 
                 # Thread signaling progress with grabbing unsigned recruits
-                progress.emit(100 + i)
+                progress.emit(100 + i, 1)
 
             # This section covers signed recruits
             print("Scraping signed recruit IDs...")
             # Thread progress signaling Scraping Unsigned recruits is beginning
-            progress.emit(200)
+            progress.emit(200, 1)
 
             # First need to check if there are any signings at all.
             # If no signings then skip.
@@ -252,7 +253,7 @@ def wis_browser(config, user, pwd, f, d, progress = None):
             if results_table.text == "No recruits found":
                 print("No signings found so skipping signed recruits section...")
                 # Thread progress signaling Scraping Signed recruits is done
-                progress.emit(210)
+                progress.emit(210, 1)
             else:
                 for i in range(1,11):
                     
@@ -293,7 +294,7 @@ def wis_browser(config, user, pwd, f, d, progress = None):
                     createRecruitQuery.finish()
 
                     # Thread signaling progress with grabbing signed recruits
-                    progress.emit(200 + i)
+                    progress.emit(200 + i, 1)
 
                 
             d.close()
@@ -355,7 +356,7 @@ def get_create_recruit_query_object(d):
                                                     ":pot, "
                                                     ":signed)"):
         print(f"Last query error = {createRecruitQuery.lastError()}")
-        logQueryError(createRecruitQuery)
+        #logQueryError(createRecruitQuery)
     return createRecruitQuery
 
 
@@ -387,4 +388,4 @@ def bindRecruitQuery(query, i, signed = int()):
     query.bindValue(":signed", signed)
     if not query.exec_():
         print(f"Last query error = {query.lastError()}")
-        logQueryError(query)
+        #logQueryError(query)

@@ -1,8 +1,8 @@
 import logging
 import datetime
 
-logging.basicConfig(filename="recruitDB.log", level=logging.DEBUG)
-logger = logging.getLogger("logger")
+#logging.basicConfig(filename="./recruitDB.log", level=logging.DEBUG)
+#logger = logging.getLogger("logger")
 
 
 def logQueryError(query):

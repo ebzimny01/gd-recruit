@@ -241,7 +241,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Grab Siigned Recruits</string>
+    <string>Grab Signed Recruits</string>
    </property>
   </widget>
   <widget class="QLabel" name="labelCheckMarkGrabSigned">
@@ -273,7 +273,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Grab Recruit Static Data</string>
+    <string>Grab Recruit Static Ratings Data and GPA</string>
    </property>
   </widget>
   <widget class="QLabel" name="labelCheckMarkGrabStaticData">

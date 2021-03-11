@@ -3,7 +3,7 @@ import os
 import sys
 import asyncio
 import datetime, time
-import logging
+#import logging
 from playwright.async_api import async_playwright
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -15,7 +15,7 @@ from mypackages.new_season_dialog import Ui_DialogNewSeason
 from mypackages.load_season_dialog import Ui_DialogLoadSeason
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
-from mypackages.logging import *
+#from mypackages.logging import *
 import configparser
 from progress.bar import Bar
 
@@ -32,12 +32,14 @@ def query_Recruit_IDs(type, dbconn):
     rids = []
     if type == "all":
         if not queryRecruitIDs.exec_("SELECT id FROM recruits"):
-            logQueryError(queryRecruitIDs)
+            #logQueryError(queryRecruitIDs)
+            pass
         while queryRecruitIDs.next():
             rids.append(queryRecruitIDs.value('id'))
     elif type == "unsigned":
         if not queryRecruitIDs.exec_("SELECT id FROM recruits WHERE signed=0"):
-            logQueryError(queryRecruitIDs)
+            #logQueryError(queryRecruitIDs)
+            pass
         while queryRecruitIDs.next():
             rids.append(queryRecruitIDs.value('id'))
     queryRecruitIDs.finish()
@@ -47,7 +49,7 @@ def query_Recruit_IDs(type, dbconn):
 
 class InitializeWorker(QObject):
     finished = Signal()
-    progress = Signal(int)
+    progress = Signal(int, int)
     
     
     
@@ -55,7 +57,7 @@ class InitializeWorker(QObject):
         """Long-running Initialize Recruit task goes here."""
         
         # Thread signaling start
-        self.progress.emit(0)
+        self.progress.emit(0, 1)
 
         
         user, pwd, config = load_config()
@@ -94,7 +96,8 @@ class InitializeWorker(QObject):
             )
             """
         ):
-            logQueryError(createRecruitTableQuery)
+            #logQueryError(createRecruitTableQuery)
+            pass
         createRecruitTableQuery.finish()
         print(f"db tables = {db_t.tables()}")
         # The above query only creates a new table if it doesn't already exist
@@ -102,13 +105,14 @@ class InitializeWorker(QObject):
         createRecruitTableQuery2 = QSqlQuery(db_t)
         if db_t.tables() == ['recruits']:
             if not createRecruitTableQuery2.exec_("DELETE from recruits"):
-                logQueryError(createRecruitTableQuery2)
+                #logQueryError(createRecruitTableQuery2)
+                pass
         createRecruitTableQuery2.finish()
         print(f"db tables = {db_t.tables()}")
         db_t.close()
         
         #Thread progress signaling DB was created
-        self.progress.emit(1)
+        self.progress.emit(1, 1)
         wis_browser(config, user, pwd, "scrape_recruit_IDs", db_t, self.progress)
         
         # After grabbing all Recruit IDs and storing in DB
@@ -137,7 +141,7 @@ class InitializeWorker(QObject):
         #Thread progress signaling that Grab Recruit Static Data is starting
         i = 1000
         print(f"before emit {i}...")
-        self.progress.emit(i, maximum = rids_length)
+        self.progress.emit(i, rids_length)
 
         with Bar('Initializing Recruit Static Data without Playwright', max=len(rids)) as bar:
             for rid in rids:
@@ -163,11 +167,12 @@ class InitializeWorker(QObject):
                 queryUpdate.bindValue(":id", rid)
                 
                 if not queryUpdate.exec_():
-                    logQueryError(queryUpdate)
+                    #logQueryError(queryUpdate)
+                    pass
                 
                 # Thread progress signal for Grab Recruit Static Data
                 i += 1
-                self.progress.emit(i, maximum = rids_length)
+                self.progress.emit(i, rids_length)
                 bar.next()
 
         queryUpdate.finish()
@@ -181,7 +186,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.rids_all = query_Recruit_IDs("all", db)
         self.rids_all_length = len(self.rids_all)
         if self.rids_all_length == 0:
-            self.pushButtonUpdateConsideringSigned.setEnabled(False)
+            self.pushButtonUpdateConsideringSigned.setVisible(False)
         else:
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
             self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
@@ -232,7 +237,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             lambda: self.pushButtonInitializeRecruits.setEnabled(True)
         )
 
-    def reportProgress(self, n, maximum = 1):
+    def reportProgress(self, n, m):
+        print(f"n = {n}\nm = {m}")
         if n == 0:
             self.labelProgressCreateRecruitDB.setVisible(True)
             self.labelAuthWIS.setVisible(True)
@@ -244,23 +250,32 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         if n == 2:
             self.labelCheckMarkAuthWIS.setVisible(True)
         if n == 100:
+            self.progressBarInitializeRecruits.setRange(0, 100)
             self.progressBarInitializeRecruits.setVisible(True)
         if 100 < n <= 110:
-            self.progressBarInitializeRecruits.setValue(n * 10)
+            self.progressBarInitializeRecruits.setValue((n - 100) * 10)
             if n == 110:
                 self.labelCheckMarkGrabUnsigned.setVisible(True)
         if n == 200:
-            self.progressBarInitializeRecruits.setValue(0)
+            self.progressBarInitializeRecruits.setRange(0, 100)
+            self.progressBarInitializeRecruits.value()
         if 200 < n <= 210:
-            self.progressBarInitializeRecruits.setValue(n * 10)
+            self.progressBarInitializeRecruits.setValue((n - 200) * 10)
+            self.progressBarInitializeRecruits.value()
             if n == 210:
                 self.labelCheckMarkGrabSigned.setVisible(True)
         if n == 1000:
+            self.progressBarInitializeRecruits.setRange(0, m)
             self.progressBarInitializeRecruits.setValue(0)
+            self.progressBarInitializeRecruits.value()
         if n > 1000:
-            self.progressBarInitializeRecruits.setValue((n - 1000) / (maximum - 1000) * 10)
-        if n > 1000 and n == maximum:
+            percent_done = (n - 1000) / m * 100
+            print(percent_done)
+            self.progressBarInitializeRecruits.setValue(n - 1000)
+        if n > 1000 and (n - 1000) == m:
             self.labelCheckMarkGrabStaticData.setVisible(True)
+            self.labelRecruitsInitialized.setText(f"Recruits Initialized = {m}")
+            self.pushButtonUpdateConsideringSigned.setEnabled(True)
 
     def update_considering(self):
         i = 0
@@ -311,7 +326,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 queryUpdateConsidering.bindValue(":signed", signed)
                 queryUpdateConsidering.bindValue(":id", rid)
                 if not queryUpdateConsidering.exec_():
-                    logQueryError(queryUpdateConsidering)
+                    #logQueryError(queryUpdateConsidering)
+                    pass
                 
                 # Increment counter and progress bar
                 i += 1
@@ -343,7 +359,7 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         super().__init__(parent)
         self.setupUi(self)
         config = configparser.ConfigParser()
-        config.read('config.ini')
+        config.read('./config.ini')
         if config.has_section('Schools') and len(config['Schools']) > 0:
             self.comboBoxTeamID.addItems(config['Schools'])
 
@@ -374,10 +390,10 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         print(f"Username = {user}")
         print(f"password = {pwd}")
         config = configparser.ConfigParser()
-        config.read('config.ini')
+        config.read('./config.ini')
         config.set('WISCreds', 'username', user)
         config.set('WISCreds', 'password', pwd)
-        with open("config.ini", 'w') as file:
+        with open("./config.ini", 'w') as file:
             config.write(file)
         super().accept()
 
@@ -446,7 +462,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # Then store teams in config.ini
             user, pwd, config = load_config()
             f = "updateteams"
-            # wis_browser(config, user, pwd, f, db)
+            wis_browser(config, user, pwd, f, db)
         else:
             False
 
@@ -675,7 +691,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 def load_config():
     config = configparser.ConfigParser()
-    configfile = config.read('config.ini')
+    configfile = config.read('./config.ini')
     if  configfile == []:
         print("config.ini file not found")
         print("Creating config.ini . . . ")
@@ -683,7 +699,7 @@ def load_config():
                         'Username' : '',
                         'Password' : ''
                         }
-        with open("config.ini", 'w') as file:
+        with open("./config.ini", 'w') as file:
             config.write(file)
     else:
         print("config.ini file found")
