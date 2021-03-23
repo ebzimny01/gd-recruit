@@ -462,7 +462,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # Then store teams in config.ini
             user, pwd, config = load_config()
             f = "updateteams"
-            wis_browser(config, user, pwd, f, db)
+            #wis_browser(config, user, pwd, f, db)
         else:
             False
 
