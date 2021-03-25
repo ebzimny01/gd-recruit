@@ -9,7 +9,17 @@ from random import uniform
 import sys
 from PySide2.QtWidgets import *
 from PySide2.QtSql import *
+from pathlib import Path
+import inspect
 #from mypackages.logging import *
+
+
+def get_file_dirname() -> Path:
+    """Returns the callee (`__file__`) directory name"""
+    module_name = inspect.currentframe().f_back.f_globals["__name__"]
+    module = sys.modules[module_name]
+    assert module
+    return Path(module.__file__).parent.absolute()
 
 
 def openDB(database):
@@ -74,7 +84,12 @@ def randsleep():
 def wis_browser(config, user, pwd, f, d, progress = None):
 
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=True)
+        browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1234' / 'firefox' / 'firefox.exe'
+        print(f"Browser path = {browser_path}")
+        print(f"Browser path is valid? = {browser_path.exists()}")
+        browser = p.firefox.launch(
+            headless=True,
+            executable_path=browser_path)
         context = browser.new_context()
         page = context.new_page()
 
