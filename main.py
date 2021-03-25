@@ -1,10 +1,9 @@
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
-from mypackages.initialize_recruits_widget import Ui_WidgetInitializeRecruits
 import os
 import sys
 import asyncio
-import datetime
-import logging
+import datetime, time
+#import logging
 from playwright.async_api import async_playwright
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -16,52 +15,56 @@ from mypackages.new_season_dialog import Ui_DialogNewSeason
 from mypackages.load_season_dialog import Ui_DialogLoadSeason
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
-from mypackages.logging import *
+#from mypackages.logging import *
 import configparser
 from progress.bar import Bar
-
 
 # https://stackoverflow.com/questions/61316258/how-to-overwrite-qdialog-accept
 
 
-def query_Recruit_IDs(type):
-    openDB(db)
-    queryRecruitIDs = QSqlQuery()
+def query_Recruit_IDs(type, dbconn):
+    openDB(dbconn)
+    print(f"query_Recruit_IDs:\n \
+            Database name = {dbconn.databaseName()}\n \
+            Connection name = {dbconn.connectionName()}\n \
+            Tables = {dbconn.tables()}")
+    queryRecruitIDs = QSqlQuery(dbconn)
     rids = []
     if type == "all":
         if not queryRecruitIDs.exec_("SELECT id FROM recruits"):
-            logQueryError(queryRecruitIDs)
+            #logQueryError(queryRecruitIDs)
+            pass
         while queryRecruitIDs.next():
             rids.append(queryRecruitIDs.value('id'))
     elif type == "unsigned":
         if not queryRecruitIDs.exec_("SELECT id FROM recruits WHERE signed=0"):
-            logQueryError(queryRecruitIDs)
+            #logQueryError(queryRecruitIDs)
+            pass
         while queryRecruitIDs.next():
             rids.append(queryRecruitIDs.value('id'))
     queryRecruitIDs.finish()
-    db.close()
+    dbconn.close()
     return rids
 
 
-class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
-        self.pushButtonInitializeRecruits.clicked.connect(self.initialize_recruit_data)
-        self.pushButtonUpdateConsideringSigned.clicked.connect(self.update_considering)
+class InitializeWorker(QObject):
+    finished = Signal()
+    progress = Signal(int, int)
+    
+    
+    
+    def run(self):
+        """Long-running Initialize Recruit task goes here."""
+        
+        # Thread signaling start
+        self.progress.emit(0, 1)
 
-
-    def accept(self):
-        super().accept()
-
-
-    def initialize_recruit_data(self):
+        
         user, pwd, config = load_config()
         requests_session = requests.Session()
-        
-        openDB(db)
-
-        createRecruitTableQuery = QSqlQuery()
+        db_t.setDatabaseName(db.databaseName())
+        openDB(db_t)
+        createRecruitTableQuery = QSqlQuery(db_t)
         if not createRecruitTableQuery.exec_(
             """
             CREATE TABLE IF NOT EXISTS recruits (
@@ -93,17 +96,32 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             )
             """
         ):
-            logQueryError(createRecruitTableQuery)
-        if db.tables() == ['recruits']:
-            if not createRecruitTableQuery.exec_("DELETE from recruits"):
-                logQueryError(createRecruitTableQuery)
+            #logQueryError(createRecruitTableQuery)
+            pass
         createRecruitTableQuery.finish()
-        db.close()
+        print(f"db tables = {db_t.tables()}")
+        # The above query only creates a new table if it doesn't already exist
+        # This next step ensures deletion of any prior data in recruits table
+        createRecruitTableQuery2 = QSqlQuery(db_t)
+        if db_t.tables() == ['recruits']:
+            if not createRecruitTableQuery2.exec_("DELETE from recruits"):
+                #logQueryError(createRecruitTableQuery2)
+                pass
+        createRecruitTableQuery2.finish()
+        print(f"db tables = {db_t.tables()}")
+        db_t.close()
         
-        wis_browser(config, user, pwd, "scrape_recruit_IDs", db)
-        rids = query_Recruit_IDs("all")
-        openDB(db)
-        queryUpdate = QSqlQuery()
+        #Thread progress signaling DB was created
+        self.progress.emit(1, 1)
+        wis_browser(config, user, pwd, "scrape_recruit_IDs", db_t, self.progress)
+        
+        # After grabbing all Recruit IDs and storing in DB
+        # Now need to grab all static data
+        print("Running query_Recruit_IDs after wis_browser...")
+        rids = query_Recruit_IDs("all", db_t)
+        rids_length = len(rids)
+        openDB(db_t)
+        queryUpdate = QSqlQuery(db_t)
         queryUpdate.prepare("UPDATE recruits "
                             "SET ath = :ath, "
                                 "spd = :spd, "
@@ -119,7 +137,12 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                                 "tec = :tec, "
                                 "gpa = :gpa "
                             "WHERE id = :id")
-                    
+        
+        #Thread progress signaling that Grab Recruit Static Data is starting
+        i = 1000
+        print(f"before emit {i}...")
+        self.progress.emit(i, rids_length)
+
         with Bar('Initializing Recruit Static Data without Playwright', max=len(rids)) as bar:
             for rid in rids:
                 recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={rid}")
@@ -144,23 +167,135 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 queryUpdate.bindValue(":id", rid)
                 
                 if not queryUpdate.exec_():
-                    logQueryError(queryUpdate)
+                    #logQueryError(queryUpdate)
+                    pass
+                
+                # Thread progress signal for Grab Recruit Static Data
+                i += 1
+                self.progress.emit(i, rids_length)
                 bar.next()
-        queryUpdate.finish()
-        db.close()
 
+        queryUpdate.finish()
+        db_t.close()
+        self.finished.emit()
+
+class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.rids_all = query_Recruit_IDs("all", db)
+        self.rids_all_length = len(self.rids_all)
+        if self.rids_all_length == 0:
+            self.pushButtonUpdateConsideringSigned.setVisible(False)
+        else:
+            self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
+            self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
+            self.pushButtonInitializeRecruits.setText("Re-Initialize Recruits")
+        
+        # Hide all progress check marks and text until button is pressed
+        self.labelCheckMarkCreateDB.setVisible(False)
+        self.labelCheckMarkAuthWIS.setVisible(False)
+        self.labelCheckMarkGrabUnsigned.setVisible(False)
+        self.labelCheckMarkGrabSigned.setVisible(False)
+        self.labelCheckMarkGrabStaticData.setVisible(False)
+        self.labelProgressCreateRecruitDB.setVisible(False)
+        self.labelAuthWIS.setVisible(False)
+        self.labelGrabUnsigned.setVisible(False)
+        self.labelGrabSigned.setVisible(False)
+        self.labelGrabStaticData.setVisible(False)
+        self.progressBarInitializeRecruits.setVisible(False)
+        self.progressBarInitializeRecruits.setValue(0)
+        self.progressBarUpdateConsidering.setVisible(False)
+        self.progressBarUpdateConsidering.setValue(0)
+        self.labelUpdateProgressBarMax.setVisible(False)
+        self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
+        self.pushButtonUpdateConsideringSigned.clicked.connect(self.update_considering)
+        
+
+    def accept(self):
+        super().accept()
+
+
+    def runInitializeJob(self):
+        # Step 1: Create a QThread object
+        self.thread = QThread()
+        # Step 2: Create a worker object
+        self.worker = InitializeWorker()
+        # Step 3: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 4: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.reportProgress)
+        # Step 6: Start the thread
+        self.thread.start()
+        # Final resets
+        self.pushButtonInitializeRecruits.setEnabled(False)
+        self.thread.finished.connect(
+            lambda: self.pushButtonInitializeRecruits.setEnabled(True)
+        )
+
+    def reportProgress(self, n, m):
+        print(f"n = {n}\nm = {m}")
+        if n == 0:
+            self.labelProgressCreateRecruitDB.setVisible(True)
+            self.labelAuthWIS.setVisible(True)
+            self.labelGrabUnsigned.setVisible(True)
+            self.labelGrabSigned.setVisible(True)
+            self.labelGrabStaticData.setVisible(True)
+        if n == 1:
+            self.labelCheckMarkCreateDB.setVisible(True)
+        if n == 2:
+            self.labelCheckMarkAuthWIS.setVisible(True)
+        if n == 100:
+            self.progressBarInitializeRecruits.setRange(0, 100)
+            self.progressBarInitializeRecruits.setVisible(True)
+        if 100 < n <= 110:
+            self.progressBarInitializeRecruits.setValue((n - 100) * 10)
+            if n == 110:
+                self.labelCheckMarkGrabUnsigned.setVisible(True)
+        if n == 200:
+            self.progressBarInitializeRecruits.setRange(0, 100)
+            self.progressBarInitializeRecruits.value()
+        if 200 < n <= 210:
+            self.progressBarInitializeRecruits.setValue((n - 200) * 10)
+            self.progressBarInitializeRecruits.value()
+            if n == 210:
+                self.labelCheckMarkGrabSigned.setVisible(True)
+        if n == 1000:
+            self.progressBarInitializeRecruits.setRange(0, m)
+            self.progressBarInitializeRecruits.setValue(0)
+            self.progressBarInitializeRecruits.value()
+        if n > 1000:
+            percent_done = (n - 1000) / m * 100
+            print(percent_done)
+            self.progressBarInitializeRecruits.setValue(n - 1000)
+        if n > 1000 and (n - 1000) == m:
+            self.labelCheckMarkGrabStaticData.setVisible(True)
+            self.labelRecruitsInitialized.setText(f"Recruits Initialized = {m}")
+            self.pushButtonUpdateConsideringSigned.setEnabled(True)
 
     def update_considering(self):
-        requests_session = requests.Session()
-        rids = query_Recruit_IDs("unsigned")
+        i = 0
+        rids_unsigned = query_Recruit_IDs("unsigned", db)
+        rids_unsigned_length = len(rids_unsigned)
+        self.pushButtonInitializeRecruits.setEnabled(False)
+        self.progressBarUpdateConsidering.setMaximum(rids_unsigned_length)
+        mw.statusbar.showMessage(f"Updating {rids_unsigned_length} recruits . . . ")
+        self.progressBarUpdateConsidering.setVisible(True)
+        
         openDB(db)
         queryUpdateConsidering = QSqlQuery()
         queryUpdateConsidering.prepare("UPDATE recruits "
                                         "SET considering = :considering, "
                                         "signed = :signed "
                                         "WHERE id = :id")
-        with Bar('Update Recruits Considering without Playwright', max=len(rids)) as bar:
-            for rid in rids:
+
+        requests_session = requests.Session()
+        with Bar('Update Recruits Considering without Playwright', max=rids_unsigned_length) as bar:            
+            for rid in rids_unsigned:
                 recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
                 recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
                 teams_table = recruitpage_soup.find("table", id="tblTeams")
@@ -191,8 +326,16 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 queryUpdateConsidering.bindValue(":signed", signed)
                 queryUpdateConsidering.bindValue(":id", rid)
                 if not queryUpdateConsidering.exec_():
-                    logQueryError(queryUpdateConsidering)
+                    #logQueryError(queryUpdateConsidering)
+                    pass
+                
+                # Increment counter and progress bar
+                i += 1
+                self.progressBarUpdateConsidering.setValue(i)
                 bar.next()
+
+        mw.statusbar.showMessage(f"Finished updating {rids_unsigned_length} recruits.")
+        self.pushButtonInitializeRecruits.setEnabled(True)
         queryUpdateConsidering.finish()
         db.close()
 
@@ -216,7 +359,7 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         super().__init__(parent)
         self.setupUi(self)
         config = configparser.ConfigParser()
-        config.read('config.ini')
+        config.read('./config.ini')
         if config.has_section('Schools') and len(config['Schools']) > 0:
             self.comboBoxTeamID.addItems(config['Schools'])
 
@@ -247,10 +390,10 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         print(f"Username = {user}")
         print(f"password = {pwd}")
         config = configparser.ConfigParser()
-        config.read('config.ini')
+        config.read('./config.ini')
         config.set('WISCreds', 'username', user)
         config.set('WISCreds', 'password', pwd)
-        with open("config.ini", 'w') as file:
+        with open("./config.ini", 'w') as file:
             config.write(file)
         super().accept()
 
@@ -319,7 +462,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # Then store teams in config.ini
             user, pwd, config = load_config()
             f = "updateteams"
-            # wis_browser(config, user, pwd, f, db)
+            #wis_browser(config, user, pwd, f, db)
         else:
             False
 
@@ -548,7 +691,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 def load_config():
     config = configparser.ConfigParser()
-    configfile = config.read('config.ini')
+    configfile = config.read('./config.ini')
     if  configfile == []:
         print("config.ini file not found")
         print("Creating config.ini . . . ")
@@ -556,7 +699,7 @@ def load_config():
                         'Username' : '',
                         'Password' : ''
                         }
-        with open("config.ini", 'w') as file:
+        with open("./config.ini", 'w') as file:
             config.write(file)
     else:
         print("config.ini file found")
@@ -601,6 +744,8 @@ def initializeModel(model):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     db = QSqlDatabase.addDatabase('QSQLITE')
+    # Database to be used by thread
+    db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
     #db.setDatabaseName('wilkinson 172 - 51194.db')
     #model = QSqlTableModel()
     #initializeModel(model)
