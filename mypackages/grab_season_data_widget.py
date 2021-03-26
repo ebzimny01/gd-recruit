@@ -1,16 +1,17 @@
 from PySide2.QtCore import *
 from PySide2.QtGui import *
 from PySide2.QtWidgets import *
-
+import logging
 from pathlib import Path
 import sys
+
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     checkmarkicon = f"{Path(sys._MEIPASS) / 'images' / 'checkmark_1.png'}"
     #checkmarkicon = f"{sys._MEIPASS}/images/checkmark_1.png"
-    print(f"Checkmark icon path is = {checkmarkicon}")
 else:
     checkmarkicon = f"./images/checkmark_1.png"
-    print(f"Checkmark icon path is = {checkmarkicon}")
+
+logging.info(f"Checkmark icon path is = {checkmarkicon}")
 
 class Ui_WidgetGrabSeasonData(object):
     def setupUi(self, WidgetGrabSeasonData):
