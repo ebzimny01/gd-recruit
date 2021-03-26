@@ -1,9 +1,18 @@
+import logging
+logging.basicConfig(filename="./gdrecruit.log",
+                    filemode='w',
+                    level=logging.DEBUG,
+                    format='%(asctime)s %(name)s: %(threadName)s: %(levelname)s: %(message)s',
+                    datefmt='%m/%d/%Y %I:%M:%S %p'
+)
+logger = logging.getLogger(__name__)
+
+
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 import os
 import sys
-import asyncio
 import datetime, time
-#import logging
+import requests
 from playwright.async_api import async_playwright
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -15,13 +24,20 @@ from mypackages.new_season_dialog import Ui_DialogNewSeason
 from mypackages.load_season_dialog import Ui_DialogLoadSeason
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
-#from mypackages.logging import *
 import configparser
 from progress.bar import Bar
 import pandas as pd
 from pathlib import Path
 
+
 # https://stackoverflow.com/questions/61316258/how-to-overwrite-qdialog-accept
+
+
+
+
+def logQueryError(query):
+    logging.error(f"{datetime.datetime.now()}: query: last error: {query.lastError()}")
+    logging.error(f"{datetime.datetime.now()}: query: last query: {query.lastQuery()}")
 
 
 wis_gd_df = ''
@@ -30,13 +46,13 @@ if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
 else:
     gdr_csv = f"./data/gdr.csv"
-print(f"gdr.csv path is = {gdr_csv}")
+logger.info(f"gdr.csv path is = {gdr_csv}")
 wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
 
 
 def query_Recruit_IDs(type, dbconn):
     openDB(dbconn)
-    print(f"query_Recruit_IDs:\n \
+    logger.info(f"query_Recruit_IDs:\n \
             Database name = {dbconn.databaseName()}\n \
             Connection name = {dbconn.connectionName()}\n \
             Tables = {dbconn.tables()}")
@@ -44,14 +60,12 @@ def query_Recruit_IDs(type, dbconn):
     rids = []
     if type == "all":
         if not queryRecruitIDs.exec_("SELECT id FROM recruits"):
-            #logQueryError(queryRecruitIDs)
-            pass
+            logQueryError(queryRecruitIDs)
         while queryRecruitIDs.next():
             rids.append(queryRecruitIDs.value('id'))
     elif type == "unsigned":
         if not queryRecruitIDs.exec_("SELECT id FROM recruits WHERE signed=0"):
-            #logQueryError(queryRecruitIDs)
-            pass
+            logQueryError(queryRecruitIDs)
         while queryRecruitIDs.next():
             rids.append(queryRecruitIDs.value('id'))
     queryRecruitIDs.finish()
@@ -108,19 +122,17 @@ class InitializeWorker(QObject):
             )
             """
         ):
-            #logQueryError(createRecruitTableQuery)
-            pass
+            logQueryError(createRecruitTableQuery)
         createRecruitTableQuery.finish()
-        print(f"db tables = {db_t.tables()}")
+        logger.info(f"db tables = {db_t.tables()}")
         # The above query only creates a new table if it doesn't already exist
         # This next step ensures deletion of any prior data in recruits table
         createRecruitTableQuery2 = QSqlQuery(db_t)
         if db_t.tables() == ['recruits']:
             if not createRecruitTableQuery2.exec_("DELETE from recruits"):
-                #logQueryError(createRecruitTableQuery2)
-                pass
+                logQueryError(createRecruitTableQuery2)
         createRecruitTableQuery2.finish()
-        print(f"db tables = {db_t.tables()}")
+        logger.info(f"db tables = {db_t.tables()}")
         db_t.close()
         
         #Thread progress signaling DB was created
@@ -129,7 +141,7 @@ class InitializeWorker(QObject):
         
         # After grabbing all Recruit IDs and storing in DB
         # Now need to grab all static data
-        print("Running query_Recruit_IDs after wis_browser...")
+        logger.info("Running query_Recruit_IDs after wis_browser...")
         rids = query_Recruit_IDs("all", db_t)
         rids_length = len(rids)
         openDB(db_t)
@@ -152,7 +164,7 @@ class InitializeWorker(QObject):
         
         #Thread progress signaling that Grab Recruit Static Data is starting
         i = 1000
-        print(f"before emit {i}...")
+        logger.info(f"before emit {i}...")
         self.progress.emit(i, rids_length)
 
         with Bar('Initializing Recruit Static Data without Playwright', max=len(rids)) as bar:
@@ -179,9 +191,8 @@ class InitializeWorker(QObject):
                 queryUpdate.bindValue(":id", rid)
                 
                 if not queryUpdate.exec_():
-                    #logQueryError(queryUpdate)
-                    pass
-                
+                    logQueryError(queryUpdate)
+                                    
                 # Thread progress signal for Grab Recruit Static Data
                 i += 1
                 self.progress.emit(i, rids_length)
@@ -290,6 +301,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
 
     def update_considering(self):
+        self.pushButtonUpdateConsideringSigned.setEnabled(False)
         i = 0
         rids_unsigned = query_Recruit_IDs("unsigned", db)
         rids_unsigned_length = len(rids_unsigned)
@@ -307,6 +319,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
         requests_session = requests.Session()
         with Bar('Update Recruits Considering without Playwright', max=rids_unsigned_length) as bar:            
+            logger.info(f"Updating {rids_unsigned_length} unsigned recruits . . . ")
             for rid in rids_unsigned:
                 recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
                 recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
@@ -339,18 +352,19 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 queryUpdateConsidering.bindValue(":signed", signed)
                 queryUpdateConsidering.bindValue(":id", rid)
                 if not queryUpdateConsidering.exec_():
-                    #logQueryError(queryUpdateConsidering)
-                    pass
-                
+                    logQueryError(queryUpdateConsidering)
+                                    
                 # Increment counter and progress bar
                 i += 1
                 self.progressBarUpdateConsidering.setValue(i)
                 bar.next()
 
         mw.statusbar.showMessage(f"Finished updating {rids_unsigned_length} recruits.")
+        logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
         self.pushButtonInitializeRecruits.setEnabled(True)
         queryUpdateConsidering.finish()
         db.close()
+        self.pushButtonUpdateConsideringSigned.setEnabled(True)
 
 
 class LoadSeason(QDialog, Ui_DialogLoadSeason):
@@ -416,7 +430,7 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
 
     def accept(self):
         coachid = self.lineEditWISCoachID.text()
-        print(f"Coach ID = {coachid}")
+        logger.info(f"Coach ID = {coachid}")
         user = self.lineEditWISUsername.text()
         pwd = self.lineEditWISPassword.text()
         config = configparser.ConfigParser()
@@ -501,7 +515,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def newFilter(self, model):
         filter = self.getFilterString()
-        print(f"New filter string = {filter}")
+        logger.info(f"New filter string = {filter}")
         model.setFilter(filter)
         model.select()
 
@@ -523,8 +537,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return filter_string
 
     def clear_ratings_filter_fields(self):
-        print("Clear Ratings Filters button was clicked!")
-        print(f"Previous filter = {self.getFilterString()}")
+        logger.info("Clear Ratings Filters button was clicked!")
+        logger.info(f"Previous filter = {self.getFilterString()}")
         self.lineEditConsideringTextSearch.setText("")
         self.lineEditfilterATH.setText("")
         self.lineEditfilterSPD.setText("")
@@ -556,7 +570,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for k,v in text_fields.items():
             self.apply_helper(k, v)
         
-        print(f"Clearing Considering filter...")
+        logger.info(f"Clearing Considering filter...")
         self.string_filter['considering'] = ""
         
         self.newFilter(self.model)
@@ -564,16 +578,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def apply_helper(self, k, v):
             if v:
-                print(f"Enabling {k} filter...")
+                logger.info(f"Enabling {k} filter...")
                 self.string_filter[k] = f"{k} > {int(v)}"
             else:
-                print(f"Clearing {k} filter...")
+                logger.info(f"Clearing {k} filter...")
                 self.string_filter[k] = ""
 
 
     def apply_ratings_filters(self):
-        print("Ratings Filters Apply button was clicked!")
-        print(f"Previous filter = {self.getFilterString()}")
+        logger.info("Ratings Filters Apply button was clicked!")
+        logger.info(f"Previous filter = {self.getFilterString()}")
         text_fields = {
             'ath' : self.lineEditfilterATH.text(),
             'spd' : self.lineEditfilterSPD.text(),
@@ -595,22 +609,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Considering handled separately since it needs different operator
         considering = self.lineEditConsideringTextSearch.text()
         if considering:
-            print(f"Enabling Considering filter...")
+            logger.info(f"Enabling Considering filter...")
             self.string_filter['considering'] = f"considering LIKE '%{considering}%'"
         else:
-            print(f"Clearing Considering filter...")
+            logger.info(f"Clearing Considering filter...")
             self.string_filter['considering'] = ""
 
         self.newFilter(self.model)
 
     def undecided_filter(self):
         state = self.checkBoxUndecided.checkState()
-        print(f"Previous filter = {self.getFilterString()}")
+        logger.info(f"Previous filter = {self.getFilterString()}")
         if state == 0:
-            print("Clearing Undecided filter...")
+            logger.info("Clearing Undecided filter...")
             self.string_filter['undecided'] = ""
         elif state == 2:
-            print("Enabling Undecided filter...")
+            logger.info("Enabling Undecided filter...")
             self.string_filter['undecided'] = "considering = 'undecided'"
         else:
             raise Exception
@@ -620,12 +634,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def hide_signed_filter(self):
         state = self.checkBoxHideSigned.checkState()
-        print(f"Previous filter = {self.getFilterString()}")
+        logger.info(f"Previous filter = {self.getFilterString()}")
         if state == 0:
-            print("Clearing Hide Signed filter...")
+            logger.info("Clearing Hide Signed filter...")
             self.string_filter['hide_signed'] = ""
         elif state == 2:
-            print("Enabling Hide Signed filter...")
+            logger.info("Enabling Hide Signed filter...")
             self.string_filter['hide_signed'] = "signed = 0"
         else:
             raise Exception
@@ -635,12 +649,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def miles_filter(self):
         combo_box_filter = f"miles < {self.comboBoxMilesFilter.currentText()}"
-        print(f"Previous filter = {self.getFilterString()}")
+        logger.info(f"Previous filter = {self.getFilterString()}")
         if self.comboBoxMilesFilter.currentText() == "Any":
-            print("Clearing Miles Filter...")
+            logger.info("Clearing Miles Filter...")
             self.string_filter['miles'] = ""
         else:
-            print("Adding Miles Filter...")
+            logger.info("Adding Miles Filter...")
             self.string_filter['miles'] = combo_box_filter
         
         self.newFilter(self.model)
@@ -648,12 +662,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def position_filter(self):
         combo_box_filter = f"pos = '{self.comboBoxPositionFilter.currentText()}'"
-        print(f"Previous filter = {self.getFilterString()}")
+        logger.info(f"Previous filter = {self.getFilterString()}")
         if self.comboBoxPositionFilter.currentText() == "ALL":
-            print("Clearing Position Filter...")
+            logger.info("Clearing Position Filter...")
             self.string_filter['pos'] = ""
         else:
-            print("Adding Position Filter...")
+            logger.info("Adding Position Filter...")
             self.string_filter['pos'] = combo_box_filter
         
         self.newFilter(self.model)
@@ -672,8 +686,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.ui = Ui_DialogNewSeason()
         dialog.exec_()
         dialog.show()
-        print("Exiting New Season dialog")
-        print(f"database name = {db.databaseName()}")
+        logger.info("Exiting New Season dialog")
+        logger.info(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
             self.setWindowTitle(f"GD Recruit Helper - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
@@ -685,8 +699,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.ui = Ui_DialogLoadSeason()
         dialog.exec_()
         dialog.show()
-        print("Exiting Load Season dialog")
-        print(f"database name = {db.databaseName()}")
+        logger.info("Exiting Load Season dialog")
+        logger.info(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
             self.setWindowTitle(f"GD Recruit Helper - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
@@ -698,8 +712,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.ui = Ui_WidgetGrabSeasonData()
         dialog.exec_()
         dialog.show()
-        print("Exiting Grab Season Data dialog")
-        print(f"database name = {db.databaseName()}")
+        logger.info("Exiting Grab Season Data dialog")
+        logger.info(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
             self.loadModel()
         
@@ -725,8 +739,8 @@ def load_config():
     config = configparser.ConfigParser()
     configfile = config.read('./config.ini')
     if  configfile == []:
-        print("config.ini file not found")
-        print("Creating config.ini . . . ")
+        logger.info("config.ini file not found")
+        logger.info("Creating config.ini . . . ")
         config['WISCreds'] = {
                         'coachid' : '',
                         'username' : '',
@@ -735,7 +749,7 @@ def load_config():
         with open("./config.ini", 'w') as file:
             config.write(file)
     else:
-        print("config.ini file found")
+        logger.info("config.ini file found")
     
     coachid = config['WISCreds']['coachid']
     username = config['WISCreds']['username']
@@ -767,7 +781,7 @@ def update_active_teams(coachid):
         config.set('Schools',teamid,f"{team_name} ({world_name})")
     
     with open("./config.ini", 'w') as file:
-            config.write(file)
+        config.write(file)
 
 
 def initializeModel(model):
@@ -802,18 +816,15 @@ def initializeModel(model):
 
 
 if __name__ == "__main__":
-    
+    print("Running GD Recruit Helper . . . ")
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        print('running in a PyInstaller bundle')
+        logger.info('running in a PyInstaller bundle')
     else:
-        print('running in a normal Python process')
+        logger.info('running in a normal Python process')
     app = QApplication(sys.argv)
     db = QSqlDatabase.addDatabase('QSQLITE')
-    # Database to be used by thread
+    # Database connection to be used by thread
     db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
-    #db.setDatabaseName('wilkinson 172 - 51194.db')
-    #model = QSqlTableModel()
-    #initializeModel(model)
     mw = MainWindow()
     mw.setWindowTitle(u"GD Recruit Helper")
     mw.show() 
