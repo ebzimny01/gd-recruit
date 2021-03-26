@@ -17,6 +17,9 @@
    <string>New Season</string>
   </property>
   <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>30</x>
@@ -35,10 +38,10 @@
   <widget class="QLabel" name="labelTeamID">
    <property name="geometry">
     <rect>
-     <x>60</x>
+     <x>20</x>
      <y>60</y>
-     <width>47</width>
-     <height>14</height>
+     <width>91</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="text">
@@ -48,10 +51,10 @@
   <widget class="QLabel" name="labelSeasonNumber">
    <property name="geometry">
     <rect>
-     <x>40</x>
+     <x>20</x>
      <y>120</y>
-     <width>91</width>
-     <height>16</height>
+     <width>111</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="text">
@@ -61,9 +64,9 @@
   <widget class="QLineEdit" name="lineEditSeasonNumber">
    <property name="geometry">
     <rect>
-     <x>200</x>
+     <x>152</x>
      <y>120</y>
-     <width>113</width>
+     <width>81</width>
      <height>20</height>
     </rect>
    </property>
@@ -71,14 +74,18 @@
   <widget class="QComboBox" name="comboBoxTeamID">
    <property name="geometry">
     <rect>
-     <x>200</x>
+     <x>150</x>
      <y>60</y>
-     <width>111</width>
+     <width>221</width>
      <height>22</height>
     </rect>
    </property>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>comboBoxTeamID</tabstop>
+  <tabstop>lineEditSeasonNumber</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
