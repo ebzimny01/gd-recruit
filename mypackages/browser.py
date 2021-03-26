@@ -132,33 +132,7 @@ def wis_browser(config, user, pwd, f, d, progress = None):
         # Go to https://www.whatifsports.com/locker/lockerroom.asp
         # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
         
-        
-        if "updateteams" in f:
-            #s = 10
-            #print(f"Sleeping for {s} seconds...")
-            #time.sleep(s)
-            contents = page.content()
-            lockerroom_soup = BeautifulSoup(contents, "lxml")
-            select_teamName_divs = lockerroom_soup.find_all(class_="teamName")
-            baseURL = "../gd/TeamRedirect.aspx?tid="
-            
-            # Need to add logic to detect stale school_ids and remove them
-            for team in select_teamName_divs:
-                a_tag = team.find("a")
-                link = a_tag.attrs['href']
-                if baseURL in link:
-                    school = a_tag.text
-                    school_id_re = re.search(r'(\d{5})', link)
-                    school_id = school_id_re.group(1)
-                    if config.has_section('Schools'):
-                        config.set('Schools', school_id, school)
-                    else:
-                        config.add_section('Schools')
-                        config.set('Schools', school_id, school)
-
-            with open('config.ini', 'w') as file:
-                config.write(file)
-        
+                
         if "scrape_recruit_IDs" in f:
             # Thread progress emit signal indicating WIS Auth is complete
             progress.emit(2, 1)    

@@ -18,8 +18,20 @@ from mypackages.browser import *
 #from mypackages.logging import *
 import configparser
 from progress.bar import Bar
+import pandas as pd
+from pathlib import Path
 
 # https://stackoverflow.com/questions/61316258/how-to-overwrite-qdialog-accept
+
+
+wis_gd_df = ''
+gdr_csv = ''
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
+else:
+    gdr_csv = f"./data/gdr.csv"
+print(f"gdr.csv path is = {gdr_csv}")
+wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
 
 
 def query_Recruit_IDs(type, dbconn):
@@ -60,7 +72,7 @@ class InitializeWorker(QObject):
         self.progress.emit(0, 1)
 
         
-        user, pwd, config = load_config()
+        coachid, user, pwd, config = load_config()
         requests_session = requests.Session()
         db_t.setDatabaseName(db.databaseName())
         openDB(db_t)
@@ -238,7 +250,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         )
 
     def reportProgress(self, n, m):
-        print(f"n = {n}\nm = {m}")
+        # print(f"n = {n}\nm = {m}")
         if n == 0:
             self.labelProgressCreateRecruitDB.setVisible(True)
             self.labelAuthWIS.setVisible(True)
@@ -269,8 +281,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.progressBarInitializeRecruits.setValue(0)
             self.progressBarInitializeRecruits.value()
         if n > 1000:
-            percent_done = (n - 1000) / m * 100
-            print(percent_done)
+            #percent_done = (n - 1000) / m * 100
+            #print(percent_done)
             self.progressBarInitializeRecruits.setValue(n - 1000)
         if n > 1000 and (n - 1000) == m:
             self.labelCheckMarkGrabStaticData.setVisible(True)
@@ -311,7 +323,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                         find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
                         href_tag = find_signed_with.attrs['href']
                         href_tag_re = re.search(r'(\d{5})', href_tag)
-                        considering = f"{href_tag_re.group(1)}"
+                        team_id = int(href_tag_re.group(1))
+                        considering = f"{wis_gd_df.school_short[team_id]}\n"
                         signed = 1
                     else:
                         school = team_data[0].text
@@ -361,16 +374,33 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         config = configparser.ConfigParser()
         config.read('./config.ini')
         if config.has_section('Schools') and len(config['Schools']) > 0:
-            self.comboBoxTeamID.addItems(config['Schools'])
+            school_list = config.items('Schools')
+            names_only = []
+            for each in school_list:
+                names_only.append(f"{each[1]} {each[0]}")
+            self.comboBoxTeamID.addItems(names_only)
+            #self.comboBoxTeamID.addItems(config['Schools'])
+        self.onlyInt = QIntValidator(1,999)
+        self.lineEditSeasonNumber.setValidator(self.onlyInt)
+        self.buttonBox.button(QDialogButtonBox.Save).setEnabled(False)
+        self.lineEditSeasonNumber.textChanged.connect(self.buttonstate)
 
+    def buttonstate(self):
+        if self.lineEditSeasonNumber.text() != '':
+            self.buttonBox.button(QDialogButtonBox.Save).setEnabled(True)
+            
+        else:
+            self.buttonBox.button(QDialogButtonBox.Save).setEnabled(False)
 
     def accept(self):
-        teamID = self.comboBoxTeamID.currentText()
+        selected = self.comboBoxTeamID.currentText()
+        #teamID_re = re.search(r'(\d{5})', selected)
+        #teamID = teamID_re.group(1)
         seasonnum = self.lineEditSeasonNumber.text()
-        wid_world = wid_world_list()
-        world = wid_world[teamID]
+        #wid_world = wid_world_list()
+        #world = wid_world[teamID]
         # Need to add functionality for New Season
-        season_filename = f"{world} {seasonnum} - {teamID}.db"
+        season_filename = f"{seasonnum} - {selected}.db"
         print(f"Setting database name to: {season_filename}")
         db.setDatabaseName(season_filename)
         db.close()
@@ -381,20 +411,22 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
 class WISCred(QDialog, Ui_WISCredentialDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        wisuser, pwd, config = load_config()
-        self.setupUi(self, wisuser, pwd)
+        coachid, wisuser, pwd, config = load_config()
+        self.setupUi(self, coachid, wisuser, pwd)
 
     def accept(self):
+        coachid = self.lineEditWISCoachID.text()
+        print(f"Coach ID = {coachid}")
         user = self.lineEditWISUsername.text()
         pwd = self.lineEditWISPassword.text()
-        print(f"Username = {user}")
-        print(f"password = {pwd}")
         config = configparser.ConfigParser()
         config.read('./config.ini')
+        config.set('WISCreds', 'coachid', coachid)
         config.set('WISCreds', 'username', user)
         config.set('WISCreds', 'password', pwd)
         with open("./config.ini", 'w') as file:
             config.write(file)
+        update_active_teams(coachid)
         super().accept()
 
 
@@ -457,12 +489,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         }
         
         if self.check_stored_creds():
-            # Need to attempt to authenticate to WIS
-            # After successful auth then grab active GD teams
+            # Grab coachid from config file
+            # Use it to grab active GD teams from coach profile page
             # Then store teams in config.ini
-            user, pwd, config = load_config()
-            f = "updateteams"
-            #wis_browser(config, user, pwd, f, db)
+            coachid, user, pwd, config = load_config()
+            if coachid != '':
+                update_active_teams(coachid)
         else:
             False
 
@@ -673,7 +705,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
 
     def check_stored_creds(self):
-        user, pwd, config = load_config()
+        coachid, user, pwd, config = load_config()
         if user == '' or pwd == '':
             self.actionNew_Season.setEnabled(False)
             self.actionLoad_Season.setEnabled(False)
@@ -696,18 +728,46 @@ def load_config():
         print("config.ini file not found")
         print("Creating config.ini . . . ")
         config['WISCreds'] = {
-                        'Username' : '',
-                        'Password' : ''
+                        'coachid' : '',
+                        'username' : '',
+                        'password' : ''
                         }
         with open("./config.ini", 'w') as file:
             config.write(file)
     else:
         print("config.ini file found")
     
+    coachid = config['WISCreds']['coachid']
     username = config['WISCreds']['username']
     password = config['WISCreds']['password']
 
-    return username, password, config
+    return coachid, username, password, config
+
+
+def update_active_teams(coachid):
+    cid, user, pwd, config = load_config()
+    config.remove_section('Schools')
+    config.add_section('Schools')
+    requests_session = requests.Session()
+    coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}")
+    coach_profile_page_soup = BeautifulSoup(coach_profile_page.content, "lxml")
+    active_teams_list = coach_profile_page_soup.find("ul", class_="UnorderedItemList")
+    active_teams = active_teams_list.find_all("li")
+    
+    for each in active_teams:
+        team_span = each.find("span", class_="teamName")
+        team_a_link = team_span.find("a")
+        team_name = team_a_link.text
+        team_href = team_a_link.attrs['href']
+        team_href_re = re.search(r'(\d{5})', team_href)
+        teamid = f"{team_href_re.group(1)}"
+        world_span = each.find("span", class_="world")
+        world_a_link = world_span.find("a")
+        world_name = world_a_link.text
+        config.set('Schools',teamid,f"{team_name} ({world_name})")
+    
+    with open("./config.ini", 'w') as file:
+            config.write(file)
 
 
 def initializeModel(model):
@@ -742,6 +802,11 @@ def initializeModel(model):
 
 
 if __name__ == "__main__":
+    
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        print('running in a PyInstaller bundle')
+    else:
+        print('running in a normal Python process')
     app = QApplication(sys.argv)
     db = QSqlDatabase.addDatabase('QSQLITE')
     # Database to be used by thread

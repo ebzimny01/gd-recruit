@@ -2,11 +2,15 @@ from PySide2.QtCore import *
 from PySide2.QtGui import *
 from PySide2.QtWidgets import *
 
-
-from PySide2.QtCore import *
-from PySide2.QtGui import *
-from PySide2.QtWidgets import *
-
+from pathlib import Path
+import sys
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    checkmarkicon = f"{Path(sys._MEIPASS) / 'images' / 'checkmark_1.png'}"
+    #checkmarkicon = f"{sys._MEIPASS}/images/checkmark_1.png"
+    print(f"Checkmark icon path is = {checkmarkicon}")
+else:
+    checkmarkicon = f"./images/checkmark_1.png"
+    print(f"Checkmark icon path is = {checkmarkicon}")
 
 class Ui_WidgetGrabSeasonData(object):
     def setupUi(self, WidgetGrabSeasonData):
@@ -56,12 +60,12 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkCreateDB = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkCreateDB.setObjectName(u"labelCheckMarkCreateDB")
         self.labelCheckMarkCreateDB.setGeometry(QRect(220, 160, 21, 21))
-        self.labelCheckMarkCreateDB.setPixmap(QPixmap(u"images/checkmark_1.png"))
+        self.labelCheckMarkCreateDB.setPixmap(QPixmap(checkmarkicon))
         self.labelCheckMarkCreateDB.setScaledContents(True)
         self.labelCheckMarkAuthWIS = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkAuthWIS.setObjectName(u"labelCheckMarkAuthWIS")
         self.labelCheckMarkAuthWIS.setGeometry(QRect(220, 190, 21, 21))
-        self.labelCheckMarkAuthWIS.setPixmap(QPixmap(u"images/checkmark_1.png"))
+        self.labelCheckMarkAuthWIS.setPixmap(QPixmap(checkmarkicon))
         self.labelCheckMarkAuthWIS.setScaledContents(True)
         self.labelAuthWIS = QLabel(WidgetGrabSeasonData)
         self.labelAuthWIS.setObjectName(u"labelAuthWIS")
@@ -72,7 +76,7 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkGrabUnsigned = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkGrabUnsigned.setObjectName(u"labelCheckMarkGrabUnassigned")
         self.labelCheckMarkGrabUnsigned.setGeometry(QRect(220, 220, 21, 21))
-        self.labelCheckMarkGrabUnsigned.setPixmap(QPixmap(u"images/checkmark_1.png"))
+        self.labelCheckMarkGrabUnsigned.setPixmap(QPixmap(checkmarkicon))
         self.labelCheckMarkGrabUnsigned.setScaledContents(True)
         self.labelGrabSigned = QLabel(WidgetGrabSeasonData)
         self.labelGrabSigned.setObjectName(u"labelGrabSigned")
@@ -80,7 +84,7 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkGrabSigned = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkGrabSigned.setObjectName(u"labelCheckMarkGrabSigned")
         self.labelCheckMarkGrabSigned.setGeometry(QRect(220, 250, 21, 21))
-        self.labelCheckMarkGrabSigned.setPixmap(QPixmap(u"images/checkmark_1.png"))
+        self.labelCheckMarkGrabSigned.setPixmap(QPixmap(checkmarkicon))
         self.labelCheckMarkGrabSigned.setScaledContents(True)
         self.labelGrabStaticData = QLabel(WidgetGrabSeasonData)
         self.labelGrabStaticData.setObjectName(u"labelGrabStaticData")
@@ -88,7 +92,7 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkGrabStaticData = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkGrabStaticData.setObjectName(u"labelCheckMarkGrabStaticData")
         self.labelCheckMarkGrabStaticData.setGeometry(QRect(220, 280, 21, 21))
-        self.labelCheckMarkGrabStaticData.setPixmap(QPixmap(u"images/checkmark_1.png"))
+        self.labelCheckMarkGrabStaticData.setPixmap(QPixmap(checkmarkicon))
         self.labelCheckMarkGrabStaticData.setScaledContents(True)
 
         self.retranslateUi(WidgetGrabSeasonData)
