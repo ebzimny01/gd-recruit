@@ -50,6 +50,7 @@ logger.info(f"gdr.csv path is = {gdr_csv}")
 wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
 
 
+
 def query_Recruit_IDs(type, dbconn):
     openDB(dbconn)
     logger.info(f"query_Recruit_IDs:\n \
@@ -374,6 +375,8 @@ class LoadSeason(QDialog, Ui_DialogLoadSeason):
         db_files = [x for x in os.listdir() if x.endswith(".db")]
         if len(db_files) > 0:
             self.comboBoxSelectSeason.addItems(db_files)
+        else:
+            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
 
     def accept(self):
         season_filename = self.comboBoxSelectSeason.currentText()
@@ -408,12 +411,7 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
 
     def accept(self):
         selected = self.comboBoxTeamID.currentText()
-        #teamID_re = re.search(r'(\d{5})', selected)
-        #teamID = teamID_re.group(1)
         seasonnum = self.lineEditSeasonNumber.text()
-        #wid_world = wid_world_list()
-        #world = wid_world[teamID]
-        # Need to add functionality for New Season
         season_filename = f"{seasonnum} - {selected}.db"
         print(f"Setting database name to: {season_filename}")
         db.setDatabaseName(season_filename)
@@ -427,6 +425,17 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         super().__init__(parent)
         coachid, wisuser, pwd, config = load_config()
         self.setupUi(self, coachid, wisuser, pwd)
+        self.buttonstate()
+        self.lineEditWISCoachID.textChanged.connect(self.buttonstate)
+        self.lineEditWISUsername.textChanged.connect(self.buttonstate)
+        self.lineEditWISPassword.textChanged.connect(self.buttonstate)
+
+    def buttonstate(self):
+        if self.lineEditWISCoachID.text() != '' and self.lineEditWISPassword.text() != '' and self.lineEditWISUsername.text() != '':
+            self.buttonBox.button(QDialogButtonBox.Save).setEnabled(True)
+        else:
+            self.buttonBox.button(QDialogButtonBox.Save).setEnabled(False)
+
 
     def accept(self):
         coachid = self.lineEditWISCoachID.text()
@@ -453,6 +462,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
         v_header = self.recruit_tableView.verticalHeader()
         v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+
+        # Disable Recruit Table until a DB table is loaded.
+        self.recruit_tableView.setEnabled(False)
+        
+        # Disable all filters by default. They will be enabled when model is loaded.
+        self.comboBoxPositionFilter.setEnabled(False)
+        self.checkBoxHideSigned.setEnabled(False)
+        self.checkBoxUndecided.setEnabled(False)
+        self.comboBoxMilesFilter.setEnabled(False)
+        self.pushButtonApplyRatingsFilters.setEnabled(False)
+        self.pushButtonClearRatingsFilters.setEnabled(False)
+        self.lineEditConsideringTextSearch.setEnabled(False)
+        self.lineEditfilterATH.setEnabled(False)
+        self.lineEditfilterBLK.setEnabled(False)
+        self.lineEditfilterDUR.setEnabled(False)
+        self.lineEditfilterELU.setEnabled(False)
+        self.lineEditfilterGI.setEnabled(False)
+        self.lineEditfilterHAN.setEnabled(False)
+        self.lineEditfilterSPD.setEnabled(False)
+        self.lineEditfilterSTA.setEnabled(False)
+        self.lineEditfilterSTR.setEnabled(False)
+        self.lineEditfilterTEC.setEnabled(False)
+        self.lineEditfilterTKL.setEnabled(False)
+        self.lineEditfilterWE.setEnabled(False)
         
         # Allow only integeres to be entered into the ratings filter fields
         self.onlyInt = QIntValidator()
@@ -480,6 +513,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.checkBoxUndecided.stateChanged.connect(self.undecided_filter)
         self.pushButtonApplyRatingsFilters.clicked.connect(self.apply_ratings_filters)
         self.pushButtonClearRatingsFilters.clicked.connect(self.clear_ratings_filter_fields)
+        self.recruit_tableView.clicked.connect(self.tableclickaction)
         
         # Filter data structure used to track which filters are active
         # And then used to build the filter string
@@ -512,6 +546,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             False
 
+
+    def tableclickaction(self, item):
+        print(f"You clicked on column {item.column()} and row {item.row()} with cell data = {item.data()}")
+        if item.column() == 0:
+            # This is recruit ID field so open link to recruit profile.
+            base_url = "https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid="
+            rid = item.data()
+            url = QUrl(f"{base_url}{rid}")
+            print(f"Opening URL --> {url}")
+            QDesktopServices.openUrl(url)
+
+        if item.column() == 7:
+            # This is hometown so open link to GD Analyst.
+            # Need to know correct world and division.
+            dbfilename = db.databaseName()
+            wis_id_re = re.search(r"(\d{5})", dbfilename)
+            wis_id = int(wis_id_re.group(1))
+            world = wis_gd_df.world[wis_id]
+            division = wis_gd_df.division[wis_id]
+            url = QUrl(f"https://gdanalyst.herokuapp.com/world/{world}/{division}/town?town={item.data()}")
+            print(f"Opening URL --> {url}")
+            QDesktopServices.openUrl(url)
 
     def newFilter(self, model):
         filter = self.getFilterString()
@@ -734,6 +790,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.model = QSqlTableModel()
         initializeModel(self.model)
         self.recruit_tableView.setModel(self.model)
+        self.recruit_tableView.setEnabled(True)
+        self.comboBoxPositionFilter.setEnabled(True)
+        self.checkBoxHideSigned.setEnabled(True)
+        self.checkBoxUndecided.setEnabled(True)
+        self.comboBoxMilesFilter.setEnabled(True)
+        self.pushButtonApplyRatingsFilters.setEnabled(True)
+        self.pushButtonClearRatingsFilters.setEnabled(True)
+        self.lineEditConsideringTextSearch.setEnabled(True)
+        self.lineEditfilterATH.setEnabled(True)
+        self.lineEditfilterBLK.setEnabled(True)
+        self.lineEditfilterDUR.setEnabled(True)
+        self.lineEditfilterELU.setEnabled(True)
+        self.lineEditfilterGI.setEnabled(True)
+        self.lineEditfilterHAN.setEnabled(True)
+        self.lineEditfilterSPD.setEnabled(True)
+        self.lineEditfilterSTA.setEnabled(True)
+        self.lineEditfilterSTR.setEnabled(True)
+        self.lineEditfilterTEC.setEnabled(True)
+        self.lineEditfilterTKL.setEnabled(True)
+        self.lineEditfilterWE.setEnabled(True)
 
 def load_config():
     config = configparser.ConfigParser()
@@ -764,24 +840,32 @@ def update_active_teams(coachid):
     config.add_section('Schools')
     requests_session = requests.Session()
     coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}")
-    coach_profile_page_soup = BeautifulSoup(coach_profile_page.content, "lxml")
-    active_teams_list = coach_profile_page_soup.find("ul", class_="UnorderedItemList")
-    active_teams = active_teams_list.find_all("li")
+    if coach_profile_page.status_code == 200:
+        logger.info(f"Request to grab {coachid} profile page successful.")
+        coach_profile_page_soup = BeautifulSoup(coach_profile_page.content, "lxml")
+        active_teams_list = coach_profile_page_soup.find("ul", class_="UnorderedItemList")
+        active_teams = active_teams_list.find_all("li")
+        if len(active_teams) != 0:
+            logger.info(f"{coachid} has {len(active_teams)} active GD teams.")
+            for each in active_teams:
+                team_span = each.find("span", class_="teamName")
+                team_a_link = team_span.find("a")
+                team_name = team_a_link.text
+                team_href = team_a_link.attrs['href']
+                team_href_re = re.search(r'(\d{5})', team_href)
+                teamid = f"{team_href_re.group(1)}"
+                world_span = each.find("span", class_="world")
+                world_a_link = world_span.find("a")
+                world_name = world_a_link.text
+                config.set('Schools',teamid,f"{team_name} ({world_name})")
+            
+        else:
+            logger.error(f"{coachid} does not have any active GD teams!")
     
-    for each in active_teams:
-        team_span = each.find("span", class_="teamName")
-        team_a_link = team_span.find("a")
-        team_name = team_a_link.text
-        team_href = team_a_link.attrs['href']
-        team_href_re = re.search(r'(\d{5})', team_href)
-        teamid = f"{team_href_re.group(1)}"
-        world_span = each.find("span", class_="world")
-        world_a_link = world_span.find("a")
-        world_name = world_a_link.text
-        config.set('Schools',teamid,f"{team_name} ({world_name})")
-    
-    with open("./config.ini", 'w') as file:
-        config.write(file)
+        with open("./config.ini", 'w') as file:
+            config.write(file)
+    elif coach_profile_page.status_code == 503:
+        logger.error(f"Request to grab {coachid} profile page was NOT successful. Please check coach ID.")
 
 
 def initializeModel(model):
