@@ -28,6 +28,11 @@
      <height>32</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
+   </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
    </property>
@@ -44,6 +49,11 @@
      <height>20</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
+   </property>
    <property name="text">
     <string>Team ID</string>
    </property>
@@ -56,6 +66,11 @@
      <width>111</width>
      <height>20</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
    <property name="text">
     <string>Season Number</string>
@@ -70,6 +85,11 @@
      <height>20</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
+   </property>
   </widget>
   <widget class="QComboBox" name="comboBoxTeamID">
    <property name="geometry">
@@ -79,6 +99,11 @@
      <width>221</width>
      <height>22</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
   </widget>
  </widget>

@@ -14,20 +14,21 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Grab Season Data</string>
+   <string>Grab Recruit Data</string>
   </property>
   <widget class="QPushButton" name="pushButtonInitializeRecruits">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>70</y>
-     <width>621</width>
-     <height>61</height>
+     <x>150</x>
+     <y>60</y>
+     <width>411</width>
+     <height>41</height>
     </rect>
    </property>
    <property name="font">
     <font>
-     <pointsize>24</pointsize>
+     <family>Arial</family>
+     <pointsize>20</pointsize>
     </font>
    </property>
    <property name="text">
@@ -37,15 +38,16 @@
   <widget class="QPushButton" name="pushButtonUpdateConsideringSigned">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>403</y>
-     <width>621</width>
-     <height>61</height>
+     <x>120</x>
+     <y>320</y>
+     <width>471</width>
+     <height>41</height>
     </rect>
    </property>
    <property name="font">
     <font>
-     <pointsize>24</pointsize>
+     <family>Arial</family>
+     <pointsize>20</pointsize>
     </font>
    </property>
    <property name="text">
@@ -55,8 +57,8 @@
   <widget class="QProgressBar" name="progressBarInitializeRecruits">
    <property name="geometry">
     <rect>
-     <x>180</x>
-     <y>320</y>
+     <x>200</x>
+     <y>270</y>
      <width>321</width>
      <height>31</height>
     </rect>
@@ -71,8 +73,8 @@
   <widget class="QProgressBar" name="progressBarUpdateConsidering">
    <property name="geometry">
     <rect>
-     <x>180</x>
-     <y>490</y>
+     <x>200</x>
+     <y>382</y>
      <width>321</width>
      <height>31</height>
     </rect>
@@ -96,14 +98,15 @@
    </property>
    <property name="geometry">
     <rect>
-     <x>510</x>
-     <y>498</y>
+     <x>530</x>
+     <y>390</y>
      <width>81</width>
      <height>16</height>
     </rect>
    </property>
    <property name="font">
     <font>
+     <family>Arial</family>
      <pointsize>10</pointsize>
     </font>
    </property>
@@ -122,6 +125,7 @@
    </property>
    <property name="font">
     <font>
+     <family>Arial</family>
      <pointsize>16</pointsize>
     </font>
    </property>
@@ -138,11 +142,16 @@
   <widget class="QLabel" name="labelProgressCreateRecruitDB">
    <property name="geometry">
     <rect>
-     <x>250</x>
-     <y>161</y>
+     <x>260</x>
+     <y>123</y>
      <width>221</width>
      <height>16</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
    <property name="text">
     <string>Create / Re-create Recruit Database Table</string>
@@ -151,8 +160,8 @@
   <widget class="QLabel" name="labelCheckMarkCreateDB">
    <property name="geometry">
     <rect>
-     <x>220</x>
-     <y>160</y>
+     <x>230</x>
+     <y>120</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -170,8 +179,8 @@
   <widget class="QLabel" name="labelCheckMarkAuthWIS">
    <property name="geometry">
     <rect>
-     <x>220</x>
-     <y>190</y>
+     <x>230</x>
+     <y>150</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -189,11 +198,16 @@
   <widget class="QLabel" name="labelAuthWIS">
    <property name="geometry">
     <rect>
-     <x>250</x>
-     <y>190</y>
+     <x>260</x>
+     <y>152</y>
      <width>221</width>
      <height>16</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
    <property name="text">
     <string>Authenticate to WIS - Gridiron Dynasty</string>
@@ -202,11 +216,16 @@
   <widget class="QLabel" name="labelGrabUnsigned">
    <property name="geometry">
     <rect>
-     <x>250</x>
-     <y>220</y>
+     <x>260</x>
+     <y>182</y>
      <width>221</width>
      <height>16</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
    <property name="text">
     <string>Grab Unsigned Recruits</string>
@@ -215,8 +234,8 @@
   <widget class="QLabel" name="labelCheckMarkGrabUnsigned">
    <property name="geometry">
     <rect>
-     <x>220</x>
-     <y>220</y>
+     <x>230</x>
+     <y>180</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -234,11 +253,16 @@
   <widget class="QLabel" name="labelGrabSigned">
    <property name="geometry">
     <rect>
-     <x>250</x>
-     <y>250</y>
+     <x>260</x>
+     <y>212</y>
      <width>221</width>
      <height>16</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
    <property name="text">
     <string>Grab Signed Recruits</string>
@@ -247,8 +271,8 @@
   <widget class="QLabel" name="labelCheckMarkGrabSigned">
    <property name="geometry">
     <rect>
-     <x>220</x>
-     <y>250</y>
+     <x>230</x>
+     <y>210</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -266,11 +290,16 @@
   <widget class="QLabel" name="labelGrabStaticData">
    <property name="geometry">
     <rect>
-     <x>250</x>
-     <y>280</y>
+     <x>260</x>
+     <y>242</y>
      <width>221</width>
      <height>16</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
    <property name="text">
     <string>Grab Recruit Static Ratings Data and GPA</string>
@@ -279,8 +308,8 @@
   <widget class="QLabel" name="labelCheckMarkGrabStaticData">
    <property name="geometry">
     <rect>
-     <x>220</x>
-     <y>280</y>
+     <x>230</x>
+     <y>240</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -295,9 +324,54 @@
     <bool>true</bool>
    </property>
   </widget>
+  <widget class="QPushButton" name="pushButtonMarkRecruitsFromWatchlist">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>120</x>
+     <y>440</y>
+     <width>471</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+     <pointsize>20</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Mark Recruits From Watchlist</string>
+   </property>
+  </widget>
+  <widget class="QProgressBar" name="progressBarMarkWatchlist">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>500</y>
+     <width>321</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="minimum">
+    <number>0</number>
+   </property>
+   <property name="maximum">
+    <number>100</number>
+   </property>
+   <property name="value">
+    <number>-1</number>
+   </property>
+   <property name="textVisible">
+    <bool>true</bool>
+   </property>
+  </widget>
  </widget>
- <resources>
-  <include location="../mypackages/res.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

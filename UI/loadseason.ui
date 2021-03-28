@@ -25,6 +25,11 @@
      <height>32</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
+   </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
    </property>
@@ -41,6 +46,11 @@
      <height>21</height>
     </rect>
    </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
+   </property>
    <property name="text">
     <string>Select season:</string>
    </property>
@@ -53,6 +63,11 @@
      <width>231</width>
      <height>22</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
   </widget>
  </widget>
