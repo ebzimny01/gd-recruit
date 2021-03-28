@@ -211,15 +211,6 @@ class MarkRecruitsWorker(QObject):
     def run(self):
         """Long-running Initialize Recruit task goes here."""
 
-        def _recruit_set(list_a_tags):
-            temp = set()
-            for each in list_a_tags:
-                link = each.attrs['href']
-                link_re = re.search(r"(\d{8})", link)
-                rid = int(link_re.group(1))
-                temp.add(rid)
-            return temp
-
         # Thread signaling start
         self.progress.emit(0)
 
@@ -232,21 +223,39 @@ class MarkRecruitsWorker(QObject):
         total_unsigned_recruits_span = page.find(id="ctl00_ctl00_ctl00_Main_Main_Main_TotalRecruitCountLbl")
         total_unsigned_watched = int(total_unsigned_recruits_span.next_sibling)
         unsigned_table = ""
-        watchlist = set()
+        watchlist = {}
         if total_unsigned_watched == 0:
             logger.info("There are no unsigned recruits in the watchlist.")
         else:
             unsigned_table = page.find(id="recruits")
-            unsigned_recruit_a_tags = unsigned_table.find_all("a", class_="recruitProfileLink")
-            u_set = _recruit_set(unsigned_recruit_a_tags)
-            watchlist.update(u_set)
+            # https://stackoverflow.com/questions/14257717/python-beautifulsoup-wildcard-attribute-id-search
+            unsigned_recruit_rows = unsigned_table.find_all("tr",
+                                                            {"id": lambda L: L and L.startswith("ctl00_ctl00_ctl00_Main_Main_Main_rptPriorities_ct")}
+                                                            )
+            for row in unsigned_recruit_rows:
+                columns = row.find_all("td")
+                recruit_a_tag = columns[4].find("a")
+                link = recruit_a_tag.attrs['href']
+                link_re = re.search(r"(\d{8})", link)
+                rid = int(link_re.group(1))
+                potential = columns[9].text
+                watchlist.update({rid: potential})
         signed_table = page.find(id="signed")
-        if signed_table == "":
+        if signed_table.text == "\n\n\n":
             logger.info("There are no signed recruits in the watchlist.")
         else:
-            signed_recruit_a_tags = signed_table.find_all("a", class_="recruitProfileLink")
-            s_set = _recruit_set(signed_recruit_a_tags)
-            watchlist.update(s_set)
+            signed_recruit_tbody = signed_table.find_all("tbody")
+            # The first tbody is the header row for signed recruits table.
+            # The second tbody is the table with signed recruits.
+            signed_recruit_rows = signed_recruit_tbody[1].find_all("tr")
+            for row in signed_recruit_rows:
+                columns = row.find_all("td")
+                recruit_a_tag = columns[4].find("a")
+                link = recruit_a_tag.attrs['href']
+                link_re = re.search(r"(\d{8})", link)
+                rid = int(link_re.group(1))
+                potential = columns[9].text
+                watchlist.update({rid: potential})
 
         print(f"Length of watchlist = {len(watchlist)}")
         print(watchlist)
@@ -265,10 +274,12 @@ class MarkRecruitsWorker(QObject):
         # Now we set watched = 1 for the rids in watchlist
         query_watched_update = QSqlQuery(db_t)
         query_watched_update.prepare("UPDATE recruits "
-                                     "SET watched = 1 "
+                                     "SET watched = 1, "
+                                     "pot = :pot "
                                      "WHERE id = :id")
-        for rid in watchlist:
-            query_watched_update.bindValue(":id", rid)
+        for k, v in watchlist.items():
+            query_watched_update.bindValue(":id", k)
+            query_watched_update.bindValue(":pot", v)
             if not query_watched_update.exec_():
                 logQueryError(query_watched_update)
         query_watched_update.finish()
