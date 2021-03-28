@@ -7,7 +7,6 @@ logging.basicConfig(filename="./gdrecruit.log",
 )
 logger = logging.getLogger(__name__)
 
-
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 import os
 import sys
@@ -119,7 +118,8 @@ class InitializeWorker(QObject):
                 tec INTEGER,
                 gpa REAL,
                 pot TEXT,
-                signed INTEGER
+                signed INTEGER,
+                watched INTEGER
             )
             """
         ):
@@ -203,6 +203,83 @@ class InitializeWorker(QObject):
         db_t.close()
         self.finished.emit()
 
+
+class MarkRecruitsWorker(QObject):
+    finished = Signal()
+    progress = Signal(int)
+    
+    def run(self):
+        """Long-running Initialize Recruit task goes here."""
+
+        def _recruit_set(list_a_tags):
+            temp = set()
+            for each in list_a_tags:
+                link = each.attrs['href']
+                link_re = re.search(r"(\d{8})", link)
+                rid = int(link_re.group(1))
+                temp.add(rid)
+            return temp
+
+        # Thread signaling start
+        self.progress.emit(0)
+
+        # Launch playwright browser to grab watched recruits
+        coachid, user, pwd, config = load_config()
+        db_t.setDatabaseName(db.databaseName())
+        page = wis_browser(config, user, pwd, "grab_watched_recruits", db_t, self.progress)
+        self.progress.emit(3)
+        # Check if total watched recruits list is empty
+        total_unsigned_recruits_span = page.find(id="ctl00_ctl00_ctl00_Main_Main_Main_TotalRecruitCountLbl")
+        total_unsigned_watched = int(total_unsigned_recruits_span.next_sibling)
+        unsigned_table = ""
+        watchlist = set()
+        if total_unsigned_watched == 0:
+            logger.info("There are no unsigned recruits in the watchlist.")
+        else:
+            unsigned_table = page.find(id="recruits")
+            unsigned_recruit_a_tags = unsigned_table.find_all("a", class_="recruitProfileLink")
+            u_set = _recruit_set(unsigned_recruit_a_tags)
+            watchlist.update(u_set)
+        signed_table = page.find(id="signed")
+        if signed_table == "":
+            logger.info("There are no signed recruits in the watchlist.")
+        else:
+            signed_recruit_a_tags = signed_table.find_all("a", class_="recruitProfileLink")
+            s_set = _recruit_set(signed_recruit_a_tags)
+            watchlist.update(s_set)
+
+        print(f"Length of watchlist = {len(watchlist)}")
+        print(watchlist)
+
+        # First we clear all watched recruits from the db
+        openDB(db_t)
+        queryUpdate = QSqlQuery(db_t)
+        if not queryUpdate.exec_(
+            """
+            UPDATE recruits SET watched = 0
+            """
+        ):
+            logQueryError(queryUpdate)
+        queryUpdate.finish()
+
+        # Now we set watched = 1 for the rids in watchlist
+        query_watched_update = QSqlQuery(db_t)
+        query_watched_update.prepare("UPDATE recruits "
+                                     "SET watched = 1 "
+                                     "WHERE id = :id")
+        for rid in watchlist:
+            query_watched_update.bindValue(":id", rid)
+            if not query_watched_update.exec_():
+                logQueryError(query_watched_update)
+        query_watched_update.finish()
+
+        db_t.close()
+
+        # Report done
+        self.progress.emit(1000)
+        self.finished.emit()
+
+
 class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -211,7 +288,9 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.rids_all_length = len(self.rids_all)
         if self.rids_all_length == 0:
             self.pushButtonUpdateConsideringSigned.setVisible(False)
+            self.pushButtonMarkRecruitsFromWatchlist.setVisible(False)
         else:
+            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
             self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
             self.pushButtonInitializeRecruits.setText("Re-Initialize Recruits")
@@ -234,7 +313,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelUpdateProgressBarMax.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
         self.pushButtonUpdateConsideringSigned.clicked.connect(self.update_considering)
-        
+        self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
+        self.progressBarMarkWatchlist.setVisible(False)
 
     def accept(self):
         super().accept()
@@ -252,16 +332,17 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
-        self.worker.progress.connect(self.reportProgress)
+        self.worker.progress.connect(self.reportInitializeProgress)
         # Step 6: Start the thread
         self.thread.start()
         # Final resets
         self.pushButtonInitializeRecruits.setEnabled(False)
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
         self.thread.finished.connect(
             lambda: self.pushButtonInitializeRecruits.setEnabled(True)
         )
 
-    def reportProgress(self, n, m):
+    def reportInitializeProgress(self, n, m):
         # print(f"n = {n}\nm = {m}")
         if n == 0:
             self.labelProgressCreateRecruitDB.setVisible(True)
@@ -299,10 +380,13 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         if n > 1000 and (n - 1000) == m:
             self.labelCheckMarkGrabStaticData.setVisible(True)
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {m}")
+            self.pushButtonUpdateConsideringSigned.setVisible(True)
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
+            self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
 
     def update_considering(self):
         self.pushButtonUpdateConsideringSigned.setEnabled(False)
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
         i = 0
         rids_unsigned = query_Recruit_IDs("unsigned", db)
         rids_unsigned_length = len(rids_unsigned)
@@ -362,10 +446,54 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
         mw.statusbar.showMessage(f"Finished updating {rids_unsigned_length} recruits.")
         logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
-        self.pushButtonInitializeRecruits.setEnabled(True)
         queryUpdateConsidering.finish()
         db.close()
+        self.pushButtonInitializeRecruits.setEnabled(True)
         self.pushButtonUpdateConsideringSigned.setEnabled(True)
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+
+
+    def runMarkRecruitsJob(self):
+        # Step 1: Create a QThread object
+        self.thread = QThread()
+        # Step 2: Create a worker object
+        self.worker = MarkRecruitsWorker()
+        # Step 3: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 4: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.reportMarkRecruitsProgress)
+        # Step 6: Start the thread
+        self.thread.start()
+        # Final resets
+        self.pushButtonInitializeRecruits.setEnabled(False)
+        self.pushButtonUpdateConsideringSigned.setEnabled(False)
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+        self.thread.finished.connect(
+            lambda: self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+        )
+
+
+    def reportMarkRecruitsProgress(self, n):
+        if n == 0:
+            self.progressBarMarkWatchlist.setVisible(True)
+            self.progressBarMarkWatchlist.setEnabled(True)
+            self.progressBarMarkWatchlist.setValue(20)
+            logger.info("Thread started for Marking Recruits From Watchlist")
+        if n == 1:
+            logger.info("WIS auth through playwright browser completed.")
+            self.progressBarMarkWatchlist.setValue(40)
+        if n == 2:
+            self.progressBarMarkWatchlist.setValue(60)
+        if n == 3:
+            self.progressBarMarkWatchlist.setValue(80)
+        if n == 1000:
+            self.progressBarMarkWatchlist.setValue(100)
+            self.pushButtonInitializeRecruits.setEnabled(True)
+            self.pushButtonUpdateConsideringSigned.setEnabled(True)
 
 
 class LoadSeason(QDialog, Ui_DialogLoadSeason):
@@ -463,6 +591,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         v_header = self.recruit_tableView.verticalHeader()
         v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
 
+        # This can format the text of the entire table view.
+        #self.recruit_tableView.setStyleSheet("""
+        #                                   color: #123456;
+        #                                    """)
+
         # Disable Recruit Table until a DB table is loaded.
         self.recruit_tableView.setEnabled(False)
         
@@ -470,6 +603,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboBoxPositionFilter.setEnabled(False)
         self.checkBoxHideSigned.setEnabled(False)
         self.checkBoxUndecided.setEnabled(False)
+        self.checkBoxWatched.setEnabled(False)
         self.comboBoxMilesFilter.setEnabled(False)
         self.pushButtonApplyRatingsFilters.setEnabled(False)
         self.pushButtonClearRatingsFilters.setEnabled(False)
@@ -486,9 +620,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterTEC.setEnabled(False)
         self.lineEditfilterTKL.setEnabled(False)
         self.lineEditfilterWE.setEnabled(False)
+        self.lineEditfilterGPA.setEnabled(False)
         
-        # Allow only integeres to be entered into the ratings filter fields
+        # Allow only integers to be entered into the ratings filter fields
         self.onlyInt = QIntValidator()
+        self.onlyDouble = QDoubleValidator(bottom=0, top=4, decimals=2)
         self.lineEditfilterATH.setValidator(self.onlyInt)
         self.lineEditfilterSPD.setValidator(self.onlyInt)
         self.lineEditfilterDUR.setValidator(self.onlyInt)
@@ -501,6 +637,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterGI.setValidator(self.onlyInt)
         self.lineEditfilterELU.setValidator(self.onlyInt)
         self.lineEditfilterTEC.setValidator(self.onlyInt)
+        self.lineEditfilterGPA.setValidator(self.onlyDouble)
         
         # UI triggers
         self.actionWIS_Credentials.triggered.connect(self.open_WIS_cred)
@@ -511,6 +648,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboBoxMilesFilter.activated.connect(self.miles_filter)
         self.checkBoxHideSigned.stateChanged.connect(self.hide_signed_filter)
         self.checkBoxUndecided.stateChanged.connect(self.undecided_filter)
+        self.checkBoxWatched.stateChanged.connect(self.watched_filter)
         self.pushButtonApplyRatingsFilters.clicked.connect(self.apply_ratings_filters)
         self.pushButtonClearRatingsFilters.clicked.connect(self.clear_ratings_filter_fields)
         self.recruit_tableView.clicked.connect(self.tableclickaction)
@@ -518,22 +656,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Filter data structure used to track which filters are active
         # And then used to build the filter string
         self.string_filter = {
-            'pos' : "",
-            'hide_signed' : "",
-            'undecided' : "",
-            'miles' : "",
-            'ath' : "",
-            'spd' : "",
-            'dur' : "",
-            'we' : "",
-            'sta' : "",
-            'str' : "",
-            'blk' : "",
-            'tkl' : "",
-            'han' : "",
-            'gi' : "",
-            'elu' : "",
-            'tec' : ""
+            'pos': "",
+            'hide_signed': "",
+            'undecided': "",
+            'miles': "",
+            'ath': "",
+            'spd': "",
+            'dur': "",
+            'we': "",
+            'sta': "",
+            'str': "",
+            'blk': "",
+            'tkl': "",
+            'han': "",
+            'gi': "",
+            'elu': "",
+            'tec': ""
         }
         
         if self.check_stored_creds():
@@ -608,22 +746,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterGI.setText("")
         self.lineEditfilterELU.setText("")
         self.lineEditfilterTEC.setText("")
+        self.lineEditfilterGPA.setText("")
         text_fields = {
-            'ath' : self.lineEditfilterATH.text(),
-            'spd' : self.lineEditfilterSPD.text(),
-            'we' : self.lineEditfilterWE.text(),
-            'dur' : self.lineEditfilterDUR.text(),
-            'sta' : self.lineEditfilterSTA.text(),
-            'str' : self.lineEditfilterSTR.text(),
-            'blk' : self.lineEditfilterBLK.text(),
-            'tkl' : self.lineEditfilterTKL.text(),
-            'han' : self.lineEditfilterHAN.text(),
-            'gi' : self.lineEditfilterGI.text(),
-            'elu' : self.lineEditfilterELU.text(),
-            'tec' : self.lineEditfilterTEC.text()
+            'ath': self.lineEditfilterATH.text(),
+            'spd': self.lineEditfilterSPD.text(),
+            'we': self.lineEditfilterWE.text(),
+            'dur': self.lineEditfilterDUR.text(),
+            'sta': self.lineEditfilterSTA.text(),
+            'str': self.lineEditfilterSTR.text(),
+            'blk': self.lineEditfilterBLK.text(),
+            'tkl': self.lineEditfilterTKL.text(),
+            'han': self.lineEditfilterHAN.text(),
+            'gi': self.lineEditfilterGI.text(),
+            'elu': self.lineEditfilterELU.text(),
+            'tec': self.lineEditfilterTEC.text(),
+            'gpa': self.lineEditfilterGPA.text()
             }
         
-        for k,v in text_fields.items():
+        for k, v in text_fields.items():
             self.apply_helper(k, v)
         
         logger.info(f"Clearing Considering filter...")
@@ -635,7 +775,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def apply_helper(self, k, v):
             if v:
                 logger.info(f"Enabling {k} filter...")
-                self.string_filter[k] = f"{k} > {int(v)}"
+                if k == 'gpa':
+                    self.string_filter[k] = f"{k} > {float(v)}"
+                else:
+                    self.string_filter[k] = f"{k} > {int(v)}"
             else:
                 logger.info(f"Clearing {k} filter...")
                 self.string_filter[k] = ""
@@ -645,21 +788,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info("Ratings Filters Apply button was clicked!")
         logger.info(f"Previous filter = {self.getFilterString()}")
         text_fields = {
-            'ath' : self.lineEditfilterATH.text(),
-            'spd' : self.lineEditfilterSPD.text(),
-            'we' : self.lineEditfilterWE.text(),
-            'dur' : self.lineEditfilterDUR.text(),
-            'sta' : self.lineEditfilterSTA.text(),
-            'str' : self.lineEditfilterSTR.text(),
-            'blk' : self.lineEditfilterBLK.text(),
-            'tkl' : self.lineEditfilterTKL.text(),
-            'han' : self.lineEditfilterHAN.text(),
-            'gi' : self.lineEditfilterGI.text(),
-            'elu' : self.lineEditfilterELU.text(),
-            'tec' : self.lineEditfilterTEC.text()
+            'ath': self.lineEditfilterATH.text(),
+            'spd': self.lineEditfilterSPD.text(),
+            'we': self.lineEditfilterWE.text(),
+            'dur': self.lineEditfilterDUR.text(),
+            'sta': self.lineEditfilterSTA.text(),
+            'str': self.lineEditfilterSTR.text(),
+            'blk': self.lineEditfilterBLK.text(),
+            'tkl': self.lineEditfilterTKL.text(),
+            'han': self.lineEditfilterHAN.text(),
+            'gi': self.lineEditfilterGI.text(),
+            'elu': self.lineEditfilterELU.text(),
+            'tec': self.lineEditfilterTEC.text(),
+            'gpa': self.lineEditfilterGPA.text()
             }
         
-        for k,v in text_fields.items():
+        for k, v in text_fields.items():
             self.apply_helper(k, v)
 
         # Considering handled separately since it needs different operator
@@ -673,6 +817,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.newFilter(self.model)
 
+
     def undecided_filter(self):
         state = self.checkBoxUndecided.checkState()
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -685,6 +830,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             raise Exception
         
+        self.newFilter(self.model)
+
+
+    def watched_filter(self):
+        state = self.checkBoxWatched.checkState()
+        logger.info(f"Previous filter = {self.getFilterString()}")
+        if state == 0:
+            logger.info("Clearing Watched filter...")
+            self.string_filter['watched'] = ""
+        elif state == 2:
+            logger.info("Enabling Watched filter...")
+            self.string_filter['watched'] = "watched = 1"
+        else:
+            raise Exception
+
         self.newFilter(self.model)
 
 
@@ -794,6 +954,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboBoxPositionFilter.setEnabled(True)
         self.checkBoxHideSigned.setEnabled(True)
         self.checkBoxUndecided.setEnabled(True)
+        self.checkBoxWatched.setEnabled(True)
         self.comboBoxMilesFilter.setEnabled(True)
         self.pushButtonApplyRatingsFilters.setEnabled(True)
         self.pushButtonClearRatingsFilters.setEnabled(True)
@@ -810,6 +971,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterTEC.setEnabled(True)
         self.lineEditfilterTKL.setEnabled(True)
         self.lineEditfilterWE.setEnabled(True)
+        self.lineEditfilterGPA.setEnabled(True)
 
 def load_config():
     config = configparser.ConfigParser()
@@ -897,6 +1059,7 @@ def initializeModel(model):
    model.setHeaderData(22, Qt.Horizontal, "GPA")
    model.setHeaderData(23, Qt.Horizontal, "Pot")
    model.setHeaderData(24, Qt.Horizontal, "Signed")
+   model.setHeaderData(25, Qt.Horizontal, "Watched")
 
 
 if __name__ == "__main__":
