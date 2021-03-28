@@ -60,16 +60,16 @@ def get_recruitIDs(page_content):
                 considering += f"{a.text}\n"
             considering = considering[:-1] # removes newline at end
         recruitIDs.append({
-            'id' : rid,
-            'name' : td_tags[2].text,
+            'id': rid,
+            'name': td_tags[2].text,
             'pos': td_tags[1].text,
-            'height' : td_tags[3].text,
-            'weight' : int(td_tags[4].text),
-            'rating' : int(td_tags[5].text),
-            'rank' : td_tags[6].text,
-            'hometown' : td_tags[7].text,
-            'miles' : int(td_tags[8].text),
-            'considering' : considering
+            'height': td_tags[3].text,
+            'weight': int(td_tags[4].text),
+            'rating': int(td_tags[5].text),
+            'rank': td_tags[6].text,
+            'hometown': td_tags[7].text,
+            'miles': int(td_tags[8].text),
+            'considering': considering
         })
     next_link_tag = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_lnkNextPage")
     logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
@@ -290,9 +290,45 @@ def wis_browser(config, user, pwd, f, d, progress = None):
 
                 
             d.close()
+            context.close()
             browser.close()
             logger.info("Playwright browser closed.")
 
+
+        if "grab_watched_recruits" in f:
+            logger.info("In grab_watched_recruits section of WISBrowser")
+            # Thread progress emit signal indicating WIS Auth is complete
+            progress.emit(1)
+            openDB(d)
+            dbname = d.databaseName()
+            d.close()
+            teamID = re.search(r"\d{5}", dbname)
+            logger.info("Post auth, waiting for network state to be idle . . . ")
+
+            # Setting cookie for team id
+            cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+            logger.info(f"cookie_teamID = {cookie_teamID}")
+            context.add_cookies([cookie_teamID])
+            
+            logger.info("Loading Recruiting Summary page ...")
+            with page.expect_navigation():
+                page.goto("https://www.whatifsports.com/gd/recruiting")
+            # assert page.url == "https://www.whatifsports.com/gd/recruiting"
+            progress.emit(2)
+            page.wait_for_load_state(state='networkidle')
+            
+            # Click h3:has-text("Recruiting Summary")
+            page.click("h3:has-text(\"Recruiting Summary\")")
+            
+            # Grab page contents to parse and return
+            recruit_summary = BeautifulSoup(page.content(), "lxml")
+            logger.info("Grabbed Recruiting Summary page content")
+            print(recruit_summary)
+            context.close()
+            browser.close()
+            logger.info("Playwright browser closed.")
+            return recruit_summary
+           
 
 def get_create_recruit_query_object(d):
     logger.info(f"get_create_recruit_query_object:\nDatabase name = {d.databaseName()}\nConnection name = {d.connectionName()}")
@@ -321,7 +357,8 @@ def get_create_recruit_query_object(d):
                                                         "tec,"
                                                         "gpa,"
                                                         "pot,"
-                                                        "signed) "
+                                                        "signed,"
+                                                        "watched) "
                                             "VALUES (:id, "
                                                     ":name, "
                                                     ":pos, "
@@ -346,7 +383,8 @@ def get_create_recruit_query_object(d):
                                                     ":tec, "
                                                     ":gpa, "
                                                     ":pot, "
-                                                    ":signed)"):
+                                                    ":signed,"
+                                                    ":watched)"):
         logger.info(f"Last query error = {createRecruitQuery.lastError()}")
         logQueryError(createRecruitQuery)
     return createRecruitQuery
@@ -378,6 +416,7 @@ def bindRecruitQuery(query, i, signed = int()):
     query.bindValue(":gpa", 0.0)
     query.bindValue(":pot", '')
     query.bindValue(":signed", signed)
+    query.bindValue(":watched", 0)
     if not query.exec_():
         logger.info(f"Last query error = {query.lastError()}")
         logQueryError(query)
