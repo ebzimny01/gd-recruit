@@ -145,6 +145,8 @@ class InitializeWorker(QObject):
         logger.info("Running query_Recruit_IDs after wis_browser...")
         rids = query_Recruit_IDs("all", db_t)
         rids_length = len(rids)
+        logger.info(f"Number of recruits to process = {rids_length}")
+        print(f"Number of recruits to process = {rids_length}")
         openDB(db_t)
         queryUpdate = QSqlQuery(db_t)
         queryUpdate.prepare("UPDATE recruits "
@@ -168,7 +170,7 @@ class InitializeWorker(QObject):
         logger.info(f"before emit {i}...")
         self.progress.emit(i, rids_length)
 
-        with Bar('Initializing Recruit Static Data without Playwright', max=len(rids)) as bar:
+        with Bar('Initializing Recruit Static Data...', max=len(rids)) as bar:
             for rid in rids:
                 recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={rid}")
                 recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
@@ -258,7 +260,7 @@ class MarkRecruitsWorker(QObject):
                 watchlist.update({rid: potential})
 
         print(f"Length of watchlist = {len(watchlist)}")
-        print(watchlist)
+        logger.info(f"Length of watchlist = {len(watchlist)}")
 
         # First we clear all watched recruits from the db
         openDB(db_t)
@@ -356,11 +358,15 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     def reportInitializeProgress(self, n, m):
         # print(f"n = {n}\nm = {m}")
         if n == 0:
+            self.progressBarMarkWatchlist.setVisible(False)
+            self.progressBarUpdateConsidering.setVisible(False)
             self.labelProgressCreateRecruitDB.setVisible(True)
             self.labelAuthWIS.setVisible(True)
             self.labelGrabUnsigned.setVisible(True)
             self.labelGrabSigned.setVisible(True)
             self.labelGrabStaticData.setVisible(True)
+            self.progressBarInitializeRecruits.setRange(0, 0)
+            self.progressBarInitializeRecruits.setVisible(True)
         if n == 1:
             self.labelCheckMarkCreateDB.setVisible(True)
         if n == 2:
@@ -394,6 +400,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonUpdateConsideringSigned.setVisible(True)
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
             self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
+            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
 
     def update_considering(self):
         self.pushButtonUpdateConsideringSigned.setEnabled(False)
@@ -414,7 +421,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                                         "WHERE id = :id")
 
         requests_session = requests.Session()
-        with Bar('Update Recruits Considering without Playwright', max=rids_unsigned_length) as bar:            
+        with Bar('Update Recruits Considering...', max=rids_unsigned_length) as bar:            
             logger.info(f"Updating {rids_unsigned_length} unsigned recruits . . . ")
             for rid in rids_unsigned:
                 recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
@@ -490,6 +497,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
     def reportMarkRecruitsProgress(self, n):
         if n == 0:
+            self.progressBarUpdateConsidering.setVisible(False)
             self.progressBarMarkWatchlist.setVisible(True)
             self.progressBarMarkWatchlist.setEnabled(True)
             self.progressBarMarkWatchlist.setValue(20)
@@ -704,6 +712,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             rid = item.data()
             url = QUrl(f"{base_url}{rid}")
             print(f"Opening URL --> {url}")
+            logger.info(f"Opening URL --> {url}")
             QDesktopServices.openUrl(url)
 
         if item.column() == 7:
@@ -716,6 +725,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             division = wis_gd_df.division[wis_id]
             url = QUrl(f"https://gdanalyst.herokuapp.com/world/{world}/{division}/town?town={item.data()}")
             print(f"Opening URL --> {url}")
+            logger.info(f"Opening URL --> {url}")
             QDesktopServices.openUrl(url)
 
     def newFilter(self, model):
