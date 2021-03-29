@@ -573,15 +573,40 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         coachid, wisuser, pwd, config = load_config()
         self.setupUi(self, coachid, wisuser, pwd)
         self.buttonstate()
+        self.labelCheckMarkcoachIDValidated.setVisible(False)
+        self.labelCheckMarkcoachIDValidationError.setVisible(False)
+        # Validate coachid from config file is proper
+        if coachid != "":
+            self.validate_coach_profile(self)
         self.lineEditWISCoachID.textChanged.connect(self.buttonstate)
+        self.lineEditWISCoachID.editingFinished.connect(self.validate_coach_profile)
         self.lineEditWISUsername.textChanged.connect(self.buttonstate)
         self.lineEditWISPassword.textChanged.connect(self.buttonstate)
+        
 
     def buttonstate(self):
         if self.lineEditWISCoachID.text() != '' and self.lineEditWISPassword.text() != '' and self.lineEditWISUsername.text() != '':
             self.buttonBox.button(QDialogButtonBox.Save).setEnabled(True)
         else:
             self.buttonBox.button(QDialogButtonBox.Save).setEnabled(False)
+
+
+    def validate_coach_profile(self):
+        requests_session = requests.Session()
+        coachid = self.lineEditWISCoachID.text()
+        if coachid == "":
+            self.labelCheckMarkcoachIDValidationError.setVisible(False)
+            self.labelCheckMarkcoachIDValidated.setVisible(False)
+        else:
+            coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}")
+            if coach_profile_page.status_code == 200:
+                logger.info(f"Validated coach ID: {coachid} (status code = {coach_profile_page.status_code})")
+                self.labelCheckMarkcoachIDValidationError.setVisible(False)
+                self.labelCheckMarkcoachIDValidated.setVisible(True)
+            else:
+                logger.info(f"Error validating coach ID: {coachid} (status code = {coach_profile_page.status_code})")
+                self.labelCheckMarkcoachIDValidationError.setVisible(True)
+                self.labelCheckMarkcoachIDValidated.setVisible(False)
 
 
     def accept(self):
