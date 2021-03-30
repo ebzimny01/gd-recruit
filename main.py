@@ -1,3 +1,5 @@
+print("Running GD Recruit Assistant . . . ")
+import sys
 import logging
 logging.basicConfig(filename="./gdrecruit.log",
                     filemode='w',
@@ -7,9 +9,9 @@ logging.basicConfig(filename="./gdrecruit.log",
 )
 logger = logging.getLogger(__name__)
 
+
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 import os
-import sys
 import datetime, time
 import requests
 from playwright.async_api import async_playwright
@@ -52,10 +54,7 @@ wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
 
 def query_Recruit_IDs(type, dbconn):
     openDB(dbconn)
-    logger.info(f"query_Recruit_IDs:\n \
-            Database name = {dbconn.databaseName()}\n \
-            Connection name = {dbconn.connectionName()}\n \
-            Tables = {dbconn.tables()}")
+    logger.info(f"query_Recruit_IDs: Database name = {dbconn.databaseName()} Connection name = {dbconn.connectionName()} Tables = {dbconn.tables()}")
     queryRecruitIDs = QSqlQuery(dbconn)
     rids = []
     if type == "all":
@@ -69,7 +68,9 @@ def query_Recruit_IDs(type, dbconn):
         while queryRecruitIDs.next():
             rids.append(queryRecruitIDs.value('id'))
     queryRecruitIDs.finish()
+    logger.info(f"Closing {dbconn.databaseName()}...")
     dbconn.close()
+    logger.info("End of query_Recruit_IDs function")
     return rids
 
 
@@ -81,7 +82,7 @@ class InitializeWorker(QObject):
     
     def run(self):
         """Long-running Initialize Recruit task goes here."""
-        
+        logger.info("Started InitializeWorker.run function")
         # Thread signaling start
         self.progress.emit(0, 1)
 
@@ -577,7 +578,7 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         self.labelCheckMarkcoachIDValidationError.setVisible(False)
         # Validate coachid from config file is proper
         if coachid != "":
-            self.validate_coach_profile(self)
+            self.validate_coach_profile()
         self.lineEditWISCoachID.textChanged.connect(self.buttonstate)
         self.lineEditWISCoachID.editingFinished.connect(self.validate_coach_profile)
         self.lineEditWISUsername.textChanged.connect(self.buttonstate)
@@ -1024,17 +1025,38 @@ def load_config():
     configfile = config.read('./config.ini')
     if  configfile == []:
         logger.info("config.ini file not found")
-        logger.info("Creating config.ini . . . ")
+        logger.info("Creating config.ini with WISCreds section")
         config['WISCreds'] = {
                         'coachid' : '',
                         'username' : '',
                         'password' : ''
                         }
-        with open("./config.ini", 'w') as file:
-            config.write(file)
     else:
         logger.info("config.ini file found")
+        # If config file exists but does not contain WISCreds section, add it
+        if config.has_section('WISCreds'):
+            logger.info("Config WISCreds section found")
+            if not config.has_option('WISCreds','coachid'):
+                logger.info("Adding missing coachid option to WISCreds section")
+                config['WISCreds']['coachid'] = ''
+            if not config.has_option('WISCreds','username'):
+                logger.info("Adding missing username option to WISCreds section")
+                config['WISCreds']['username'] = ''
+            if not config.has_option('WISCreds','password'):
+                logger.info("Adding missing password option to WISCreds section")
+                config['WISCreds']['password'] = ''
+        else:
+            logger.info("Adding missing WISCreds section")
+            config['WISCreds'] = {
+                        'coachid' : '',
+                        'username' : '',
+                        'password' : ''
+                        }
     
+    with open("./config.ini", 'w') as file:
+            config.write(file)
+
+
     coachid = config['WISCreds']['coachid']
     username = config['WISCreds']['username']
     password = config['WISCreds']['password']
@@ -1109,7 +1131,6 @@ def initializeModel(model):
 
 
 if __name__ == "__main__":
-    print("Running GD Recruit Helper . . . ")
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         logger.info('running in a PyInstaller bundle')
     else:
