@@ -85,13 +85,23 @@ def randsleep():
 
 
 def wis_browser(config, user, pwd, f, d, progress = None):
+    headless = True # default setting
+    if config.has_section('Browser'):
+        logger.info("Config.ini contains Browser section")
+        if config.has_option('Browser', 'headless'):
+            logger.info("Browser section contains headless option")
+            headless = config.getboolean('Browser', 'headless')
+            logger.info(f"Setting headless = {headless}")
+    else:
+        logger.info("Config.ini does not contain Browser section")
+        logger.info(f"Setting headless = {headless}")
 
     with sync_playwright() as p:
         browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1234' / 'firefox' / 'firefox.exe'
         logger.info(f"Browser path = {browser_path}")
         logger.info(f"Browser path is valid? = {browser_path.exists()}")
         browser = p.firefox.launch(
-            headless=True,
+            headless=headless,
             executable_path=browser_path)
         context = browser.new_context()
         page = context.new_page()
@@ -108,27 +118,32 @@ def wis_browser(config, user, pwd, f, d, progress = None):
         logger.info("Authenticating to WIS...")
         
         # Click input[name="username"]
+        logger.info("Clicking on WIS username field...")
         page.click("input[name=\"username\"]")
         s = randsleep()
-        logger.info(f"Sleeping for {s} seconds...")
+        logger.debug(f"Sleeping for {s} seconds...")
         time.sleep(s)
         # Fill input[name="username"]
+        logger.info("Entering WIS username...")
         page.fill("input[name=\"username\"]", user)
         s = randsleep()
-        logger.info(f"Sleeping for {s} seconds...")
+        logger.debug(f"Sleeping for {s} seconds...")
         time.sleep(s)
         # Click input[name="password"]
+        logger.info("Clicking on WIS password field...")
         page.click("input[name=\"password\"]")
         s = randsleep()
-        logger.info(f"Sleeping for {s} seconds...")
+        logger.debug(f"Sleeping for {s} seconds...")
         time.sleep(s)
         # Fill input[name="password"]
+        logger.info("Entering WIS password...")
         page.fill("input[name=\"password\"]", pwd)
         s = randsleep()
-        logger.info(f"Sleeping for {s} seconds...")
+        logger.debug(f"Sleeping for {s} seconds...")
         time.sleep(s)
         # Click button:has-text("Sign in")
         # with page.expect_navigation(url="https://idsrv.fanball.com/connect/authorize?acr_values=ConfirmEmailRedirectUrl%3Ahttps%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&client_id=what-if-sports&nonce=637505041935753100.ZGYzYzIzNDktZTZkZC00YmUxLTg2MjQtZGY2N2JjOTY4OTNhNzJhYWM3OGEtNjkzNS00NzEwLTk3MmMtMTFhMTkwNzJhODQ0&redirect_uri=https%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&response_mode=form_post&response_type=id_token%20token&scope=openid%20profile%20social%20email%20wallet-readonly%20whatifsports-readonly%20connect-notifications-publish&state=OpenIdConnect.AuthenticationProperties%3D6wZySDpgbMTUvbl_WFJuybvrjFTor6ugKdSOvE-ILuNp3RT9OJPhi4DsybXR2lf9IeJYO7-6fo2paUWlFOSXk2ssF_8LTyeAUPaG7s6RPo8Zc_3rRZN63naxd2PLtIwYxCHsOg3u3yC9xANaxu6Odg-F3W3uE3agKx6-azhTl3E6KCX4PnB1EVcq5Ej09b3xGIfzR93OQ9WhT0PppfB4yeu1z2GzzKJs3Cl-p2tG5mXOTiMb3kwcCuzHjWb0JlOqy3jkjQ&x-client-SKU=ID_NET461&x-client-ver=5.4.0.0"):
+        logger.info("Clicking on WIS login button...")
         with page.expect_navigation(url='https://www.whatifsports.com/locker/lockerroom.asp', wait_until='networkidle'):
             page.click("button:has-text(\"Sign in\")")
         # assert page.url == "https://idsrv.fanball.com/localregistration/silentlogin"
