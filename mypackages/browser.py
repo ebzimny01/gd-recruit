@@ -97,6 +97,7 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                 headless = config.getboolean('Browser', 'headless')
             except Exception as e:
                 logger.error(f"Oops...exception getting headless setting from config.ini: {e.__class__}")
+                logger.error(Exception.with_traceback())
             logger.info(f"Setting headless = {headless}")
     else:
         logger.info("Config.ini does not contain Browser section")
@@ -204,7 +205,7 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                 progress.emit(100, 1)
                 
                 # Range is 1 to 11 to cover the 10 player positions
-                for i in range(1,11):
+                for i in range(1, 11):
                     
                     logger.info(f"Selecting position {position_dropdown[i]}")           
                     # Select 1
@@ -268,7 +269,7 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                     # Thread progress signaling Scraping Signed recruits is done
                     progress.emit(210, 1)
                 else:
-                    for i in range(1,11):
+                    for i in range(1, 11):
                         
                         logger.info(f"Selecting position {position_dropdown[i]}")           
                         # Select 1
@@ -377,6 +378,12 @@ def get_create_recruit_query_object(d):
                                                         "gi,"
                                                         "elu,"
                                                         "tec,"
+                                                        "r1,"
+                                                        "r2,"
+                                                        "r3,"
+                                                        "r4,"
+                                                        "r5,"
+                                                        "r6,"
                                                         "gpa,"
                                                         "pot,"
                                                         "signed,"
@@ -403,6 +410,12 @@ def get_create_recruit_query_object(d):
                                                     ":gi, "
                                                     ":elu, "
                                                     ":tec, "
+                                                    ":r1, "
+                                                    ":r2, "
+                                                    ":r3, "
+                                                    ":r4, "
+                                                    ":r5, "
+                                                    ":r6, "
                                                     ":gpa, "
                                                     ":pot, "
                                                     ":signed,"
@@ -435,6 +448,12 @@ def bindRecruitQuery(query, i, signed = int()):
     query.bindValue(":gi", 0)
     query.bindValue(":elu", 0)
     query.bindValue(":tec", 0)
+    query.bindValue(":r1", 0.0)
+    query.bindValue(":r2", 0.0)
+    query.bindValue(":r3", 0.0)
+    query.bindValue(":r4", 0.0)
+    query.bindValue(":r5", 0.0)
+    query.bindValue(":r6", 0.0)
     query.bindValue(":gpa", 0.0)
     query.bindValue(":pot", '')
     query.bindValue(":signed", signed)
