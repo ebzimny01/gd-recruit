@@ -20,7 +20,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>60</y>
+     <y>46</y>
      <width>411</width>
      <height>41</height>
     </rect>
@@ -39,7 +39,7 @@
    <property name="geometry">
     <rect>
      <x>120</x>
-     <y>320</y>
+     <y>308</y>
      <width>471</width>
      <height>41</height>
     </rect>
@@ -58,10 +58,13 @@
    <property name="geometry">
     <rect>
      <x>200</x>
-     <y>270</y>
+     <y>250</y>
      <width>321</width>
      <height>31</height>
     </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
    </property>
    <property name="value">
     <number>24</number>
@@ -74,7 +77,7 @@
    <property name="geometry">
     <rect>
      <x>200</x>
-     <y>382</y>
+     <y>363</y>
      <width>321</width>
      <height>31</height>
     </rect>
@@ -99,7 +102,7 @@
    <property name="geometry">
     <rect>
      <x>530</x>
-     <y>390</y>
+     <y>371</y>
      <width>81</width>
      <height>16</height>
     </rect>
@@ -118,7 +121,7 @@
    <property name="geometry">
     <rect>
      <x>150</x>
-     <y>20</y>
+     <y>10</y>
      <width>401</width>
      <height>31</height>
     </rect>
@@ -142,15 +145,16 @@
   <widget class="QLabel" name="labelProgressCreateRecruitDB">
    <property name="geometry">
     <rect>
-     <x>260</x>
-     <y>123</y>
-     <width>221</width>
+     <x>227</x>
+     <y>100</y>
+     <width>341</width>
      <height>16</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="text">
@@ -160,8 +164,8 @@
   <widget class="QLabel" name="labelCheckMarkCreateDB">
    <property name="geometry">
     <rect>
-     <x>230</x>
-     <y>120</y>
+     <x>197</x>
+     <y>97</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -179,8 +183,8 @@
   <widget class="QLabel" name="labelCheckMarkAuthWIS">
    <property name="geometry">
     <rect>
-     <x>230</x>
-     <y>150</y>
+     <x>197</x>
+     <y>126</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -198,15 +202,16 @@
   <widget class="QLabel" name="labelAuthWIS">
    <property name="geometry">
     <rect>
-     <x>260</x>
-     <y>152</y>
-     <width>221</width>
+     <x>227</x>
+     <y>128</y>
+     <width>341</width>
      <height>16</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="text">
@@ -216,15 +221,16 @@
   <widget class="QLabel" name="labelGrabUnsigned">
    <property name="geometry">
     <rect>
-     <x>260</x>
-     <y>182</y>
-     <width>221</width>
+     <x>227</x>
+     <y>159</y>
+     <width>341</width>
      <height>16</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="text">
@@ -234,8 +240,8 @@
   <widget class="QLabel" name="labelCheckMarkGrabUnsigned">
    <property name="geometry">
     <rect>
-     <x>230</x>
-     <y>180</y>
+     <x>197</x>
+     <y>157</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -253,15 +259,16 @@
   <widget class="QLabel" name="labelGrabSigned">
    <property name="geometry">
     <rect>
-     <x>260</x>
-     <y>212</y>
-     <width>221</width>
+     <x>227</x>
+     <y>189</y>
+     <width>341</width>
      <height>16</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="text">
@@ -271,8 +278,8 @@
   <widget class="QLabel" name="labelCheckMarkGrabSigned">
    <property name="geometry">
     <rect>
-     <x>230</x>
-     <y>210</y>
+     <x>197</x>
+     <y>187</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -290,15 +297,16 @@
   <widget class="QLabel" name="labelGrabStaticData">
    <property name="geometry">
     <rect>
-     <x>260</x>
-     <y>242</y>
-     <width>221</width>
+     <x>227</x>
+     <y>219</y>
+     <width>341</width>
      <height>16</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="text">
@@ -308,8 +316,8 @@
   <widget class="QLabel" name="labelCheckMarkGrabStaticData">
    <property name="geometry">
     <rect>
-     <x>230</x>
-     <y>240</y>
+     <x>197</x>
+     <y>217</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -331,7 +339,7 @@
    <property name="geometry">
     <rect>
      <x>120</x>
-     <y>440</y>
+     <y>420</y>
      <width>471</width>
      <height>41</height>
     </rect>
@@ -353,7 +361,7 @@
    <property name="geometry">
     <rect>
      <x>200</x>
-     <y>500</y>
+     <y>510</y>
      <width>321</width>
      <height>31</height>
     </rect>
@@ -368,6 +376,82 @@
     <number>-1</number>
    </property>
    <property name="textVisible">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkAuthWIS_Error">
+   <property name="geometry">
+    <rect>
+     <x>197</x>
+     <y>126</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/x_icon.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelAuthWIS_MarkRecruits">
+   <property name="geometry">
+    <rect>
+     <x>230</x>
+     <y>474</y>
+     <width>341</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+     <pointsize>12</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>Authenticate to WIS - Gridiron Dynasty</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkAuthWIS_MarkRecruits">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>472</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/checkmark_1.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkAuthWIS_Error_MarkRecruits">
+   <property name="geometry">
+    <rect>
+     <x>199</x>
+     <y>472</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/x_icon.png</pixmap>
+   </property>
+   <property name="scaledContents">
     <bool>true</bool>
    </property>
   </widget>
