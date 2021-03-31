@@ -14,7 +14,7 @@ from PySide2.QtWidgets import *
 from PySide2.QtSql import *
 from pathlib import Path
 import inspect
-from main import logQueryError
+from main import logQueryError, load_config
 
 
 def get_file_dirname() -> Path:
@@ -84,13 +84,19 @@ def randsleep():
     return s
 
 
-def wis_browser(config, user, pwd, f, d, progress = None):
+def wis_browser(cfg, user, pwd, f, d, progress = None):
     headless = True # default setting
+    logger.info(f"Default Browser config.ini --> headless = {headless}")
+    coachid, usern, passwd, config = load_config()
+    logger.info("Read config.ini file")
     if config.has_section('Browser'):
         logger.info("Config.ini contains Browser section")
         if config.has_option('Browser', 'headless'):
             logger.info("Browser section contains headless option")
-            headless = config.getboolean('Browser', 'headless')
+            try:
+                headless = config.getboolean('Browser', 'headless')
+            except Exception as e:
+                logger.error(f"Oops...exception getting headless setting from config.ini: {e.__class__}")
             logger.info(f"Setting headless = {headless}")
     else:
         logger.info("Config.ini does not contain Browser section")
@@ -144,22 +150,26 @@ def wis_browser(config, user, pwd, f, d, progress = None):
         # Click button:has-text("Sign in")
         # with page.expect_navigation(url="https://idsrv.fanball.com/connect/authorize?acr_values=ConfirmEmailRedirectUrl%3Ahttps%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&client_id=what-if-sports&nonce=637505041935753100.ZGYzYzIzNDktZTZkZC00YmUxLTg2MjQtZGY2N2JjOTY4OTNhNzJhYWM3OGEtNjkzNS00NzEwLTk3MmMtMTFhMTkwNzJhODQ0&redirect_uri=https%3A%2F%2Fwww.whatifsports.com%2Faccount%2F&response_mode=form_post&response_type=id_token%20token&scope=openid%20profile%20social%20email%20wallet-readonly%20whatifsports-readonly%20connect-notifications-publish&state=OpenIdConnect.AuthenticationProperties%3D6wZySDpgbMTUvbl_WFJuybvrjFTor6ugKdSOvE-ILuNp3RT9OJPhi4DsybXR2lf9IeJYO7-6fo2paUWlFOSXk2ssF_8LTyeAUPaG7s6RPo8Zc_3rRZN63naxd2PLtIwYxCHsOg3u3yC9xANaxu6Odg-F3W3uE3agKx6-azhTl3E6KCX4PnB1EVcq5Ej09b3xGIfzR93OQ9WhT0PppfB4yeu1z2GzzKJs3Cl-p2tG5mXOTiMb3kwcCuzHjWb0JlOqy3jkjQ&x-client-SKU=ID_NET461&x-client-ver=5.4.0.0"):
         logger.info("Clicking on WIS login button...")
-        with page.expect_navigation(url='https://www.whatifsports.com/locker/lockerroom.asp', wait_until='networkidle'):
-            page.click("button:has-text(\"Sign in\")")
-        # assert page.url == "https://idsrv.fanball.com/localregistration/silentlogin"
-        # Go to https://www.whatifsports.com/locker/lockerroom.asp
-        # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
-        
-                
+        try:
+            with page.expect_navigation(url='https://www.whatifsports.com/locker/lockerroom.asp'):
+                page.click("button:has-text(\"Sign in\")")
+                # assert page.url == "https://idsrv.fanball.com/localregistration/silentlogin"
+                # Go to https://www.whatifsports.com/locker/lockerroom.asp
+                # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
+        except Exception as e:
+            logger.error(f"Encountered exception after clicking sign-in button: {e.__class__}")
+
+        try:
+            page.wait_for_selector("h1:has-text(\"My Locker\")")
+        except Exception as e:
+            logger.error(f"Exception waiting for My Locker selector: {e.__class__}")
+
         if "scrape_recruit_IDs" in f:
             # Thread progress emit signal indicating WIS Auth is complete
             progress.emit(2, 1)    
             openDB(d)            
             dbname = d.databaseName()
-            logger.info(f"Before scaping recruits:\n \
-                    Database name = {d.databaseName()}\n \
-                    Connection name = {d.connectionName()}\n \
-                    Tables = {d.tables()}")
+            logger.info(f"Before scraping recruits: Database name = {d.databaseName()} Connection name = {d.connectionName()} Tables = {d.tables()}")
             logger.info(f"DB is valid: {d.isValid()}")
             logger.info(f"DB is open: {d.isOpen()}")
             logger.info(f"DB is open error: {d.isOpenError()}")
@@ -179,15 +189,10 @@ def wis_browser(config, user, pwd, f, d, progress = None):
                 10 : "P"
                 }
             
-            #s = 10
-            #print(f"Sleeping for {s} seconds...")
-            #time.sleep(s)
-            logger.info("Post auth, waiting for network state to be idle . . . ")
-            page.wait_for_load_state(state='networkidle')
-
-            logger.info("Scraping recruit IDs...")
+            logger.info("Begin scraping recruit IDs...")
             
             cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+            logger.info(f"Setting cookie for teamid = {teamID}")
             context.add_cookies([cookie_teamID])
             page.goto("https://www.whatifsports.com/gd/recruiting/Search.aspx")
             # assert page.url == "https://www.whatifsports.com/gd/recruiting/Search.aspx"
@@ -318,7 +323,6 @@ def wis_browser(config, user, pwd, f, d, progress = None):
             dbname = d.databaseName()
             d.close()
             teamID = re.search(r"\d{5}", dbname)
-            logger.info("Post auth, waiting for network state to be idle . . . ")
 
             # Setting cookie for team id
             cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
@@ -326,11 +330,14 @@ def wis_browser(config, user, pwd, f, d, progress = None):
             context.add_cookies([cookie_teamID])
             
             logger.info("Loading Recruiting Summary page ...")
-            with page.expect_navigation():
-                page.goto("https://www.whatifsports.com/gd/recruiting")
-            # assert page.url == "https://www.whatifsports.com/gd/recruiting"
-            progress.emit(2)
-            page.wait_for_load_state(state='networkidle')
+            try:
+                with page.expect_navigation():
+                    page.goto("https://www.whatifsports.com/gd/recruiting")
+                # assert page.url == "https://www.whatifsports.com/gd/recruiting"
+                progress.emit(2)
+                page.wait_for_load_state(state='networkidle')
+            except Exception as e:
+                logger.error(f"Exception loading Recruiting Summary Page: {e.__class__}")
             
             # Click h3:has-text("Recruiting Summary")
             page.click("h3:has-text(\"Recruiting Summary\")")
@@ -338,7 +345,6 @@ def wis_browser(config, user, pwd, f, d, progress = None):
             # Grab page contents to parse and return
             recruit_summary = BeautifulSoup(page.content(), "lxml")
             logger.info("Grabbed Recruiting Summary page content")
-            print(recruit_summary)
             context.close()
             browser.close()
             logger.info("Playwright browser closed.")
