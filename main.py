@@ -314,14 +314,18 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.rids_all = query_Recruit_IDs("all", db)
         self.rids_all_length = len(self.rids_all)
         if self.rids_all_length == 0:
+            self.pushButtonInitializeRecruits.setText(QCoreApplication.translate("MainWindow", u"&Initialize Recruits", None))
             self.pushButtonUpdateConsideringSigned.setVisible(False)
             self.pushButtonMarkRecruitsFromWatchlist.setVisible(False)
         else:
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
             self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
-            self.pushButtonInitializeRecruits.setText("Re-Initialize Recruits")
+            self.pushButtonInitializeRecruits.setText(QCoreApplication.translate("MainWindow", u"&Re-Initialize Recruits", None))
         
+        self.pushButtonUpdateConsideringSigned.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Update Considering / Signed", None))
+        self.pushButtonMarkRecruitsFromWatchlist.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Mark Recruits From Watchlist", None))
+
         # Hide all progress check marks and text until button is pressed
         self.labelAuthWIS_MarkRecruits.setVisible(False)
         self.labelCheckMarkAuthWIS_Error.setVisible(False)
@@ -697,6 +701,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.recruit_tableView.setEnabled(False)
         
         # Disable all filters by default. They will be enabled when model is loaded.
+        self.pushButtonClearRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Clear", None))
+        self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Apply", None))
+        self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
+        self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Data", None))
+        self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"&New Season", None))
+        self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"&Load Season", None))
+        self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"&Grab Recruit Data", None))
+        self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"&WIS Credentials", None))
         self.comboBoxPositionFilter.setEnabled(False)
         self.checkBoxHideSigned.setEnabled(False)
         self.checkBoxUndecided.setEnabled(False)
@@ -1004,7 +1016,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info("Exiting New Season dialog")
         logger.info(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
-            self.setWindowTitle(f"GD Recruit Helper - {db.databaseName()}")
+            self.setWindowTitle(f"GD Recruit Assistant - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
             self.loadModel()
             
@@ -1017,7 +1029,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info("Exiting Load Season dialog")
         logger.info(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
-            self.setWindowTitle(f"GD Recruit Helper - {db.databaseName()}")
+            self.setWindowTitle(f"GD Recruit Assistant - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
             self.loadModel()
             
@@ -1207,6 +1219,6 @@ if __name__ == "__main__":
     # Database connection to be used by thread
     db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
     mw = MainWindow()
-    mw.setWindowTitle(u"GD Recruit Helper")
+    mw.setWindowTitle(u"GD Recruit Assistant")
     mw.show() 
     sys.exit(app.exec_())
