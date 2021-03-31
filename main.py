@@ -210,6 +210,75 @@ class InitializeWorker(QObject):
         self.finished.emit()
 
 
+class UpdateConsideringWorker(QObject):
+    finished = Signal()
+    progress = Signal(int, int)
+        
+    def run(self):
+        """Long-running Initialize Recruit task goes here."""
+        logger.info("Started UpdateConsideringWorker.run function")
+        # Thread signaling start
+        self.progress.emit(0,1)
+
+        i = 0
+        rids_unsigned = query_Recruit_IDs("unsigned", db)
+        rids_unsigned_length = len(rids_unsigned)
+        
+        openDB(db)
+        queryUpdateConsidering = QSqlQuery()
+        queryUpdateConsidering.prepare("UPDATE recruits "
+                                        "SET considering = :considering, "
+                                        "signed = :signed "
+                                        "WHERE id = :id")
+
+        requests_session = requests.Session()
+        with Bar('Update Recruits Considering...', max=rids_unsigned_length) as bar:            
+            logger.info(f"Updating {rids_unsigned_length} unsigned recruits . . . ")
+            for rid in rids_unsigned:
+                recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
+                recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
+                teams_table = recruitpage_soup.find("table", id="tblTeams")
+                teams_table_body = teams_table.find("tbody")
+                team_rows = teams_table_body.find_all("tr")
+                considering = ''
+                signed = 0
+                for row in team_rows:
+                    team_data = row.find_all("td")
+                    if "undecided" in team_data[0].text:
+                        considering = "undecided\n"
+                    elif "already signed" in team_data[0].text:
+                        find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
+                        href_tag = find_signed_with.attrs['href']
+                        href_tag_re = re.search(r'(\d{5})', href_tag)
+                        team_id = int(href_tag_re.group(1))
+                        considering = f"{wis_gd_df.school_short[team_id]}\n"
+                        signed = 1
+                    else:
+                        school = team_data[0].text
+                        coach = team_data[1].text
+                        division = team_data[2].text
+                        scholarships_total = team_data[3].text
+                        scholarships_open = team_data[4].text
+                        distance = team_data[5].text # WIS bug always shows N/A for distance???
+                        considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
+                        # print(considering)
+                queryUpdateConsidering.bindValue(":considering", considering[:-1]) # remove newline at end
+                queryUpdateConsidering.bindValue(":signed", signed)
+                queryUpdateConsidering.bindValue(":id", rid)
+                if not queryUpdateConsidering.exec_():
+                    logQueryError(queryUpdateConsidering)
+                                    
+                # Increment counter and progress bar
+                i += 1
+                self.progress.emit(i, rids_unsigned_length)
+                bar.next()
+
+        logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
+        queryUpdateConsidering.finish()
+        db.close()
+        self.finished.emit()
+
+
 class MarkRecruitsWorker(QObject):
     finished = Signal()
     progress = Signal(int)
@@ -347,7 +416,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.progressBarUpdateConsidering.setValue(0)
         self.labelUpdateProgressBarMax.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
-        self.pushButtonUpdateConsideringSigned.clicked.connect(self.update_considering)
+        self.pushButtonUpdateConsideringSigned.clicked.connect(self.runUpdateConsideringJob)
         self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
         self.progressBarMarkWatchlist.setVisible(False)
 
@@ -442,74 +511,49 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.labelCheckMarkAuthWIS_Error.setVisible(True)
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
             self.progressBarInitializeRecruits.setVisible(False)
+    
 
-    def update_considering(self):
-        self.pushButtonUpdateConsideringSigned.setEnabled(False)
-        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
-        i = 0
-        rids_unsigned = query_Recruit_IDs("unsigned", db)
-        rids_unsigned_length = len(rids_unsigned)
+    def runUpdateConsideringJob(self):
+        # Step 1: Create a QThread object
+        self.thread = QThread()
+        # Step 2: Create a worker object
+        self.worker = UpdateConsideringWorker()
+        # Step 3: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 4: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.reportUpdateConsideringProgress)
+        # Step 6: Start the thread
+        self.thread.start()
+        # Final resets
         self.pushButtonInitializeRecruits.setEnabled(False)
-        self.progressBarUpdateConsidering.setMaximum(rids_unsigned_length)
-        mw.statusbar.showMessage(f"Updating {rids_unsigned_length} recruits . . . ")
-        self.progressBarUpdateConsidering.setVisible(True)
-        
-        openDB(db)
-        queryUpdateConsidering = QSqlQuery()
-        queryUpdateConsidering.prepare("UPDATE recruits "
-                                        "SET considering = :considering, "
-                                        "signed = :signed "
-                                        "WHERE id = :id")
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+        self.pushButtonUpdateConsideringSigned.setEnabled(False)
+        self.thread.finished.connect(
+            lambda: self.pushButtonUpdateConsideringSigned.setEnabled(True)
+        )
 
-        requests_session = requests.Session()
-        with Bar('Update Recruits Considering...', max=rids_unsigned_length) as bar:            
-            logger.info(f"Updating {rids_unsigned_length} unsigned recruits . . . ")
-            for rid in rids_unsigned:
-                recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
-                recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-                teams_table = recruitpage_soup.find("table", id="tblTeams")
-                teams_table_body = teams_table.find("tbody")
-                team_rows = teams_table_body.find_all("tr")
-                considering = ''
-                signed = 0
-                for row in team_rows:
-                    team_data = row.find_all("td")
-                    if "undecided" in team_data[0].text:
-                        considering = "undecided\n"
-                    elif "already signed" in team_data[0].text:
-                        find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
-                        href_tag = find_signed_with.attrs['href']
-                        href_tag_re = re.search(r'(\d{5})', href_tag)
-                        team_id = int(href_tag_re.group(1))
-                        considering = f"{wis_gd_df.school_short[team_id]}\n"
-                        signed = 1
-                    else:
-                        school = team_data[0].text
-                        coach = team_data[1].text
-                        division = team_data[2].text
-                        scholarships_total = team_data[3].text
-                        scholarships_open = team_data[4].text
-                        distance = team_data[5].text # WIS bug always shows N/A for distance???
-                        considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
-                        # print(considering)
-                queryUpdateConsidering.bindValue(":considering", considering[:-1]) # remove newline at end
-                queryUpdateConsidering.bindValue(":signed", signed)
-                queryUpdateConsidering.bindValue(":id", rid)
-                if not queryUpdateConsidering.exec_():
-                    logQueryError(queryUpdateConsidering)
-                                    
-                # Increment counter and progress bar
-                i += 1
-                self.progressBarUpdateConsidering.setValue(i)
-                bar.next()
 
-        mw.statusbar.showMessage(f"Finished updating {rids_unsigned_length} recruits.")
-        logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
-        queryUpdateConsidering.finish()
-        db.close()
-        self.pushButtonInitializeRecruits.setEnabled(True)
-        self.pushButtonUpdateConsideringSigned.setEnabled(True)
-        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+    def reportUpdateConsideringProgress(self, n, m):
+        # print(f"n = {n}\nm = {m}")
+        if n == 0:
+            self.progressBarMarkWatchlist.setVisible(False)
+            mw.statusbar.showMessage(f"Updating {m} recruits . . . ")
+            self.progressBarUpdateConsidering.setVisible(True)
+        if n > 0 and n <= m:
+            self.labelUpdateProgressBarMax.setVisible(True)
+            self.labelUpdateProgressBarMax.setText(f"of {m}")
+            self.progressBarUpdateConsidering.setRange(0, m)
+            self.progressBarUpdateConsidering.setValue(n)
+            # self.progressBarUpdateConsidering.value()
+        if n == m:
+            self.pushButtonInitializeRecruits.setEnabled(True)
+            self.pushButtonUpdateConsideringSigned.setEnabled(True)
+            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+            mw.statusbar.showMessage(f"Finished updating {m} recruits.")
 
 
     def runMarkRecruitsJob(self):
