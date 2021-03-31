@@ -395,7 +395,7 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"GD Recruit Helper", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"GD Recruit Assistant", None))
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"Load Season", None))
         self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"Grab Recruit Data", None))
