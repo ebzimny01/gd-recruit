@@ -27,6 +27,7 @@ from mypackages.browser import *
 import configparser
 from progress.bar import Bar
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 
@@ -57,10 +58,12 @@ def query_Recruit_IDs(type, dbconn):
     queryRecruitIDs = QSqlQuery(dbconn)
     rids = []
     if type == "all":
-        if not queryRecruitIDs.exec_("SELECT id FROM recruits"):
+        if not queryRecruitIDs.exec_("SELECT id,pos FROM recruits"):
             logQueryError(queryRecruitIDs)
         while queryRecruitIDs.next():
-            rids.append(queryRecruitIDs.value('id'))
+            r = queryRecruitIDs.value('id')
+            position = queryRecruitIDs.value('pos')
+            rids.append([r, position])
     elif type == "unsigned":
         if not queryRecruitIDs.exec_("SELECT id FROM recruits WHERE signed=0"):
             logQueryError(queryRecruitIDs)
@@ -116,6 +119,12 @@ class InitializeWorker(QObject):
                 gi INTEGER,
                 elu INTEGER,
                 tec INTEGER,
+                r1 REAL,
+                r2 REAL,
+                r3 REAL,
+                r4 REAL,
+                r5 REAL,
+                r6 REAL,
                 gpa REAL,
                 pot TEXT,
                 signed INTEGER,
@@ -162,6 +171,12 @@ class InitializeWorker(QObject):
                                     "gi = :gi, "
                                     "elu = :elu, "
                                     "tec = :tec, "
+                                    "r1 = :r1, "
+                                    "r2 = :r2, "
+                                    "r3 = :r3, "
+                                    "r4 = :r4, "
+                                    "r5 = :r5, "
+                                    "r6 = :r6, "
                                     "gpa = :gpa "
                                 "WHERE id = :id")
             
@@ -170,28 +185,50 @@ class InitializeWorker(QObject):
             logger.info(f"before emit {i}...")
             self.progress.emit(i, rids_length)
 
-            with Bar('Initializing Recruit Static Data...', max=len(rids)) as bar:
+            with Bar('Initializing Recruit Static Data...', max=rids_length) as bar:
                 for rid in rids:
-                    recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={rid}")
+                    r = rid[0]
+                    position = rid[1]
+                    recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={r}")
                     recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
                     recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
                     recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
                     gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
                     gpa = float(gpa_section.text)
-                    queryUpdate.bindValue(":ath", int(recruit_ratings_values[0].text))
-                    queryUpdate.bindValue(":spd", int(recruit_ratings_values[1].text))
-                    queryUpdate.bindValue(":dur", int(recruit_ratings_values[2].text))
-                    queryUpdate.bindValue(":we", int(recruit_ratings_values[3].text))
-                    queryUpdate.bindValue(":sta", int(recruit_ratings_values[4].text))
-                    queryUpdate.bindValue(":str", int(recruit_ratings_values[5].text))
-                    queryUpdate.bindValue(":blk", int(recruit_ratings_values[6].text))
-                    queryUpdate.bindValue(":tkl", int(recruit_ratings_values[7].text))
-                    queryUpdate.bindValue(":han", int(recruit_ratings_values[8].text))
-                    queryUpdate.bindValue(":gi", int(recruit_ratings_values[9].text))
-                    queryUpdate.bindValue(":elu", int(recruit_ratings_values[10].text))
-                    queryUpdate.bindValue(":tec", int(recruit_ratings_values[11].text))
+                    ath = int(recruit_ratings_values[0].text)
+                    spd = int(recruit_ratings_values[1].text)
+                    dur = int(recruit_ratings_values[2].text)
+                    we = int(recruit_ratings_values[3].text)
+                    sta = int(recruit_ratings_values[4].text)
+                    strength = int(recruit_ratings_values[5].text)
+                    blk = int(recruit_ratings_values[6].text)
+                    tkl = int(recruit_ratings_values[7].text)
+                    han = int(recruit_ratings_values[8].text)
+                    gi = int(recruit_ratings_values[9].text)
+                    elu = int(recruit_ratings_values[10].text)
+                    tec = int(recruit_ratings_values[11].text)
+                    r_ratings = [ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec]
+                    role_rating = self.calculate_role_rating(position, r_ratings)
+                    queryUpdate.bindValue(":ath", ath)
+                    queryUpdate.bindValue(":spd", spd)
+                    queryUpdate.bindValue(":dur", dur)
+                    queryUpdate.bindValue(":we", we)
+                    queryUpdate.bindValue(":sta", sta)
+                    queryUpdate.bindValue(":str", strength)
+                    queryUpdate.bindValue(":blk", blk)
+                    queryUpdate.bindValue(":tkl", tkl)
+                    queryUpdate.bindValue(":han", han)
+                    queryUpdate.bindValue(":gi", gi)
+                    queryUpdate.bindValue(":elu", elu)
+                    queryUpdate.bindValue(":tec", tec)
+                    queryUpdate.bindValue(":r1", float(role_rating['r1']))
+                    queryUpdate.bindValue(":r2", float(role_rating['r2']))
+                    queryUpdate.bindValue(":r3", float(role_rating['r3']))
+                    queryUpdate.bindValue(":r4", float(role_rating['r4']))
+                    queryUpdate.bindValue(":r5", float(role_rating['r5']))
+                    queryUpdate.bindValue(":r6", float(role_rating['r6']))
                     queryUpdate.bindValue(":gpa", gpa)
-                    queryUpdate.bindValue(":id", rid)
+                    queryUpdate.bindValue(":id", r)
                     
                     if not queryUpdate.exec_():
                         logQueryError(queryUpdate)
@@ -208,6 +245,102 @@ class InitializeWorker(QObject):
             self.progress.emit(999999,1)
 
         self.finished.emit()
+
+
+    def calculate_role_rating(self, pos, ratings):
+        rating_formulas = {
+            'QB': {
+                'r1': [10, 4, 0, 0, 0, 26, 0, 0, 0, 24, 8, 28],
+                'r2': [8, 18, 2, 1, 3, 24, 0, 0, 0, 16, 20, 8],
+                'r3': [8, 4, 1, 1, 2, 26, 0, 0, 0, 26, 8, 24],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'RB': {
+                'r1': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
+                'r2': [8, 0, 1, 1, 3, 36, 30, 0, 0, 0, 13, 8],
+                'r3': [8, 24, 1, 1, 3, 20, 0, 0, 0, 10, 25, 8],
+                'r4': [8, 20, 1, 1, 3, 25, 0, 0, 0, 10, 24, 8],
+                'r5': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
+                'r6': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8]
+            },
+            'WR': {
+                'r1': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r2': [16, 12, 1, 1, 3, 0, 0, 0, 24, 24, 11, 8],
+                'r3': [12, 23, 1, 1, 3, 0, 0, 0, 11, 18, 23, 8],
+                'r4': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r5': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'TE': {
+                'r1': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
+                'r2': [11, 0, 1, 1, 2, 36, 26, 0, 0, 15, 0, 8],
+                'r3': [16, 12, 1, 1, 2, 0, 0, 0, 24, 24, 12, 8],
+                'r4': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'OL': {
+                'r1': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r2': [12, 0, 1, 1, 2, 23, 41, 0, 0, 12, 0, 8],
+                'r3': [12, 0, 1, 1, 2, 41, 23, 0, 0, 12, 0, 8],
+                'r4': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r5': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'DL': {
+                'r1': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r2': [12, 6, 1, 1, 2, 38, 0, 17, 0, 15, 0, 8],
+                'r3': [12, 15, 1, 1, 2, 22, 0, 24, 0, 15, 0, 8],
+                'r4': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r5': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'LB': {
+                'r1': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
+                'r2': [12, 4, 1, 1, 2, 38, 0, 22, 0, 12, 0, 8],
+                'r3': [13, 12, 1, 1, 2, 21, 0, 21, 0, 21, 0, 8],
+                'r4': [13, 19, 1, 1, 2, 15, 0, 20, 0, 21, 0, 8],
+                'r5': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'DB': {
+                'r1': [16, 20, 1, 1, 4, 10, 0, 10, 10, 20, 0, 8],
+                'r2': [18, 17, 1, 1, 4, 12, 0, 12, 10, 17, 0, 8],
+                'r3': [21, 21, 1, 1, 4, 7, 0, 7, 12, 18, 0, 8],
+                'r4': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
+                'r5': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'K': {
+                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
+                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'P': {
+                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
+                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            }
+        }
+
+        recruit_role_ratings = {
+            'r1': round(np.dot(rating_formulas[pos]['r1'], ratings)/100,1),
+            'r2': round(np.dot(rating_formulas[pos]['r2'], ratings)/100,1),
+            'r3': round(np.dot(rating_formulas[pos]['r3'], ratings)/100,1),
+            'r4': round(np.dot(rating_formulas[pos]['r4'], ratings)/100,1),
+            'r5': round(np.dot(rating_formulas[pos]['r5'], ratings)/100,1),
+            'r6': round(np.dot(rating_formulas[pos]['r6'], ratings)/100,1)
+        }
+
+        return recruit_role_ratings
 
 
 class UpdateConsideringWorker(QObject):
@@ -824,7 +957,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             'han': "",
             'gi': "",
             'elu': "",
-            'tec': ""
+            'tec': "",
+            'gpa':""
         }
         
         if self.check_stored_creds():
@@ -861,6 +995,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print(f"Opening URL --> {url}")
             logger.info(f"Opening URL --> {url}")
             QDesktopServices.openUrl(url)
+
 
     def newFilter(self, model):
         filter = self.getFilterString()
@@ -1232,10 +1367,16 @@ def initializeModel(model):
    model.setHeaderData(19, Qt.Horizontal, "GI")
    model.setHeaderData(20, Qt.Horizontal, "ELU")
    model.setHeaderData(21, Qt.Horizontal, "TEC")
-   model.setHeaderData(22, Qt.Horizontal, "GPA")
-   model.setHeaderData(23, Qt.Horizontal, "Pot")
-   model.setHeaderData(24, Qt.Horizontal, "Signed")
-   model.setHeaderData(25, Qt.Horizontal, "Watched")
+   model.setHeaderData(22, Qt.Horizontal, "R1")
+   model.setHeaderData(23, Qt.Horizontal, "R2")
+   model.setHeaderData(24, Qt.Horizontal, "R3")
+   model.setHeaderData(25, Qt.Horizontal, "R4")
+   model.setHeaderData(26, Qt.Horizontal, "R5")
+   model.setHeaderData(27, Qt.Horizontal, "R6")
+   model.setHeaderData(28, Qt.Horizontal, "GPA")
+   model.setHeaderData(29, Qt.Horizontal, "Pot")
+   model.setHeaderData(30, Qt.Horizontal, "Signed")
+   model.setHeaderData(31, Qt.Horizontal, "Watched")
 
 
 if __name__ == "__main__":
