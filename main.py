@@ -224,13 +224,16 @@ class MarkRecruitsWorker(QObject):
         self.progress.emit(3)
         # Check if total watched recruits list is empty
         total_unsigned_recruits_span = page.find(id="ctl00_ctl00_ctl00_Main_Main_Main_TotalRecruitCountLbl")
-        total_unsigned_watched = int(total_unsigned_recruits_span.next_sibling)
-        unsigned_table = ""
+        #print(total_unsigned_recruits_span)
+        if total_unsigned_recruits_span != None:
+            total_unsigned_watched = int(total_unsigned_recruits_span.next_sibling)
+        else:
+            total_unsigned_watched = 0
+        unsigned_table = page.find(id="recruits")
         watchlist = {}
-        if total_unsigned_watched == 0:
+        if total_unsigned_watched == 0 or "Not watching any recruits." in unsigned_table.text:
             logger.info("There are no unsigned recruits in the watchlist.")
         else:
-            unsigned_table = page.find(id="recruits")
             # https://stackoverflow.com/questions/14257717/python-beautifulsoup-wildcard-attribute-id-search
             unsigned_recruit_rows = unsigned_table.find_all("tr",
                                                             {"id": lambda L: L and L.startswith("ctl00_ctl00_ctl00_Main_Main_Main_rptPriorities_ct")}
@@ -1135,7 +1138,9 @@ if __name__ == "__main__":
         logger.info('running in a PyInstaller bundle')
     else:
         logger.info('running in a normal Python process')
+    os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
     app = QApplication(sys.argv)
+    app.setAttribute(Qt.AA_EnableHighDpiScaling)
     db = QSqlDatabase.addDatabase('QSQLITE')
     # Database connection to be used by thread
     db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
