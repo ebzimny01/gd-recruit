@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>GD Recruit Helper</string>
+   <string>GD Recruit Assistant</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -329,6 +329,9 @@
         </property>
         <property name="text">
          <string>Apply</string>
+        </property>
+        <property name="shortcut">
+         <string/>
         </property>
        </widget>
       </item>
