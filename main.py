@@ -1,5 +1,5 @@
-print("Running GD Recruit Assistant . . . ")
 import sys
+import platform
 import logging
 logging.basicConfig(filename="./gdrecruit.log",
                     filemode='w',
@@ -8,7 +8,6 @@ logging.basicConfig(filename="./gdrecruit.log",
                     datefmt='%m/%d/%Y %I:%M:%S %p'
 )
 logger = logging.getLogger(__name__)
-
 
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 import os
@@ -139,71 +138,75 @@ class InitializeWorker(QObject):
         
         #Thread progress signaling DB was created
         self.progress.emit(1, 1)
-        wis_browser(config, user, pwd, "scrape_recruit_IDs", db_t, self.progress)
-        
-        # After grabbing all Recruit IDs and storing in DB
-        # Now need to grab all static data
-        logger.info("Running query_Recruit_IDs after wis_browser...")
-        rids = query_Recruit_IDs("all", db_t)
-        rids_length = len(rids)
-        logger.info(f"Number of recruits to process = {rids_length}")
-        print(f"Number of recruits to process = {rids_length}")
-        openDB(db_t)
-        queryUpdate = QSqlQuery(db_t)
-        queryUpdate.prepare("UPDATE recruits "
-                            "SET ath = :ath, "
-                                "spd = :spd, "
-                                "dur = :dur, "
-                                "we = :we, "
-                                "sta = :sta, "
-                                "str = :str, "
-                                "blk = :blk, "
-                                "tkl = :tkl, "
-                                "han = :han, "
-                                "gi = :gi, "
-                                "elu = :elu, "
-                                "tec = :tec, "
-                                "gpa = :gpa "
-                            "WHERE id = :id")
-        
-        #Thread progress signaling that Grab Recruit Static Data is starting
-        i = 1000
-        logger.info(f"before emit {i}...")
-        self.progress.emit(i, rids_length)
+        result = wis_browser(config, user, pwd, "scrape_recruit_IDs", db_t, self.progress)
+        if result:
+            # After grabbing all Recruit IDs and storing in DB
+            # Now need to grab all static data
+            logger.info("Running query_Recruit_IDs after wis_browser...")
+            rids = query_Recruit_IDs("all", db_t)
+            rids_length = len(rids)
+            logger.info(f"Number of recruits to process = {rids_length}")
+            print(f"Number of recruits to process = {rids_length}")
+            openDB(db_t)
+            queryUpdate = QSqlQuery(db_t)
+            queryUpdate.prepare("UPDATE recruits "
+                                "SET ath = :ath, "
+                                    "spd = :spd, "
+                                    "dur = :dur, "
+                                    "we = :we, "
+                                    "sta = :sta, "
+                                    "str = :str, "
+                                    "blk = :blk, "
+                                    "tkl = :tkl, "
+                                    "han = :han, "
+                                    "gi = :gi, "
+                                    "elu = :elu, "
+                                    "tec = :tec, "
+                                    "gpa = :gpa "
+                                "WHERE id = :id")
+            
+            #Thread progress signaling that Grab Recruit Static Data is starting
+            i = 1000
+            logger.info(f"before emit {i}...")
+            self.progress.emit(i, rids_length)
 
-        with Bar('Initializing Recruit Static Data...', max=len(rids)) as bar:
-            for rid in rids:
-                recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={rid}")
-                recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-                recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
-                recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
-                gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
-                gpa = float(gpa_section.text)
-                queryUpdate.bindValue(":ath", int(recruit_ratings_values[0].text))
-                queryUpdate.bindValue(":spd", int(recruit_ratings_values[1].text))
-                queryUpdate.bindValue(":dur", int(recruit_ratings_values[2].text))
-                queryUpdate.bindValue(":we", int(recruit_ratings_values[3].text))
-                queryUpdate.bindValue(":sta", int(recruit_ratings_values[4].text))
-                queryUpdate.bindValue(":str", int(recruit_ratings_values[5].text))
-                queryUpdate.bindValue(":blk", int(recruit_ratings_values[6].text))
-                queryUpdate.bindValue(":tkl", int(recruit_ratings_values[7].text))
-                queryUpdate.bindValue(":han", int(recruit_ratings_values[8].text))
-                queryUpdate.bindValue(":gi", int(recruit_ratings_values[9].text))
-                queryUpdate.bindValue(":elu", int(recruit_ratings_values[10].text))
-                queryUpdate.bindValue(":tec", int(recruit_ratings_values[11].text))
-                queryUpdate.bindValue(":gpa", gpa)
-                queryUpdate.bindValue(":id", rid)
-                
-                if not queryUpdate.exec_():
-                    logQueryError(queryUpdate)
-                                    
-                # Thread progress signal for Grab Recruit Static Data
-                i += 1
-                self.progress.emit(i, rids_length)
-                bar.next()
+            with Bar('Initializing Recruit Static Data...', max=len(rids)) as bar:
+                for rid in rids:
+                    recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={rid}")
+                    recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
+                    recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
+                    recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
+                    gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
+                    gpa = float(gpa_section.text)
+                    queryUpdate.bindValue(":ath", int(recruit_ratings_values[0].text))
+                    queryUpdate.bindValue(":spd", int(recruit_ratings_values[1].text))
+                    queryUpdate.bindValue(":dur", int(recruit_ratings_values[2].text))
+                    queryUpdate.bindValue(":we", int(recruit_ratings_values[3].text))
+                    queryUpdate.bindValue(":sta", int(recruit_ratings_values[4].text))
+                    queryUpdate.bindValue(":str", int(recruit_ratings_values[5].text))
+                    queryUpdate.bindValue(":blk", int(recruit_ratings_values[6].text))
+                    queryUpdate.bindValue(":tkl", int(recruit_ratings_values[7].text))
+                    queryUpdate.bindValue(":han", int(recruit_ratings_values[8].text))
+                    queryUpdate.bindValue(":gi", int(recruit_ratings_values[9].text))
+                    queryUpdate.bindValue(":elu", int(recruit_ratings_values[10].text))
+                    queryUpdate.bindValue(":tec", int(recruit_ratings_values[11].text))
+                    queryUpdate.bindValue(":gpa", gpa)
+                    queryUpdate.bindValue(":id", rid)
+                    
+                    if not queryUpdate.exec_():
+                        logQueryError(queryUpdate)
+                                        
+                    # Thread progress signal for Grab Recruit Static Data
+                    i += 1
+                    self.progress.emit(i, rids_length)
+                    bar.next()
 
-        queryUpdate.finish()
-        db_t.close()
+            queryUpdate.finish()
+            db_t.close()
+        else:
+            # Implies there was an error authenticating to WIS
+            self.progress.emit(999999,1)
+
         self.finished.emit()
 
 
@@ -221,79 +224,86 @@ class MarkRecruitsWorker(QObject):
         coachid, user, pwd, config = load_config()
         db_t.setDatabaseName(db.databaseName())
         page = wis_browser(config, user, pwd, "grab_watched_recruits", db_t, self.progress)
-        self.progress.emit(3)
-        # Check if total watched recruits list is empty
-        total_unsigned_recruits_span = page.find(id="ctl00_ctl00_ctl00_Main_Main_Main_TotalRecruitCountLbl")
-        #print(total_unsigned_recruits_span)
-        if total_unsigned_recruits_span != None:
-            total_unsigned_watched = int(total_unsigned_recruits_span.next_sibling)
+        if page == "":
+            # Implies issues loading Recruit Summary page.
+            self.progress.emit(2000)
+        elif page == False:
+            # Implies issue with WIS Authentication
+            self.progress.emit(999999)
         else:
-            total_unsigned_watched = 0
-        unsigned_table = page.find(id="recruits")
-        watchlist = {}
-        if total_unsigned_watched == 0 or "Not watching any recruits." in unsigned_table.text:
-            logger.info("There are no unsigned recruits in the watchlist.")
-        else:
-            # https://stackoverflow.com/questions/14257717/python-beautifulsoup-wildcard-attribute-id-search
-            unsigned_recruit_rows = unsigned_table.find_all("tr",
-                                                            {"id": lambda L: L and L.startswith("ctl00_ctl00_ctl00_Main_Main_Main_rptPriorities_ct")}
-                                                            )
-            for row in unsigned_recruit_rows:
-                columns = row.find_all("td")
-                recruit_a_tag = columns[4].find("a")
-                link = recruit_a_tag.attrs['href']
-                link_re = re.search(r"(\d{8})", link)
-                rid = int(link_re.group(1))
-                potential = columns[9].text
-                watchlist.update({rid: potential})
-        signed_table = page.find(id="signed")
-        if signed_table.text == "\n\n\n":
-            logger.info("There are no signed recruits in the watchlist.")
-        else:
-            signed_recruit_tbody = signed_table.find_all("tbody")
-            # The first tbody is the header row for signed recruits table.
-            # The second tbody is the table with signed recruits.
-            signed_recruit_rows = signed_recruit_tbody[1].find_all("tr")
-            for row in signed_recruit_rows:
-                columns = row.find_all("td")
-                recruit_a_tag = columns[4].find("a")
-                link = recruit_a_tag.attrs['href']
-                link_re = re.search(r"(\d{8})", link)
-                rid = int(link_re.group(1))
-                potential = columns[9].text
-                watchlist.update({rid: potential})
+            self.progress.emit(3)
+            # Check if total watched recruits list is empty
+            total_unsigned_recruits_span = page.find(id="ctl00_ctl00_ctl00_Main_Main_Main_TotalRecruitCountLbl")
+            #print(total_unsigned_recruits_span)
+            if total_unsigned_recruits_span != None:
+                total_unsigned_watched = int(total_unsigned_recruits_span.next_sibling)
+            else:
+                total_unsigned_watched = 0
+            unsigned_table = page.find(id="recruits")
+            watchlist = {}
+            if total_unsigned_watched == 0 or "Not watching any recruits." in unsigned_table.text:
+                logger.info("There are no unsigned recruits in the watchlist.")
+            else:
+                # https://stackoverflow.com/questions/14257717/python-beautifulsoup-wildcard-attribute-id-search
+                unsigned_recruit_rows = unsigned_table.find_all("tr",
+                                                                {"id": lambda L: L and L.startswith("ctl00_ctl00_ctl00_Main_Main_Main_rptPriorities_ct")}
+                                                                )
+                for row in unsigned_recruit_rows:
+                    columns = row.find_all("td")
+                    recruit_a_tag = columns[4].find("a")
+                    link = recruit_a_tag.attrs['href']
+                    link_re = re.search(r"(\d{8})", link)
+                    rid = int(link_re.group(1))
+                    potential = columns[9].text
+                    watchlist.update({rid: potential})
+            signed_table = page.find(id="signed")
+            if signed_table.text == "\n\n\n":
+                logger.info("There are no signed recruits in the watchlist.")
+            else:
+                signed_recruit_tbody = signed_table.find_all("tbody")
+                # The first tbody is the header row for signed recruits table.
+                # The second tbody is the table with signed recruits.
+                signed_recruit_rows = signed_recruit_tbody[1].find_all("tr")
+                for row in signed_recruit_rows:
+                    columns = row.find_all("td")
+                    recruit_a_tag = columns[4].find("a")
+                    link = recruit_a_tag.attrs['href']
+                    link_re = re.search(r"(\d{8})", link)
+                    rid = int(link_re.group(1))
+                    potential = columns[9].text
+                    watchlist.update({rid: potential})
 
-        print(f"Length of watchlist = {len(watchlist)}")
-        logger.info(f"Length of watchlist = {len(watchlist)}")
+            logger.info(f"Length of watchlist = {len(watchlist)}")
 
-        # First we clear all watched recruits from the db
-        openDB(db_t)
-        queryUpdate = QSqlQuery(db_t)
-        if not queryUpdate.exec_(
-            """
-            UPDATE recruits SET watched = 0
-            """
-        ):
-            logQueryError(queryUpdate)
-        queryUpdate.finish()
+            # First we clear all watched recruits from the db
+            openDB(db_t)
+            queryUpdate = QSqlQuery(db_t)
+            if not queryUpdate.exec_(
+                """
+                UPDATE recruits SET watched = 0
+                """
+            ):
+                logQueryError(queryUpdate)
+            queryUpdate.finish()
 
-        # Now we set watched = 1 for the rids in watchlist
-        query_watched_update = QSqlQuery(db_t)
-        query_watched_update.prepare("UPDATE recruits "
-                                     "SET watched = 1, "
-                                     "pot = :pot "
-                                     "WHERE id = :id")
-        for k, v in watchlist.items():
-            query_watched_update.bindValue(":id", k)
-            query_watched_update.bindValue(":pot", v)
-            if not query_watched_update.exec_():
-                logQueryError(query_watched_update)
-        query_watched_update.finish()
+            # Now we set watched = 1 for the rids in watchlist
+            query_watched_update = QSqlQuery(db_t)
+            query_watched_update.prepare("UPDATE recruits "
+                                        "SET watched = 1, "
+                                        "pot = :pot "
+                                        "WHERE id = :id")
+            for k, v in watchlist.items():
+                query_watched_update.bindValue(":id", k)
+                query_watched_update.bindValue(":pot", v)
+                if not query_watched_update.exec_():
+                    logQueryError(query_watched_update)
+            query_watched_update.finish()
 
-        db_t.close()
+            db_t.close()
 
-        # Report done
-        self.progress.emit(1000)
+            # Report done
+            self.progress.emit(1000)
+            mw.statusbar.showMessage(f"{len(watchlist)} recruits marked from watchlist.")
         self.finished.emit()
 
 
@@ -313,6 +323,10 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonInitializeRecruits.setText("Re-Initialize Recruits")
         
         # Hide all progress check marks and text until button is pressed
+        self.labelAuthWIS_MarkRecruits.setVisible(False)
+        self.labelCheckMarkAuthWIS_Error.setVisible(False)
+        self.labelCheckMarkAuthWIS_Error_MarkRecruits.setVisible(False)
+        self.labelCheckMarkAuthWIS_MarkRecruits.setVisible(False)
         self.labelCheckMarkCreateDB.setVisible(False)
         self.labelCheckMarkAuthWIS.setVisible(False)
         self.labelCheckMarkGrabUnsigned.setVisible(False)
@@ -353,8 +367,17 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         # Step 6: Start the thread
         self.thread.start()
         # Final resets
+        self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(255, 0, 0);")
+        self.labelRecruitsInitialized.setText(f"Recruits Initialized = 0")
         self.pushButtonInitializeRecruits.setEnabled(False)
-        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+        self.pushButtonMarkRecruitsFromWatchlist.setVisible(False)
+        self.pushButtonUpdateConsideringSigned.setVisible(False)
+        self.labelCheckMarkCreateDB.setVisible(False)
+        self.labelCheckMarkAuthWIS.setVisible(False)
+        self.labelCheckMarkAuthWIS_Error.setVisible(False)
+        self.labelCheckMarkGrabUnsigned.setVisible(False)
+        self.labelCheckMarkGrabSigned.setVisible(False)
+        self.labelCheckMarkGrabStaticData.setVisible(False)
         self.thread.finished.connect(
             lambda: self.pushButtonInitializeRecruits.setEnabled(True)
         )
@@ -372,10 +395,13 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.progressBarInitializeRecruits.setRange(0, 0)
             self.progressBarInitializeRecruits.setVisible(True)
         if n == 1:
+            # DB created
             self.labelCheckMarkCreateDB.setVisible(True)
         if n == 2:
+            # WIS Auth Completed
             self.labelCheckMarkAuthWIS.setVisible(True)
         if n == 100:
+            # Starting to grab unsigned recruits
             self.progressBarInitializeRecruits.setRange(0, 100)
             self.progressBarInitializeRecruits.setVisible(True)
         if 100 < n <= 110:
@@ -383,6 +409,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             if n == 110:
                 self.labelCheckMarkGrabUnsigned.setVisible(True)
         if n == 200:
+            # Starting to grab signed recruits
             self.progressBarInitializeRecruits.setRange(0, 100)
             self.progressBarInitializeRecruits.value()
         if 200 < n <= 210:
@@ -391,6 +418,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             if n == 210:
                 self.labelCheckMarkGrabSigned.setVisible(True)
         if n == 1000:
+            # Starting to grab recruit static data
+            self.labelRecruitsInitialized.setText(f"Initializing {m} Recruits...")
             self.progressBarInitializeRecruits.setRange(0, m)
             self.progressBarInitializeRecruits.setValue(0)
             self.progressBarInitializeRecruits.value()
@@ -405,6 +434,10 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
             self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+        if n == 999999:
+            self.labelCheckMarkAuthWIS_Error.setVisible(True)
+            mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
+            self.progressBarInitializeRecruits.setVisible(False)
 
     def update_considering(self):
         self.pushButtonUpdateConsideringSigned.setEnabled(False)
@@ -491,6 +524,9 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         # Step 6: Start the thread
         self.thread.start()
         # Final resets
+        self.labelAuthWIS_MarkRecruits.setVisible(True)
+        self.labelCheckMarkAuthWIS_Error_MarkRecruits.setVisible(False)
+        self.labelCheckMarkAuthWIS_MarkRecruits.setVisible(False)
         self.pushButtonInitializeRecruits.setEnabled(False)
         self.pushButtonUpdateConsideringSigned.setEnabled(False)
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
@@ -501,13 +537,16 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
     def reportMarkRecruitsProgress(self, n):
         if n == 0:
+            self.progressBarMarkWatchlist.setStyleSheet("color: blue")
             self.progressBarUpdateConsidering.setVisible(False)
             self.progressBarMarkWatchlist.setVisible(True)
             self.progressBarMarkWatchlist.setEnabled(True)
-            self.progressBarMarkWatchlist.setValue(20)
+            self.progressBarMarkWatchlist.setRange(0, 0)
             logger.info("Thread started for Marking Recruits From Watchlist")
         if n == 1:
             logger.info("WIS auth through playwright browser completed.")
+            self.labelCheckMarkAuthWIS_MarkRecruits.setVisible(True)
+            self.progressBarMarkWatchlist.setRange(0, 100)
             self.progressBarMarkWatchlist.setValue(40)
         if n == 2:
             self.progressBarMarkWatchlist.setValue(60)
@@ -517,6 +556,16 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.progressBarMarkWatchlist.setValue(100)
             self.pushButtonInitializeRecruits.setEnabled(True)
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
+        if n == 2000:
+            self.pushButtonInitializeRecruits.setEnabled(True)
+            self.pushButtonUpdateConsideringSigned.setEnabled(True)
+            mw.statusbar.showMessage("ERROR: There was a problem loading Recruit Summary Page.")
+        if n == 999999:
+            self.pushButtonInitializeRecruits.setEnabled(True)
+            self.pushButtonUpdateConsideringSigned.setEnabled(True)
+            self.labelCheckMarkAuthWIS_Error_MarkRecruits.setVisible(True)
+            self.progressBarMarkWatchlist.setVisible(False)
+            mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
 
 
 class LoadSeason(QDialog, Ui_DialogLoadSeason):
@@ -1138,9 +1187,22 @@ if __name__ == "__main__":
         logger.info('running in a PyInstaller bundle')
     else:
         logger.info('running in a normal Python process')
+    print("Running GD Recruit Assistant . . . ")
+    logger.info(f"Platform System = {platform.system()}")
+    logger.info(f"Platform System Alias= {platform.system_alias(platform.system(),platform.release(),platform.version())}")
+    logger.info(f"Platform Win32 Version = {platform.win32_ver()}")
+    logger.info(f"Platform Win32 Edition = {platform.win32_edition()}")
+    logger.info(f"Platform Architecture = {platform.architecture()}")
+    logger.info(f"Platform Machine = {platform.machine()}")
+    logger.info(f"Platform Processor = {platform.processor()}")
+    
+    # Configure for High DPI
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+    QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv)
-    app.setAttribute(Qt.AA_EnableHighDpiScaling)
+    
+    
+    # Default database connection
     db = QSqlDatabase.addDatabase('QSQLITE')
     # Database connection to be used by thread
     db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
