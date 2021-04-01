@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>GD Recruit Helper</string>
+   <string>GD Recruit Assistant</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -40,6 +40,11 @@
           <height>16777215</height>
          </size>
         </property>
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
         <property name="text">
          <string>Pos:</string>
         </property>
@@ -67,6 +72,11 @@
           <width>45</width>
           <height>30</height>
          </size>
+        </property>
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
         <property name="toolTip">
          <string>Position Filter</string>
@@ -148,6 +158,11 @@
           <height>16777215</height>
          </size>
         </property>
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
         <property name="text">
          <string>Hide Signed</string>
         </property>
@@ -161,8 +176,20 @@
           <height>16777215</height>
          </size>
         </property>
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
         <property name="text">
          <string>Undecided</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="checkBoxWatched">
+        <property name="text">
+         <string>Watched</string>
         </property>
        </widget>
       </item>
@@ -186,6 +213,11 @@
           <height>16777215</height>
          </size>
         </property>
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
         <property name="text">
          <string>Miles &lt;</string>
         </property>
@@ -201,6 +233,11 @@
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
         <item>
          <property name="text">
@@ -226,6 +263,11 @@
       </item>
       <item>
        <spacer name="horizontalSpacer">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
@@ -238,6 +280,13 @@
        </spacer>
       </item>
      </layout>
+    </item>
+    <item>
+     <widget class="Line" name="line">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
     </item>
     <item>
      <layout class="QGridLayout" name="gridLayout">
@@ -253,31 +302,46 @@
       <property name="bottomMargin">
        <number>5</number>
       </property>
-      <item row="1" column="3">
-       <widget class="QLineEdit" name="lineEditfilterDUR"/>
-      </item>
-      <item row="0" column="10">
-       <widget class="QLabel" name="labelfilterGI">
-        <property name="text">
-         <string>GI &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
+      <item row="1" column="7">
+       <widget class="QLineEdit" name="lineEditfilterBLK">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
        </widget>
       </item>
-      <item row="1" column="9">
-       <widget class="QLineEdit" name="lineEditfilterHAN"/>
+      <item row="1" column="12">
+       <widget class="QLineEdit" name="lineEditfilterTEC">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+       </widget>
       </item>
-      <item row="1" column="13">
+      <item row="1" column="14">
        <widget class="QPushButton" name="pushButtonApplyRatingsFilters">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
         <property name="text">
          <string>Apply</string>
+        </property>
+        <property name="shortcut">
+         <string/>
         </property>
        </widget>
       </item>
       <item row="0" column="7">
        <widget class="QLabel" name="labelfilterBLK">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
         <property name="text">
          <string>BLK &gt;</string>
         </property>
@@ -286,122 +350,49 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="6">
-       <widget class="QLabel" name="labelfilterSTR">
-        <property name="text">
-         <string>STR &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="11">
-       <widget class="QLineEdit" name="lineEditfilterELU"/>
-      </item>
       <item row="1" column="10">
-       <widget class="QLineEdit" name="lineEditfilterGI"/>
-      </item>
-      <item row="1" column="7">
-       <widget class="QLineEdit" name="lineEditfilterBLK"/>
-      </item>
-      <item row="0" column="4">
-       <widget class="QLabel" name="labelfilterWE">
-        <property name="text">
-         <string>WE &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="12">
-       <widget class="QLabel" name="labelfilterTEC">
-        <property name="text">
-         <string>TEC &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="4">
-       <widget class="QLineEdit" name="lineEditfilterWE"/>
-      </item>
-      <item row="0" column="11">
-       <widget class="QLabel" name="labelfilterELU">
-        <property name="text">
-         <string>ELU &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QLabel" name="labelfilterDUR">
-        <property name="text">
-         <string>DUR &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
+       <widget class="QLineEdit" name="lineEditfilterGI">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
        </widget>
       </item>
       <item row="1" column="6">
-       <widget class="QLineEdit" name="lineEditfilterSTR"/>
+       <widget class="QLineEdit" name="lineEditfilterSTR">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+       </widget>
       </item>
-      <item row="1" column="2">
-       <widget class="QLineEdit" name="lineEditfilterSPD"/>
-      </item>
-      <item row="0" column="13">
-       <widget class="QPushButton" name="pushButtonClearRatingsFilters">
-        <property name="text">
-         <string>Clear</string>
+      <item row="1" column="3">
+       <widget class="QLineEdit" name="lineEditfilterDUR">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="QLineEdit" name="lineEditfilterATH"/>
-      </item>
-      <item row="0" column="8">
-       <widget class="QLabel" name="labelfilterTKL">
-        <property name="text">
-         <string>TKL &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
+       <widget class="QLineEdit" name="lineEditfilterATH">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
        </widget>
-      </item>
-      <item row="1" column="5">
-       <widget class="QLineEdit" name="lineEditfilterSTA"/>
-      </item>
-      <item row="0" column="1">
-       <widget class="QLabel" name="labelfilterATH">
-        <property name="text">
-         <string>ATH &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="5">
-       <widget class="QLabel" name="labelfilterSTA">
-        <property name="text">
-         <string>STA &gt;</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="8">
-       <widget class="QLineEdit" name="lineEditfilterTKL"/>
       </item>
       <item row="0" column="9">
        <widget class="QLabel" name="labelfilterHAN">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
         <property name="text">
          <string>HAN &gt;</string>
         </property>
@@ -410,35 +401,39 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="12">
-       <widget class="QLineEdit" name="lineEditfilterTEC"/>
-      </item>
-      <item row="0" column="2">
-       <widget class="QLabel" name="labelfilterSPD">
-        <property name="text">
-         <string>SPD &gt;</string>
+      <item row="0" column="14">
+       <widget class="QPushButton" name="pushButtonClearRatingsFilters">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
+        <property name="text">
+         <string>Clear</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="labelConsideringTextSearch">
-        <property name="minimumSize">
-         <size>
-          <width>100</width>
-          <height>0</height>
-         </size>
+      <item row="1" column="8">
+       <widget class="QLineEdit" name="lineEditfilterTKL">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
-        <property name="maximumSize">
-         <size>
-          <width>100</width>
-          <height>16777215</height>
-         </size>
+       </widget>
+      </item>
+      <item row="0" column="10">
+       <widget class="QLabel" name="labelfilterGI">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
         </property>
         <property name="text">
-         <string>Considering Search:</string>
+         <string>GI &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
         </property>
        </widget>
       </item>
@@ -462,7 +457,229 @@
           <height>16777215</height>
          </size>
         </property>
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
        </widget>
+      </item>
+      <item row="0" column="6">
+       <widget class="QLabel" name="labelfilterSTR">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>STR &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="5">
+       <widget class="QLineEdit" name="lineEditfilterSTA">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="11">
+       <widget class="QLineEdit" name="lineEditfilterELU">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="11">
+       <widget class="QLabel" name="labelfilterELU">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>ELU &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QLabel" name="labelfilterDUR">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>DUR &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="9">
+       <widget class="QLineEdit" name="lineEditfilterHAN">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="12">
+       <widget class="QLabel" name="labelfilterTEC">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>TEC &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="8">
+       <widget class="QLabel" name="labelfilterTKL">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>TKL &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="labelfilterATH">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>ATH &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QLabel" name="labelfilterSPD">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>SPD &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="labelConsideringTextSearch">
+        <property name="minimumSize">
+         <size>
+          <width>100</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>100</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>Considering Search:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="4">
+       <widget class="QLineEdit" name="lineEditfilterWE">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QLineEdit" name="lineEditfilterSPD">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="4">
+       <widget class="QLabel" name="labelfilterWE">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>WE &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="5">
+       <widget class="QLabel" name="labelfilterSTA">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+         </font>
+        </property>
+        <property name="text">
+         <string>STA &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="13">
+       <widget class="QLabel" name="labelfilterGPA">
+        <property name="text">
+         <string>GPA &gt;</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="13">
+       <widget class="QLineEdit" name="lineEditfilterGPA"/>
       </item>
      </layout>
     </item>
@@ -476,6 +693,11 @@
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
+      </property>
+      <property name="font">
+       <font>
+        <family>Arial</family>
+       </font>
       </property>
       <property name="sizeAdjustPolicy">
        <enum>QAbstractScrollArea::AdjustToContents</enum>
@@ -518,10 +740,20 @@
    <property name="text">
     <string>New Season</string>
    </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
+   </property>
   </action>
   <action name="actionLoad_Season">
    <property name="text">
     <string>Load Season</string>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
   </action>
   <action name="actionGrabSeasonData">
@@ -529,12 +761,22 @@
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>Grab Season Data</string>
+    <string>Grab Recruit Data</string>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
   </action>
   <action name="actionWIS_Credentials">
    <property name="text">
     <string>WIS Credentials</string>
+   </property>
+   <property name="font">
+    <font>
+     <family>Arial</family>
+    </font>
    </property>
   </action>
  </widget>
@@ -542,6 +784,7 @@
   <tabstop>comboBoxPositionFilter</tabstop>
   <tabstop>checkBoxHideSigned</tabstop>
   <tabstop>checkBoxUndecided</tabstop>
+  <tabstop>checkBoxWatched</tabstop>
   <tabstop>comboBoxMilesFilter</tabstop>
   <tabstop>lineEditConsideringTextSearch</tabstop>
   <tabstop>lineEditfilterATH</tabstop>
@@ -556,8 +799,9 @@
   <tabstop>lineEditfilterGI</tabstop>
   <tabstop>lineEditfilterELU</tabstop>
   <tabstop>lineEditfilterTEC</tabstop>
-  <tabstop>pushButtonClearRatingsFilters</tabstop>
+  <tabstop>lineEditfilterGPA</tabstop>
   <tabstop>pushButtonApplyRatingsFilters</tabstop>
+  <tabstop>pushButtonClearRatingsFilters</tabstop>
   <tabstop>recruit_tableView</tabstop>
  </tabstops>
  <resources/>
