@@ -1,3 +1,5 @@
+version = "0.2.1"
+window_title = f"GD Recruit Assistant Beta ({version})"
 import sys
 import platform
 import logging
@@ -354,11 +356,12 @@ class UpdateConsideringWorker(QObject):
         self.progress.emit(0,1)
 
         i = 0
-        rids_unsigned = query_Recruit_IDs("unsigned", db)
+        db_t.setDatabaseName(db.databaseName())
+        rids_unsigned = query_Recruit_IDs("unsigned", db_t)
         rids_unsigned_length = len(rids_unsigned)
         
-        openDB(db)
-        queryUpdateConsidering = QSqlQuery()
+        openDB(db_t)
+        queryUpdateConsidering = QSqlQuery(db_t)
         queryUpdateConsidering.prepare("UPDATE recruits "
                                         "SET considering = :considering, "
                                         "signed = :signed "
@@ -408,7 +411,7 @@ class UpdateConsideringWorker(QObject):
 
         logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
         queryUpdateConsidering.finish()
-        db.close()
+        db_t.close()
         self.finished.emit()
 
 
@@ -558,6 +561,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
 
     def runInitializeJob(self):
+        logger.info("Button Pressed: Initialize Recruits")
         # Step 1: Create a QThread object
         self.thread = QThread()
         # Step 2: Create a worker object
@@ -647,6 +651,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     
 
     def runUpdateConsideringJob(self):
+        logger.info("Button Pressed: Update Considering / Signed")
         # Step 1: Create a QThread object
         self.thread = QThread()
         # Step 2: Create a worker object
@@ -690,6 +695,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
 
     def runMarkRecruitsJob(self):
+        logger.info("Button Pressed: Mark Recruits From Watchlist")
         # Step 1: Create a QThread object
         self.thread = QThread()
         # Step 2: Create a worker object
@@ -1195,7 +1201,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info("Exiting New Season dialog")
         logger.info(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
-            self.setWindowTitle(f"GD Recruit Assistant - {db.databaseName()}")
+            self.setWindowTitle(f"{window_title} - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
             self.loadModel()
             
@@ -1208,7 +1214,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info("Exiting Load Season dialog")
         logger.info(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
-            self.setWindowTitle(f"GD Recruit Assistant - {db.databaseName()}")
+            self.setWindowTitle(f"{window_title} - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
             self.loadModel()
             
@@ -1384,7 +1390,8 @@ if __name__ == "__main__":
         logger.info('running in a PyInstaller bundle')
     else:
         logger.info('running in a normal Python process')
-    print("Running GD Recruit Assistant . . . ")
+    print(f"Running {window_title} . . . ")
+    logger.info(f"{window_title}")
     logger.info(f"Platform System = {platform.system()}")
     logger.info(f"Platform System Alias= {platform.system_alias(platform.system(),platform.release(),platform.version())}")
     logger.info(f"Platform Win32 Version = {platform.win32_ver()}")
@@ -1404,6 +1411,6 @@ if __name__ == "__main__":
     # Database connection to be used by thread
     db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
     mw = MainWindow()
-    mw.setWindowTitle(u"GD Recruit Assistant")
+    mw.setWindowTitle(window_title)
     mw.show() 
     sys.exit(app.exec_())
