@@ -87,7 +87,7 @@ def randsleep():
 def wis_browser(cfg, user, pwd, f, d, progress = None):
     headless = True # default setting
     timer_expect_navigation = 30000 # default
-    timer_incorrect_creds = 50000 # default
+    timer_incorrect_creds = 10000 # default
     timer_mylocker = 15000 # default
     logger.info(f"Default Browser config.ini --> headless = {headless}")
     coachid, usern, passwd, config = load_config()
@@ -176,19 +176,22 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
         except Exception as e:
             logger.error(f"Exception during WIS Authentication attempt: {e.__class__}")
             logger.error(f"Exception = {e}")
-            logger.error(f"Exception with traceback: {Exception.with_traceback()}")
-            auth_error = page.wait_for_selector("text=Incorrect email or password", timeout=timer_incorrect_creds)
-            logger.error(auth_error.inner_text())
+            try:
+                auth_error = page.wait_for_selector("text=Incorrect email or password", timeout=timer_incorrect_creds)
+            except:
+                logger.info("No incorrect credentials detected so continuing . . . ")
+            else:
+                logger.error(auth_error.inner_text())
+                return False
             return False
         else:
             logger.info("Completed initial 'wait for navigation' authentication try-except block.")
-            
+
         try:
             page.wait_for_selector("h1:has-text(\"My Locker\")", timeout=timer_mylocker)
         except Exception as e:
             logger.error(f"Exception during select text 'My Locker' section: {e.__class__}")
             logger.error(f"Exception = {e}")
-            logger.error(f"Exception with traceback: {Exception.with_traceback()}")
             return False
         else:
             logger.info("Found 'My Locker' text so authentication was successful.")
