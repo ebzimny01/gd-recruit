@@ -86,6 +86,9 @@ def randsleep():
 
 def wis_browser(cfg, user, pwd, f, d, progress = None):
     headless = True # default setting
+    timer_expect_navigation = 30000 # default
+    timer_incorrect_creds = 50000 # default
+    timer_mylocker = 15000 # default
     logger.info(f"Default Browser config.ini --> headless = {headless}")
     coachid, usern, passwd, config = load_config()
     logger.info("Read config.ini file")
@@ -98,10 +101,22 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
             except Exception as e:
                 logger.error(f"Oops...exception getting headless setting from config.ini: {e.__class__}")
                 logger.error(Exception.with_traceback())
-            logger.info(f"Setting headless = {headless}")
+        if config.has_option('Browser', 'timer_expect_navigation'):
+            logger.info("Browser section contains timer_expect_navigation option")
+            timer_expect_navigation = int(config.get('Browser', 'timer_expect_navigation'))
+        if config.has_option('Browser', 'timer_incorrect_creds'):
+            logger.info("Browser section contains timer_incorrect_creds option")
+            timer_incorrect_creds = int(config.get('Browser', 'timer_incorrect_creds'))
+        if config.has_option('Browser', 'timer_mylocker'):
+            logger.info("Browser section contains timer_mylocker option")
+            timer_mylocker = int(config.get('Browser', 'timer_mylocker'))
     else:
         logger.info("Config.ini does not contain Browser section")
-        logger.info(f"Setting headless = {headless}")
+
+    logger.info(f"Setting headless = {headless}")
+    logger.info(f"Setting timer_expect_navigation = {timer_expect_navigation}")
+    logger.info(f"Setting timer_incorrect_creds = {timer_incorrect_creds}")
+    logger.info(f"Setting timer_mylocker = {timer_mylocker}")
 
     with sync_playwright() as p:
         browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1234' / 'firefox' / 'firefox.exe'
@@ -153,19 +168,31 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
         logger.info("Clicking on WIS login button...")
         
         try:
-            with page.expect_navigation(url='https://www.whatifsports.com/locker/lockerroom.asp', timeout=15000):
+            with page.expect_navigation(url='https://www.whatifsports.com/locker/lockerroom.asp', timeout=timer_expect_navigation):
                 page.click("button:has-text(\"Sign in\")")
                 # assert page.url == "https://idsrv.fanball.com/localregistration/silentlogin"
                 # Go to https://www.whatifsports.com/locker/lockerroom.asp
                 # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
-            page.wait_for_selector("h1:has-text(\"My Locker\")", timeout=2000)
         except Exception as e:
-            logger.error(f"Exception during WIS Authentication attemp: {e.__class__}")
-            auth_error = page.wait_for_selector("text=Incorrect email or password", timeout=3000)
+            logger.error(f"Exception during WIS Authentication attempt: {e.__class__}")
+            logger.error(f"Exception = {e}")
+            logger.error(f"Exception with traceback: {Exception.with_traceback()}")
+            auth_error = page.wait_for_selector("text=Incorrect email or password", timeout=timer_incorrect_creds)
             logger.error(auth_error.inner_text())
             return False
         else:
-            logger.info("Authentication successful! Reached My Locker.")
+            logger.info("Completed initial 'wait for navigation' authentication try-except block.")
+            
+        try:
+            page.wait_for_selector("h1:has-text(\"My Locker\")", timeout=timer_mylocker)
+        except Exception as e:
+            logger.error(f"Exception during select text 'My Locker' section: {e.__class__}")
+            logger.error(f"Exception = {e}")
+            logger.error(f"Exception with traceback: {Exception.with_traceback()}")
+            return False
+        else:
+            logger.info("Found 'My Locker' text so authentication was successful.")
+            
             if "scrape_recruit_IDs" in f:
                 # Thread progress emit signal indicating WIS Auth is complete
                 progress.emit(2, 1)    
