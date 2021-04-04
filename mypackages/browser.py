@@ -1,9 +1,11 @@
+from configparser import Error
 import logging
 
 logger = logging.getLogger(__name__)
 
 from os import stat
 from playwright.sync_api import sync_playwright
+from playwright._impl._api_types import Error, TimeoutError
 from bs4 import BeautifulSoup
 import time
 import datetime
@@ -85,31 +87,41 @@ def randsleep():
 
 
 def wis_browser(cfg, user, pwd, f, d, progress = None):
-    headless = True # default setting
-    timer_expect_navigation = 30000 # default
-    timer_incorrect_creds = 10000 # default
-    timer_mylocker = 15000 # default
+    # Default settings #
+    headless = True
+    browser_pause = False
+    timer_expect_navigation = 30000
+    timer_incorrect_creds = 5000
+    timer_mylocker = 15000
+    #
+
     logger.info(f"Default Browser config.ini --> headless = {headless}")
     coachid, usern, passwd, config = load_config()
     logger.info("Read config.ini file")
     if config.has_section('Browser'):
         logger.info("Config.ini contains Browser section")
         if config.has_option('Browser', 'headless'):
-            logger.info("Browser section contains headless option")
+            logger.info("Browser section contains 'headless' option")
             try:
                 headless = config.getboolean('Browser', 'headless')
             except Exception as e:
                 logger.error(f"Oops...exception getting headless setting from config.ini: {e.__class__}")
-                logger.error(Exception.with_traceback())
         if config.has_option('Browser', 'timer_expect_navigation'):
-            logger.info("Browser section contains timer_expect_navigation option")
+            logger.info("Browser section contains 'timer_expect_navigation' option")
             timer_expect_navigation = int(config.get('Browser', 'timer_expect_navigation'))
         if config.has_option('Browser', 'timer_incorrect_creds'):
-            logger.info("Browser section contains timer_incorrect_creds option")
+            logger.info("Browser section contains 'timer_incorrect_creds' option")
             timer_incorrect_creds = int(config.get('Browser', 'timer_incorrect_creds'))
         if config.has_option('Browser', 'timer_mylocker'):
-            logger.info("Browser section contains timer_mylocker option")
+            logger.info("Browser section contains 'timer_mylocker' option")
             timer_mylocker = int(config.get('Browser', 'timer_mylocker'))
+        if config.has_option('Browser', 'pause'):
+            logger.info("Browser section contains 'pause' option")
+            try:
+                browser_pause = config.getboolean('Browser', 'pause')
+            except Exception as e:
+                logger.error(f"Oops...exception getting 'pause' setting from config.ini: {e.__class__}")
+            
     else:
         logger.info("Config.ini does not contain Browser section")
 
@@ -117,6 +129,7 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
     logger.info(f"Setting timer_expect_navigation = {timer_expect_navigation}")
     logger.info(f"Setting timer_incorrect_creds = {timer_incorrect_creds}")
     logger.info(f"Setting timer_mylocker = {timer_mylocker}")
+    logger.info(f"Setting browser_pause = {browser_pause}")
 
     with sync_playwright() as p:
         browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1234' / 'firefox' / 'firefox.exe'
@@ -173,25 +186,40 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                 # assert page.url == "https://idsrv.fanball.com/localregistration/silentlogin"
                 # Go to https://www.whatifsports.com/locker/lockerroom.asp
                 # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
-        except Exception as e:
-            logger.error(f"Exception during WIS Authentication attempt: {e.__class__}")
-            logger.error(f"Exception = {e}")
+        except TimeoutError as err:
+            logger.error(f"TimeoutError during WIS Authentication attempt: {err.__class__}")
+            logger.error(f"Exception = {err}")
+            page.screenshot(path=f"exception-wis_auth_timeout.png")
             try:
                 auth_error = page.wait_for_selector("text=Incorrect email or password", timeout=timer_incorrect_creds)
-            except:
-                logger.info("No incorrect credentials detected so continuing . . . ")
+            except TimeoutError as err:
+                logger.error("No incorrect credentials detected after original browser timeout exception.")
+                logger.error(f"Exception = {err}")
+                logger.error(f"Some unknown error occurred.")
+                return False
             else:
                 logger.error(auth_error.inner_text())
                 return False
-            return False
+        except Exception as err:
+            logger.error(f"e.message = {err.message}")
+            page.screenshot(path=f"exception-{err.essage}.png")
+            if err.message == "NS_BINDING_ABORTED":
+                logger.error(f"Ignoring {err} exception")
+                pass
+            else:
+                logger.error(f"Exception following WIS Authentication attempt: {err.__class__}")
+                logger.error(f"Exception = {err}")
+                return False
         else:
             logger.info("Completed initial 'wait for navigation' authentication try-except block.")
+            if browser_pause == True:
+                page.pause()
 
         try:
             page.wait_for_selector("h1:has-text(\"My Locker\")", timeout=timer_mylocker)
-        except Exception as e:
-            logger.error(f"Exception during select text 'My Locker' section: {e.__class__}")
-            logger.error(f"Exception = {e}")
+        except Exception as err:
+            logger.error(f"Exception during select text 'My Locker' section: {err.__class__}")
+            logger.error(f"Exception = {err}")
             return False
         else:
             logger.info("Found 'My Locker' text so authentication was successful.")
