@@ -31,11 +31,22 @@ from progress.bar import Bar
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import qasync
+from qasync import asyncSlot, QApplication
+import tqdm
+from aiohttp import ClientSession
+import functools
+import asyncio
+from queue import Queue
+from threading import Thread
 
 
 # https://stackoverflow.com/questions/61316258/how-to-overwrite-qdialog-accept
 
-
+# Default database connection
+db = QSqlDatabase.addDatabase('QSQLITE')
+# Database connection to be used by thread
+db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
 
 
 def logQueryError(query):
@@ -345,74 +356,7 @@ class InitializeWorker(QObject):
         return recruit_role_ratings
 
 
-class UpdateConsideringWorker(QObject):
-    finished = Signal()
-    progress = Signal(int, int)
-        
-    def run(self):
-        """Long-running Initialize Recruit task goes here."""
-        logger.info("Started UpdateConsideringWorker.run function")
-        # Thread signaling start
-        self.progress.emit(0,1)
 
-        i = 0
-        db_t.setDatabaseName(db.databaseName())
-        rids_unsigned = query_Recruit_IDs("unsigned", db_t)
-        rids_unsigned_length = len(rids_unsigned)
-        
-        openDB(db_t)
-        queryUpdateConsidering = QSqlQuery(db_t)
-        queryUpdateConsidering.prepare("UPDATE recruits "
-                                        "SET considering = :considering, "
-                                        "signed = :signed "
-                                        "WHERE id = :id")
-
-        requests_session = requests.Session()
-        with Bar('Update Recruits Considering...', max=rids_unsigned_length) as bar:            
-            logger.info(f"Updating {rids_unsigned_length} unsigned recruits . . . ")
-            for rid in rids_unsigned:
-                recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
-                recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-                teams_table = recruitpage_soup.find("table", id="tblTeams")
-                teams_table_body = teams_table.find("tbody")
-                team_rows = teams_table_body.find_all("tr")
-                considering = ''
-                signed = 0
-                for row in team_rows:
-                    team_data = row.find_all("td")
-                    if "undecided" in team_data[0].text:
-                        considering = "undecided\n"
-                    elif "already signed" in team_data[0].text:
-                        find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
-                        href_tag = find_signed_with.attrs['href']
-                        href_tag_re = re.search(r'(\d{5})', href_tag)
-                        team_id = int(href_tag_re.group(1))
-                        considering = f"{wis_gd_df.school_short[team_id]}\n"
-                        signed = 1
-                    else:
-                        school = team_data[0].text
-                        coach = team_data[1].text
-                        division = team_data[2].text
-                        scholarships_total = team_data[3].text
-                        scholarships_open = team_data[4].text
-                        distance = team_data[5].text # WIS bug always shows N/A for distance???
-                        considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
-                        # print(considering)
-                queryUpdateConsidering.bindValue(":considering", considering[:-1]) # remove newline at end
-                queryUpdateConsidering.bindValue(":signed", signed)
-                queryUpdateConsidering.bindValue(":id", rid)
-                if not queryUpdateConsidering.exec_():
-                    logQueryError(queryUpdateConsidering)
-                                    
-                # Increment counter and progress bar
-                i += 1
-                self.progress.emit(i, rids_unsigned_length)
-                bar.next()
-
-        logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
-        queryUpdateConsidering.finish()
-        db_t.close()
-        self.finished.emit()
 
 
 class MarkRecruitsWorker(QObject):
@@ -552,7 +496,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.progressBarUpdateConsidering.setValue(0)
         self.labelUpdateProgressBarMax.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
-        self.pushButtonUpdateConsideringSigned.clicked.connect(self.runUpdateConsideringJob)
+        self.pushButtonUpdateConsideringSigned.clicked.connect(self.run_update_considering)
         self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
         self.progressBarMarkWatchlist.setVisible(False)
 
@@ -648,51 +592,119 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.labelCheckMarkAuthWIS_Error.setVisible(True)
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
             self.progressBarInitializeRecruits.setVisible(False)
+
     
 
-    def runUpdateConsideringJob(self):
-        logger.info("Button Pressed: Update Considering / Signed")
-        # Step 1: Create a QThread object
-        self.thread = QThread()
-        # Step 2: Create a worker object
-        self.worker = UpdateConsideringWorker()
-        # Step 3: Move worker to the thread
-        self.worker.moveToThread(self.thread)
-        # Step 4: Connect signals and slots
-        self.thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.worker.progress.connect(self.reportUpdateConsideringProgress)
-        # Step 6: Start the thread
-        self.thread.start()
-        # Final resets
+    @asyncSlot()
+    async def run_update_considering(self):
+        logger.info("Started run_update_considering async function")
         self.pushButtonInitializeRecruits.setEnabled(False)
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
         self.pushButtonUpdateConsideringSigned.setEnabled(False)
-        self.thread.finished.connect(
-            lambda: self.pushButtonUpdateConsideringSigned.setEnabled(True)
-        )
+        
+        db_t.setDatabaseName(db.databaseName())
+        rids_unsigned = query_Recruit_IDs("unsigned", db_t)
+        rids_unsigned_length = len(rids_unsigned)
+        rid_urls = self.get_rid_urls(rids_unsigned)
+        html_content = []
+        async with ClientSession() as session:
+            tasks = []
+            for each in rid_urls:
+                url = each[1]
+                rid = each[0]
+                task = asyncio.create_task(self.get_HTML(rid, url, session))
+                tasks.append(task)
+            responses = [
+                await f
+                for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))
+            ]
+        
+        openDB(db_t)
+        queryUpdateConsidering = QSqlQuery(db_t)
+        queryUpdateConsidering.prepare("UPDATE recruits "
+                                        "SET considering = :considering, "
+                                        "signed = :signed "
+                                        "WHERE id = :id")
 
 
-    def reportUpdateConsideringProgress(self, n, m):
-        # print(f"n = {n}\nm = {m}")
-        if n == 0:
-            self.progressBarMarkWatchlist.setVisible(False)
-            mw.statusbar.showMessage(f"Updating {m} recruits . . . ")
-            self.progressBarUpdateConsidering.setVisible(True)
-        if n > 0 and n <= m:
-            self.labelUpdateProgressBarMax.setVisible(True)
-            self.labelUpdateProgressBarMax.setText(f"of {m}")
-            self.progressBarUpdateConsidering.setRange(0, m)
-            self.progressBarUpdateConsidering.setValue(n)
-            # self.progressBarUpdateConsidering.value()
-        if n == m:
-            self.pushButtonInitializeRecruits.setEnabled(True)
-            self.pushButtonUpdateConsideringSigned.setEnabled(True)
-            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
-            mw.statusbar.showMessage(f"Finished updating {m} recruits.")
 
+        with Bar('Update Recruits Considering...', max=len(responses)) as bar:            
+            logger.info(f"Updating {rids_unsigned_length} unsigned recruits . . . ")
+            for each in responses:
+                rid = each[0]
+                recruitpage = each[1]
+                recruitpage_soup = BeautifulSoup(recruitpage, "lxml")
+                teams_table = recruitpage_soup.find("table", id="tblTeams")
+                teams_table_body = teams_table.find("tbody")
+                team_rows = teams_table_body.find_all("tr")
+                considering = ''
+                signed = 0
+                for row in team_rows:
+                    team_data = row.find_all("td")
+                    if "undecided" in team_data[0].text:
+                        considering = "undecided\n"
+                    elif "already signed" in team_data[0].text:
+                        find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
+                        href_tag = find_signed_with.attrs['href']
+                        href_tag_re = re.search(r'(\d{5})', href_tag)
+                        team_id = int(href_tag_re.group(1))
+                        considering = f"{wis_gd_df.school_short[team_id]}\n"
+                        signed = 1
+                    else:
+                        school = team_data[0].text
+                        coach = team_data[1].text
+                        division = team_data[2].text
+                        scholarships_total = team_data[3].text
+                        scholarships_open = team_data[4].text
+                        distance = team_data[5].text # WIS bug always shows N/A for distance???
+                        considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
+                        # print(considering)
+                queryUpdateConsidering.bindValue(":considering", considering[:-1]) # remove newline at end
+                queryUpdateConsidering.bindValue(":signed", signed)
+                queryUpdateConsidering.bindValue(":id", rid)
+                if not queryUpdateConsidering.exec_():
+                    logQueryError(queryUpdateConsidering)
+                bar.next()
+                self.progressBarUpdateConsidering.setValue(bar.index / bar.max * 100)
+        
+        logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
+        queryUpdateConsidering.finish()
+        db_t.close()
+
+        return
+
+
+    def get_rid_urls(self, rids):
+        url_base = "https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid="
+        rid_urls = []
+        for each in rids:
+            rid_urls.append((each, f"{url_base}{each}"))
+        # Returns a list of tuples in the form of (rid, url)
+        return rid_urls
+
+    async def get_rid_details(self, url, session):
+        """Get game ID URL HTML content (asynchronously)"""
+        try:
+            resp = await session.request(method='GET', url=url)
+            resp.raise_for_status()
+            #print(f"Response status ({url}): {resp.status}")
+        except HTTPError as http_err:
+            print(f"HTTP error occurred: {http_err}")
+        except Exception as err:
+            print(f"An error ocurred: {err}")
+        response_content = resp.content
+        return response_content
+
+
+    async def get_HTML(self, rid, url, session):
+        res = await self.get_rid_details(url, session)
+        if not res:
+            return None
+        content = (rid, await res.read())
+        # returning a tuple in the form of (rid, HTML page contents)
+        return content
+
+    
 
     def runMarkRecruitsJob(self):
         logger.info("Button Pressed: Mark Recruits From Watchlist")
@@ -1385,7 +1397,37 @@ def initializeModel(model):
    model.setHeaderData(31, Qt.Horizontal, "Watched")
 
 
-if __name__ == "__main__":
+async def main():
+    
+    def close_future(future, loop):
+        loop.call_later(10, future.cancel)
+        future.cancel()
+    
+    loop = asyncio.get_event_loop()
+    future = asyncio.Future()
+
+    
+    # Configure for High DPI
+    os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+    QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    app = QApplication.instance()
+
+    mw = MainWindow()    
+    mw.setWindowTitle(window_title)
+    mw.show() 
+    
+    #sys.exit(app.exec_())
+
+    if hasattr(app, 'aboutToQuit'):
+        getattr(app, 'aboutToQuit')\
+            .connect(functools.partial(close_future, future, loop))
+   
+    await future
+
+    return True
+
+
+if __name__ == '__main__':
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         logger.info('running in a PyInstaller bundle')
     else:
@@ -1399,18 +1441,8 @@ if __name__ == "__main__":
     logger.info(f"Platform Architecture = {platform.architecture()}")
     logger.info(f"Platform Machine = {platform.machine()}")
     logger.info(f"Platform Processor = {platform.processor()}")
-    
-    # Configure for High DPI
-    os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
-    QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    app = QApplication(sys.argv)
-    
-    
-    # Default database connection
-    db = QSqlDatabase.addDatabase('QSQLITE')
-    # Database connection to be used by thread
-    db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
-    mw = MainWindow()
-    mw.setWindowTitle(window_title)
-    mw.show() 
-    sys.exit(app.exec_())
+
+    try:
+        qasync.run(main())
+    except asyncio.exceptions.CancelledError:
+        sys.exit(0)
