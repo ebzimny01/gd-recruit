@@ -202,7 +202,7 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                 return False
         except Exception as err:
             logger.error(f"e.message = {err.message}")
-            page.screenshot(path=f"exception-{err.essage}.png")
+            page.screenshot(path=f"exception-{err.message}.png")
             if err.message == "NS_BINDING_ABORTED":
                 logger.error(f"Ignoring {err} exception")
                 pass
