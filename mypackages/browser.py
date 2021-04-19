@@ -349,7 +349,7 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                         createRecruitQuery = get_create_recruit_query_object(d)
 
                         next = True
-                        while next == True:
+                        while next:
                             div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
                             div.wait_for_element_state(state="stable")
                             contents = page.content()
@@ -483,7 +483,7 @@ def get_create_recruit_query_object(d):
     return createRecruitQuery
 
 
-def bindRecruitQuery(query, i, signed = int()):
+def bindRecruitQuery(query, i, signed=int()):
     query.bindValue(":id", i['id'])
     query.bindValue(":name", i['name'])
     query.bindValue(":pos", i['pos'])
