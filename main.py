@@ -13,8 +13,10 @@ logger = logging.getLogger(__name__)
 
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 import os
+from queue import Queue
 import datetime, time
 import requests
+import traceback
 from playwright.async_api import async_playwright
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -344,75 +346,102 @@ class InitializeWorker(QObject):
 
         return recruit_role_ratings
 
+#https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
+class Worker(QRunnable):
+    """Worker thread for running background tasks."""
 
-class UpdateConsideringWorker(QObject):
-    finished = Signal()
-    progress = Signal(int, int)
-        
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+        self.kwargs['progress_callback'] = self.signals.progress
+
+    @Slot()
     def run(self):
-        """Long-running Initialize Recruit task goes here."""
-        logger.info("Started UpdateConsideringWorker.run function")
-        # Thread signaling start
-        self.progress.emit(0,1)
+        try:
+            print("Worker QRunnable 'try' section")
+            result = self.fn(
+                *self.args, **self.kwargs,
+            )
+        except:
+            print("Worker QRunnable 'except' section")
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+        else:
+            print("Worker QRunnable 'else' section")
+            self.signals.result.emit(result)
+        finally:
+            print("Worker QRunnable 'finally' section")
+            self.signals.finished.emit()
 
-        i = 0
-        db_t.setDatabaseName(db.databaseName())
-        rids_unsigned = query_Recruit_IDs("unsigned", db_t)
-        rids_unsigned_length = len(rids_unsigned)
-        
+
+class WorkerSignals(QObject):
+    """
+    Defines the signals available from a running worker thread.
+    Supported signals are:
+    finished
+        No data
+    error
+        `tuple` (exctype, value, traceback.format_exc() )
+    result
+        `object` data returned from processing, anything
+    """
+    finished = Signal()
+    error = Signal(tuple)
+    result =Signal(object)
+    progress = Signal(int)
+
+
+class QueueMonitorWorker(QObject):
+    finished = Signal()
+    progress = Signal(int)
+    
+    def __init__(self, q, rc, rl):
+        super(QueueMonitorWorker, self).__init__()
+        self.q = q
+        self.rc = rc
+        self.rl = rl
+
+
+    def run(self):
+        logger.info("Started QueueMonitorWorker.run function")
+        # Loop to monitor queue size
+        while self.q.qsize() > 0:
+            print(f"Queue size = {self.q.qsize()}")
+            self.progress.emit(self.q.qsize())
+            time.sleep(1)
+        # Once queue is empty, update each recruit in the DB
+        self.progress.emit(self.q.qsize())
+        print(f"Queue is empty -> Queue size = {self.q.qsize()}")
+        print(f"Length of recruit_considering = {len(self.rc)}")
+        db_t.setDatabaseName(db.databaseName())        
         openDB(db_t)
         queryUpdateConsidering = QSqlQuery(db_t)
         queryUpdateConsidering.prepare("UPDATE recruits "
                                         "SET considering = :considering, "
                                         "signed = :signed "
                                         "WHERE id = :id")
-
-        requests_session = requests.Session()
-        with Bar('Update Recruits Considering...', max=rids_unsigned_length) as bar:            
-            logger.info(f"Updating {rids_unsigned_length} unsigned recruits . . . ")
-            for rid in rids_unsigned:
-                recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
-                recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-                teams_table = recruitpage_soup.find("table", id="tblTeams")
-                teams_table_body = teams_table.find("tbody")
-                team_rows = teams_table_body.find_all("tr")
-                considering = ''
-                signed = 0
-                for row in team_rows:
-                    team_data = row.find_all("td")
-                    if "undecided" in team_data[0].text:
-                        considering = "undecided\n"
-                    elif "already signed" in team_data[0].text:
-                        find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
-                        href_tag = find_signed_with.attrs['href']
-                        href_tag_re = re.search(r'(\d{5})', href_tag)
-                        team_id = int(href_tag_re.group(1))
-                        considering = f"{wis_gd_df.school_short[team_id]}\n"
-                        signed = 1
-                    else:
-                        school = team_data[0].text
-                        coach = team_data[1].text
-                        division = team_data[2].text
-                        scholarships_total = team_data[3].text
-                        scholarships_open = team_data[4].text
-                        distance = team_data[5].text # WIS bug always shows N/A for distance???
-                        considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
-                        # print(considering)
+        with Bar('Update Recruits Considering...', max=self.rl) as bar:
+            for each in self.rc:
+                rid = each[0]
+                signed = each[1]
+                considering = each[2]
                 queryUpdateConsidering.bindValue(":considering", considering[:-1]) # remove newline at end
                 queryUpdateConsidering.bindValue(":signed", signed)
                 queryUpdateConsidering.bindValue(":id", rid)
                 if not queryUpdateConsidering.exec_():
                     logQueryError(queryUpdateConsidering)
-                                    
-                # Increment counter and progress bar
-                i += 1
-                self.progress.emit(i, rids_unsigned_length)
                 bar.next()
-
-        logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
         queryUpdateConsidering.finish()
         db_t.close()
         self.finished.emit()
+
+
+
 
 
 class MarkRecruitsWorker(QObject):
@@ -516,6 +545,13 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        # Queue to process recruit IDs
+        self.rid_queue = Queue()
+        self.threadpool = QThreadPool()
+        self.threadCount = QThreadPool.globalInstance().maxThreadCount()
+        self.requests_session = requests.Session()
+        self.recruit_considering = []
+        self.rids_unsigned_length = 0
         self.rids_all = query_Recruit_IDs("all", db)
         self.rids_all_length = len(self.rids_all)
         if self.rids_all_length == 0:
@@ -552,7 +588,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.progressBarUpdateConsidering.setValue(0)
         self.labelUpdateProgressBarMax.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
-        self.pushButtonUpdateConsideringSigned.clicked.connect(self.runUpdateConsideringJob)
+        self.pushButtonUpdateConsideringSigned.clicked.connect(self.queue_run_update_considering)
         self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
         self.progressBarMarkWatchlist.setVisible(False)
 
@@ -649,13 +685,33 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
             self.progressBarInitializeRecruits.setVisible(False)
     
+    def queue_rid_urls(self, q=Queue(), t=str()):
+        rids = query_Recruit_IDs(t, db)
+        if t == "all":
+            self.rids_all_length = len(rids)
+            logging.info(f"All recruits = {self.rids_unsigned_length}")
+            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid="
+        elif t == "unsigned":
+            self.rids_unsigned_length = len(rids)
+            logging.info(f"Unsigned recruits = {self.rids_unsigned_length}")
+            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid="
+            url_suffix = "&section=Ratings"
+        for each in rids:
+            recruit = (each, f"{url_base}{each}")
+            print(f"Queuing ({t}): {recruit}")
+            q.put(recruit)
 
-    def runUpdateConsideringJob(self):
-        logger.info("Button Pressed: Update Considering / Signed")
-        # Step 1: Create a QThread object
+
+    def progress_fn(self, msg):
+        #self.info.append(str(msg))
+        return
+
+
+    def run_update_considering_threads(self, process, on_complete):
+        # Step 1: Create thread object to monitor queue
         self.thread = QThread()
         # Step 2: Create a worker object
-        self.worker = UpdateConsideringWorker()
+        self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_considering, self.rids_unsigned_length)
         # Step 3: Move worker to the thread
         self.worker.moveToThread(self.thread)
         # Step 4: Connect signals and slots
@@ -663,35 +719,102 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
-        self.worker.progress.connect(self.reportUpdateConsideringProgress)
+        self.worker.progress.connect(self.queue_monitor_progress)
         # Step 6: Start the thread
         self.thread.start()
         # Final resets
         self.pushButtonInitializeRecruits.setEnabled(False)
+        self.pushButtonUpdateConsideringSigned.setEnabled(False)
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+        self.thread.finished.connect(self.update_finished)
+
+        """Execute a function in the background with a worker"""
+        for i in range(self.threadCount - 1):
+            worker = Worker(fn=process)
+            self.threadpool.start(worker)
+            worker.signals.finished.connect(on_complete)
+            worker.signals.progress.connect(self.progress_fn)
+            #self.progressbar.setRange(0,0)
+        return
+
+
+
+    def update_finished(self):
+        print("Running update_finished function")
+        self.pushButtonUpdateConsideringSigned.setEnabled(True)
+        self.pushButtonInitializeRecruits.setEnabled(True)
+        print(f"initialize push button SetEnabled = {self.progressBarInitializeRecruits.isEnabled()}")
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+        print(f"MarkWatchlist push button SetEnabled = {self.progressBarMarkWatchlist.isEnabled()}")
+
+    def recruit_update(self, progress_callback):
+        while self.rid_queue.qsize() > 0:
+            print(f"Length of queue = {self.rid_queue.qsize()}")
+            print(f"Looking for the next Recruit ID...")
+            rid = self.rid_queue.get()
+            print(f"Processing {rid[0]}")
+            recruitpage = self.requests_session.get(rid[1])
+            recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
+            teams_table = recruitpage_soup.find("table", id="tblTeams")
+            teams_table_body = teams_table.find("tbody")
+            team_rows = teams_table_body.find_all("tr")
+            considering = ''
+            signed = 0
+            for row in team_rows:
+                team_data = row.find_all("td")
+                if "undecided" in team_data[0].text:
+                    considering = "undecided\n"
+                elif "already signed" in team_data[0].text:
+                    find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
+                    href_tag = find_signed_with.attrs['href']
+                    href_tag_re = re.search(r'(\d{5})', href_tag)
+                    team_id = int(href_tag_re.group(1))
+                    considering = f"{wis_gd_df.school_short[team_id]}\n"
+                    signed = 1
+                else:
+                    school = team_data[0].text
+                    coach = team_data[1].text
+                    division = team_data[2].text
+                    scholarships_total = team_data[3].text
+                    scholarships_open = team_data[4].text
+                    distance = team_data[5].text # WIS bug always shows N/A for distance???
+                    considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
+            self.recruit_considering.append((rid[0], signed, considering))
+            self.rid_queue.task_done()    
+            progress_callback.emit(self.rid_queue.qsize())
+            if self.stopped == True:
+                return
+        return
+
+    def queue_run_update_considering(self):
+        self.progressBarUpdateConsidering.setVisible(True)
+        self.pushButtonInitializeRecruits.setEnabled(False)
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
         self.pushButtonUpdateConsideringSigned.setEnabled(False)
-        self.thread.finished.connect(
-            lambda: self.pushButtonUpdateConsideringSigned.setEnabled(True)
-        )
+        self.labelUpdateProgressBarMax.setVisible(True)
+        self.queue_rid_urls(self.rid_queue, "unsigned")
+        self.labelUpdateProgressBarMax.setText(f"of {self.rids_unsigned_length}")
+        self.progressBarUpdateConsidering.setRange(0, self.rids_unsigned_length)
+        self.stopped = False
+        self.run_update_considering_threads(self.recruit_update, self.completed)
+
+    def stop(self):
+        self.stopped=True
+        return
+
+    def completed(self):
+        print(f"Running threading completed function")
+        return
 
 
-    def reportUpdateConsideringProgress(self, n, m):
-        # print(f"n = {n}\nm = {m}")
+    def queue_monitor_progress(self, n):
         if n == 0:
-            self.progressBarMarkWatchlist.setVisible(False)
-            mw.statusbar.showMessage(f"Updating {m} recruits . . . ")
-            self.progressBarUpdateConsidering.setVisible(True)
-        if n > 0 and n <= m:
-            self.labelUpdateProgressBarMax.setVisible(True)
-            self.labelUpdateProgressBarMax.setText(f"of {m}")
-            self.progressBarUpdateConsidering.setRange(0, m)
-            self.progressBarUpdateConsidering.setValue(n)
-            # self.progressBarUpdateConsidering.value()
-        if n == m:
-            self.pushButtonInitializeRecruits.setEnabled(True)
-            self.pushButtonUpdateConsideringSigned.setEnabled(True)
-            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
-            mw.statusbar.showMessage(f"Finished updating {m} recruits.")
+            print("Queue is empty.")
+            completed = self.rids_unsigned_length - n
+            self.progressBarUpdateConsidering.setValue(completed)
+        else:
+            completed = self.rids_unsigned_length - n
+            self.progressBarUpdateConsidering.setValue(completed)
 
 
     def runMarkRecruitsJob(self):
@@ -1405,7 +1528,7 @@ if __name__ == "__main__":
     QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv)
     
-    
+        
     # Default database connection
     db = QSqlDatabase.addDatabase('QSQLITE')
     # Database connection to be used by thread
