@@ -1,4 +1,4 @@
-version = "0.2.4"
+version = "0.2.5"
 window_title = f"GD Recruit Assistant Beta ({version})"
 import sys
 import platform
@@ -153,102 +153,13 @@ class InitializeWorker(QObject):
         self.progress.emit(1, 1)
         result = wis_browser(config, user, pwd, "scrape_recruit_IDs", db_t, self.progress)
         if result:
-            # After grabbing all Recruit IDs and storing in DB
-            # Now need to grab all static data
-            logger.info("Running query_Recruit_IDs after wis_browser...")
-            rids = query_Recruit_IDs("all", db_t)
-            rids_length = len(rids)
-            logger.info(f"Number of recruits to process = {rids_length}")
-            print(f"Number of recruits to process = {rids_length}")
-            openDB(db_t)
-            queryUpdate = QSqlQuery(db_t)
-            queryUpdate.prepare("UPDATE recruits "
-                                "SET ath = :ath, "
-                                    "spd = :spd, "
-                                    "dur = :dur, "
-                                    "we = :we, "
-                                    "sta = :sta, "
-                                    "str = :str, "
-                                    "blk = :blk, "
-                                    "tkl = :tkl, "
-                                    "han = :han, "
-                                    "gi = :gi, "
-                                    "elu = :elu, "
-                                    "tec = :tec, "
-                                    "r1 = :r1, "
-                                    "r2 = :r2, "
-                                    "r3 = :r3, "
-                                    "r4 = :r4, "
-                                    "r5 = :r5, "
-                                    "r6 = :r6, "
-                                    "gpa = :gpa "
-                                "WHERE id = :id")
-            
-            #Thread progress signaling that Grab Recruit Static Data is starting
-            i = 1000
-            logger.info(f"before emit {i}...")
-            self.progress.emit(i, rids_length)
-
-            with Bar('Initializing Recruit Static Data...', max=rids_length) as bar:
-                for rid in rids:
-                    r = rid[0]
-                    position = rid[1]
-                    recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={r}")
-                    recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-                    recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
-                    recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
-                    gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
-                    gpa = float(gpa_section.text)
-                    ath = int(recruit_ratings_values[0].text)
-                    spd = int(recruit_ratings_values[1].text)
-                    dur = int(recruit_ratings_values[2].text)
-                    we = int(recruit_ratings_values[3].text)
-                    sta = int(recruit_ratings_values[4].text)
-                    strength = int(recruit_ratings_values[5].text)
-                    blk = int(recruit_ratings_values[6].text)
-                    tkl = int(recruit_ratings_values[7].text)
-                    han = int(recruit_ratings_values[8].text)
-                    gi = int(recruit_ratings_values[9].text)
-                    elu = int(recruit_ratings_values[10].text)
-                    tec = int(recruit_ratings_values[11].text)
-                    r_ratings = [ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec]
-                    role_rating = self.calculate_role_rating(position, r_ratings)
-                    queryUpdate.bindValue(":ath", ath)
-                    queryUpdate.bindValue(":spd", spd)
-                    queryUpdate.bindValue(":dur", dur)
-                    queryUpdate.bindValue(":we", we)
-                    queryUpdate.bindValue(":sta", sta)
-                    queryUpdate.bindValue(":str", strength)
-                    queryUpdate.bindValue(":blk", blk)
-                    queryUpdate.bindValue(":tkl", tkl)
-                    queryUpdate.bindValue(":han", han)
-                    queryUpdate.bindValue(":gi", gi)
-                    queryUpdate.bindValue(":elu", elu)
-                    queryUpdate.bindValue(":tec", tec)
-                    queryUpdate.bindValue(":r1", float(role_rating['r1']))
-                    queryUpdate.bindValue(":r2", float(role_rating['r2']))
-                    queryUpdate.bindValue(":r3", float(role_rating['r3']))
-                    queryUpdate.bindValue(":r4", float(role_rating['r4']))
-                    queryUpdate.bindValue(":r5", float(role_rating['r5']))
-                    queryUpdate.bindValue(":r6", float(role_rating['r6']))
-                    queryUpdate.bindValue(":gpa", gpa)
-                    queryUpdate.bindValue(":id", r)
-                    
-                    if not queryUpdate.exec_():
-                        logQueryError(queryUpdate)
-                                        
-                    # Thread progress signal for Grab Recruit Static Data
-                    i += 1
-                    self.progress.emit(i, rids_length)
-                    bar.next()
-
-            queryUpdate.finish()
-            db_t.close()
+            # After grabbing all Recruit IDs and storing in DB.
+            # This thread is finished and now need to signal 
+            # creation of new threads for grabbing static attributes of recruits.
+            self.finished.emit()
         else:
             # Implies there was an error authenticating to WIS
             self.progress.emit(999999,1)
-
-        self.finished.emit()
 
 
 #https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
@@ -267,20 +178,20 @@ class Worker(QRunnable):
     @Slot()
     def run(self):
         try:
-            print("Worker QRunnable 'try' section")
+            logger.debug("Worker QRunnable 'try' section")
             result = self.fn(
                 *self.args, **self.kwargs,
             )
         except:
-            print("Worker QRunnable 'except' section")
+            logger.debug("Worker QRunnable 'except' section")
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
             self.signals.error.emit((exctype, value, traceback.format_exc()))
         else:
-            print("Worker QRunnable 'else' section")
+            logger.debug("Worker QRunnable 'else' section")
             self.signals.result.emit(result)
         finally:
-            print("Worker QRunnable 'finally' section")
+            logger.debug("Worker QRunnable 'finally' section")
             self.signals.finished.emit()
 
 
@@ -316,17 +227,17 @@ class QueueMonitorWorker(QObject):
         logger.info("Started QueueMonitorWorker.run function")
         # Loop to monitor queue size
         while self.q.qsize() > 0:
-            print(f"Queue size = {self.q.qsize()}")
+            logger.debug(f"Queue size = {self.q.qsize()}")
             self.progress.emit(self.q.qsize())
             time.sleep(1)
         # Once queue is empty, update each recruit in the DB
         self.progress.emit(self.q.qsize())
-        print(f"Queue is empty -> Queue size = {self.q.qsize()}")
+        logger.debug(f"Queue is empty -> Queue size = {self.q.qsize()}")
         db_t.setDatabaseName(db.databaseName())        
         openDB(db_t)
         query = QSqlQuery(db_t)
         if self.t == "initialize":
-            print(f"Initializing recruit attributes in database...")
+            logger.info(f"Initializing recruit attributes in database...")
             query.prepare("UPDATE recruits "
                                 "SET ath = :ath, "
                                     "spd = :spd, "
@@ -348,6 +259,9 @@ class QueueMonitorWorker(QObject):
                                     "r6 = :r6, "
                                     "gpa = :gpa "
                                 "WHERE id = :id")
+            # Signal that we are now updating DB
+            self.progress.emit(11111111)
+            counter = 1000000
             with Bar('Initializing Recruit Static Data...', max=self.rl) as bar:
                 for r in self.rc:
                     query.bindValue(":ath", r['ath'])
@@ -373,9 +287,11 @@ class QueueMonitorWorker(QObject):
 
                     if not query.exec_():
                         logQueryError(query)
+                    counter += 1
+                    self.progress.emit(counter)
                     bar.next()
         elif self.t == "update":
-            print(f"Updating recruit considering in database...")
+            logger.info(f"Updating recruit considering in database...")
             query.prepare("UPDATE recruits "
                                             "SET considering = :considering, "
                                             "signed = :signed "
@@ -394,9 +310,6 @@ class QueueMonitorWorker(QObject):
         query.finish()
         db_t.close()
         self.finished.emit()
-
-
-
 
 
 class MarkRecruitsWorker(QObject):
@@ -517,7 +430,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         else:
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
-            self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
+            self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 255, 0);")
             self.pushButtonInitializeRecruits.setText(QCoreApplication.translate("MainWindow", u"&Re-Initialize Recruits", None))
         
         self.pushButtonUpdateConsideringSigned.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Update Considering / Signed", None))
@@ -580,9 +493,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckMarkGrabUnsigned.setVisible(False)
         self.labelCheckMarkGrabSigned.setVisible(False)
         self.labelCheckMarkGrabStaticData.setVisible(False)
-        self.thread.finished.connect(
-            lambda: self.pushButtonInitializeRecruits.setEnabled(True)
-        )
+        self.thread.finished.connect(self.queue_run_initialize_attributes)
 
     def reportInitializeProgress(self, n, m):
         # print(f"n = {n}\nm = {m}")
@@ -642,15 +553,25 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.progressBarInitializeRecruits.setVisible(False)
 
 
+    def queue_run_initialize_attributes(self):
+        logger.info(f"Running queue_run_initialize_attributes function")
+        self.queue_rid_urls(self.rid_queue, "all")
+        self.labelRecruitsInitialized.setText(f"Initializing {self.rids_all_length} Recruits...")
+        self.progressBarInitializeRecruits.setRange(0, self.rids_all_length)
+        self.progressBarInitializeRecruits.setValue(0)
+        self.progressBarInitializeRecruits.value()
+        self.stopped = False
+        self.run_threads(self.recruit_initialize, self.completed)
+
+
     def recruit_initialize(self, progress_callback):
         while self.rid_queue.qsize() > 0:
-            print(f"Length of queue = {self.rid_queue.qsize()}")
-            print(f"Looking for the next Recruit ID...")
+            logger.debug(f"Looking for the next Recruit ID...")
             rid = self.rid_queue.get()
-            print(f"Processing {rid[0][0]}")
-            r = rid[0][0]
-            position = rid[0][1]
-            page = rid[1]
+            logger.debug(f"Processing {rid}")
+            r = rid[0]
+            position = rid[1]
+            page = rid[2]
             recruitpage = self.requests_session.get(page)
             recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
             recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
@@ -682,6 +603,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             if self.stopped == True:
                 return
         return
+
 
     def calculate_role_rating(self, pos, ratings):
         rating_formulas = {
@@ -793,34 +715,42 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
         return recruit_role_ratings
 
+
     def queue_rid_urls(self, q=Queue(), t=str()):
         rids = query_Recruit_IDs(t, db)
         if t == "all":
             self.rids_all_length = len(rids)
-            logging.info(f"All recruits = {self.rids_unsigned_length}")
+            logger.info(f"All recruits = {self.rids_unsigned_length}")
             url_base = "https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid="
+            for each in rids:
+                rid = each[0]
+                position = each[1]
+                recruit = (rid, position, f"{url_base}{rid}")
+                logger.debug(f"Queuing ({t}): {recruit}")
+                q.put(recruit)
         elif t == "unsigned":
             self.rids_unsigned_length = len(rids)
-            logging.info(f"Unsigned recruits = {self.rids_unsigned_length}")
+            logger.info(f"Unsigned recruits = {self.rids_unsigned_length}")
             url_base = "https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid="
             url_suffix = "&section=Ratings"
-        for each in rids:
-            recruit = (each, f"{url_base}{each}")
-            print(f"Queuing ({t}): {recruit}")
-            q.put(recruit)
-
+            for rid in rids:
+                recruit = (rid, f"{url_base}{rid}")
+                logger.debug(f"Queuing ({t}): {recruit}")
+                q.put(recruit)
+            
 
     def progress_fn(self, msg):
         #self.info.append(str(msg))
-        print("Running progress_fn function")
+        logger.debug("Running progress_fn function")
         return
 
 
-    def run_update_considering_threads(self, process, on_complete):
+    def run_threads(self, process, on_complete):
         # Step 1: Create thread object to monitor queue
         self.thread = QThread()
         # Step 2: Create a worker object
         if process.__func__.__name__ == "recruit_update":
+            logger.debug("run_threads function -> recruit_update conditional statement")
             self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_considering, self.rids_unsigned_length, "update")
             # Step 3: Move worker to the thread
             self.worker.moveToThread(self.thread)
@@ -838,6 +768,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
             self.thread.finished.connect(self.update_finished)
         elif process.__func__.__name__ == "recruit_initialize":
+            logger.debug("run_threads function -> recruit_initialize conditional statement")
             self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_initialize_list, self.rids_all_length, "initialize")
             # Step 3: Move worker to the thread
             self.worker.moveToThread(self.thread)
@@ -868,11 +799,17 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
 
     def initialize_finished(self):
-        print("Running initialized_finished function")
+        logger.debug("Running initialized_finished function")
+        self.pushButtonUpdateConsideringSigned.setVisible(True)
+        self.pushButtonUpdateConsideringSigned.setEnabled(True)
+        self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+        self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
+        self.labelRecruitsInitialized.setText(f"Initialized {self.rids_all_length} Recruits...")
 
 
     def update_finished(self):
-        print("Running update_finished function")
+        logger.debug("Running update_finished function")
         self.pushButtonUpdateConsideringSigned.setEnabled(True)
         self.pushButtonInitializeRecruits.setEnabled(True)
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
@@ -880,10 +817,10 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
     def recruit_update(self, progress_callback):
         while self.rid_queue.qsize() > 0:
-            print(f"Length of queue = {self.rid_queue.qsize()}")
-            print(f"Looking for the next Recruit ID...")
+            logger.debug(f"Length of queue = {self.rid_queue.qsize()}")
+            logger.debug(f"Looking for the next Recruit ID...")
             rid = self.rid_queue.get()
-            print(f"Processing {rid[0]}")
+            logger.debug(f"Processing {rid}")
             recruitpage = self.requests_session.get(rid[1])
             recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
             teams_table = recruitpage_soup.find("table", id="tblTeams")
@@ -927,30 +864,35 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelUpdateProgressBarMax.setText(f"of {self.rids_unsigned_length}")
         self.progressBarUpdateConsidering.setRange(0, self.rids_unsigned_length)
         self.stopped = False
-        self.run_update_considering_threads(self.recruit_update, self.completed)
+        self.run_threads(self.recruit_update, self.completed)
 
     def stop(self):
         self.stopped=True
         return
 
     def completed(self):
-        print(f"Running threading completed function")
+        logger.debug(f"Running threading completed function")
         return
 
 
     def queue_monitor_initialize_progress(self, n):
         if n == 0:
-            print("Queue is empty.")
+            logger.debug("Queue is empty.")
             completed = self.rids_all_length - n
             self.progressBarInitializeRecruits.setValue(completed)
-        else:
+            self.labelCheckMarkGrabStaticData.setVisible(True)
+        elif n > 0 and n < 1000000:
             completed = self.rids_all_length - n
             self.progressBarInitializeRecruits.setValue(completed)
+        elif n == 1000000:
+            self.progressBarInitializeRecruits.setValue(0)
+        elif n > 1000000:
+            self.progressBarInitializeRecruits.setValue(n - 1000000)
 
 
     def queue_monitor_update_progress(self, n):
         if n == 0:
-            print("Queue is empty.")
+            logger.debug("Queue is empty.")
             completed = self.rids_unsigned_length - n
             self.progressBarUpdateConsidering.setValue(completed)
         else:
