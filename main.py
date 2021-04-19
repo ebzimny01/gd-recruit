@@ -251,101 +251,6 @@ class InitializeWorker(QObject):
         self.finished.emit()
 
 
-    def calculate_role_rating(self, pos, ratings):
-        rating_formulas = {
-            'QB': {
-                'r1': [10, 4, 0, 0, 0, 26, 0, 0, 0, 24, 8, 28],
-                'r2': [8, 18, 2, 1, 3, 24, 0, 0, 0, 16, 20, 8],
-                'r3': [8, 4, 1, 1, 2, 26, 0, 0, 0, 26, 8, 24],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'RB': {
-                'r1': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
-                'r2': [8, 0, 1, 1, 3, 36, 30, 0, 0, 0, 13, 8],
-                'r3': [8, 24, 1, 1, 3, 20, 0, 0, 0, 10, 25, 8],
-                'r4': [8, 20, 1, 1, 3, 25, 0, 0, 0, 10, 24, 8],
-                'r5': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
-                'r6': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8]
-            },
-            'WR': {
-                'r1': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r2': [16, 12, 1, 1, 3, 0, 0, 0, 24, 24, 11, 8],
-                'r3': [12, 23, 1, 1, 3, 0, 0, 0, 11, 18, 23, 8],
-                'r4': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r5': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'TE': {
-                'r1': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
-                'r2': [11, 0, 1, 1, 2, 36, 26, 0, 0, 15, 0, 8],
-                'r3': [16, 12, 1, 1, 2, 0, 0, 0, 24, 24, 12, 8],
-                'r4': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'OL': {
-                'r1': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r2': [12, 0, 1, 1, 2, 23, 41, 0, 0, 12, 0, 8],
-                'r3': [12, 0, 1, 1, 2, 41, 23, 0, 0, 12, 0, 8],
-                'r4': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r5': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'DL': {
-                'r1': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r2': [12, 6, 1, 1, 2, 38, 0, 17, 0, 15, 0, 8],
-                'r3': [12, 15, 1, 1, 2, 22, 0, 24, 0, 15, 0, 8],
-                'r4': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r5': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'LB': {
-                'r1': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
-                'r2': [12, 4, 1, 1, 2, 38, 0, 22, 0, 12, 0, 8],
-                'r3': [13, 12, 1, 1, 2, 21, 0, 21, 0, 21, 0, 8],
-                'r4': [13, 19, 1, 1, 2, 15, 0, 20, 0, 21, 0, 8],
-                'r5': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'DB': {
-                'r1': [16, 20, 1, 1, 4, 10, 0, 10, 10, 20, 0, 8],
-                'r2': [18, 17, 1, 1, 4, 12, 0, 12, 10, 17, 0, 8],
-                'r3': [21, 21, 1, 1, 4, 7, 0, 7, 12, 18, 0, 8],
-                'r4': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
-                'r5': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'K': {
-                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
-                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'P': {
-                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
-                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            }
-        }
-
-        recruit_role_ratings = {
-            'r1': round(np.dot(rating_formulas[pos]['r1'], ratings)/100,1),
-            'r2': round(np.dot(rating_formulas[pos]['r2'], ratings)/100,1),
-            'r3': round(np.dot(rating_formulas[pos]['r3'], ratings)/100,1),
-            'r4': round(np.dot(rating_formulas[pos]['r4'], ratings)/100,1),
-            'r5': round(np.dot(rating_formulas[pos]['r5'], ratings)/100,1),
-            'r6': round(np.dot(rating_formulas[pos]['r6'], ratings)/100,1)
-        }
-
-        return recruit_role_ratings
-
 #https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
 class Worker(QRunnable):
     """Worker thread for running background tasks."""
@@ -400,12 +305,12 @@ class QueueMonitorWorker(QObject):
     finished = Signal()
     progress = Signal(int)
     
-    def __init__(self, q, rc, rl):
+    def __init__(self, q, rc, rl, t):
         super(QueueMonitorWorker, self).__init__()
-        self.q = q
-        self.rc = rc
-        self.rl = rl
-
+        self.q = q      # Queue object
+        self.rc = rc    # recruit ID list, either an initialize list or update list
+        self.rl = rl    # recruit list length
+        self.t = t      # type = 'initialize' or 'update'
 
     def run(self):
         logger.info("Started QueueMonitorWorker.run function")
@@ -417,26 +322,76 @@ class QueueMonitorWorker(QObject):
         # Once queue is empty, update each recruit in the DB
         self.progress.emit(self.q.qsize())
         print(f"Queue is empty -> Queue size = {self.q.qsize()}")
-        print(f"Length of recruit_considering = {len(self.rc)}")
         db_t.setDatabaseName(db.databaseName())        
         openDB(db_t)
-        queryUpdateConsidering = QSqlQuery(db_t)
-        queryUpdateConsidering.prepare("UPDATE recruits "
-                                        "SET considering = :considering, "
-                                        "signed = :signed "
-                                        "WHERE id = :id")
-        with Bar('Update Recruits Considering...', max=self.rl) as bar:
-            for each in self.rc:
-                rid = each[0]
-                signed = each[1]
-                considering = each[2]
-                queryUpdateConsidering.bindValue(":considering", considering[:-1]) # remove newline at end
-                queryUpdateConsidering.bindValue(":signed", signed)
-                queryUpdateConsidering.bindValue(":id", rid)
-                if not queryUpdateConsidering.exec_():
-                    logQueryError(queryUpdateConsidering)
-                bar.next()
-        queryUpdateConsidering.finish()
+        query = QSqlQuery(db_t)
+        if self.t == "initialize":
+            print(f"Initializing recruit attributes in database...")
+            query.prepare("UPDATE recruits "
+                                "SET ath = :ath, "
+                                    "spd = :spd, "
+                                    "dur = :dur, "
+                                    "we = :we, "
+                                    "sta = :sta, "
+                                    "str = :str, "
+                                    "blk = :blk, "
+                                    "tkl = :tkl, "
+                                    "han = :han, "
+                                    "gi = :gi, "
+                                    "elu = :elu, "
+                                    "tec = :tec, "
+                                    "r1 = :r1, "
+                                    "r2 = :r2, "
+                                    "r3 = :r3, "
+                                    "r4 = :r4, "
+                                    "r5 = :r5, "
+                                    "r6 = :r6, "
+                                    "gpa = :gpa "
+                                "WHERE id = :id")
+            with Bar('Initializing Recruit Static Data...', max=self.rl) as bar:
+                for r in self.rc:
+                    query.bindValue(":ath", r['ath'])
+                    query.bindValue(":spd", r['spd'])
+                    query.bindValue(":dur", r['dur'])
+                    query.bindValue(":we", r['we'])
+                    query.bindValue(":sta", r['sta'])
+                    query.bindValue(":str", r['strength'])
+                    query.bindValue(":blk", r['blk'])
+                    query.bindValue(":tkl", r['tkl'])
+                    query.bindValue(":han", r['han'])
+                    query.bindValue(":gi", r['gi'])
+                    query.bindValue(":elu", r['elu'])
+                    query.bindValue(":tec", r['tec'])
+                    query.bindValue(":r1", float(r['role_rating']['r1']))
+                    query.bindValue(":r2", float(r['role_rating']['r2']))
+                    query.bindValue(":r3", float(r['role_rating']['r3']))
+                    query.bindValue(":r4", float(r['role_rating']['r4']))
+                    query.bindValue(":r5", float(r['role_rating']['r5']))
+                    query.bindValue(":r6", float(r['role_rating']['r6']))
+                    query.bindValue(":gpa", r['gpa'])
+                    query.bindValue(":id", r['rid'])
+
+                    if not query.exec_():
+                        logQueryError(query)
+                    bar.next()
+        elif self.t == "update":
+            print(f"Updating recruit considering in database...")
+            query.prepare("UPDATE recruits "
+                                            "SET considering = :considering, "
+                                            "signed = :signed "
+                                            "WHERE id = :id")
+            with Bar('Update Recruits Considering...', max=self.rl) as bar:
+                for each in self.rc:
+                    rid = each[0]
+                    signed = each[1]
+                    considering = each[2]
+                    query.bindValue(":considering", considering[:-1]) # remove newline at end
+                    query.bindValue(":signed", signed)
+                    query.bindValue(":id", rid)
+                    if not query.exec_():
+                        logQueryError(query)
+                    bar.next()
+        query.finish()
         db_t.close()
         self.finished.emit()
 
@@ -550,6 +505,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.threadpool = QThreadPool()
         self.threadCount = QThreadPool.globalInstance().maxThreadCount()
         self.requests_session = requests.Session()
+        self.recruit_initialize_list = []
         self.recruit_considering = []
         self.rids_unsigned_length = 0
         self.rids_all = query_Recruit_IDs("all", db)
@@ -684,7 +640,159 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.labelCheckMarkAuthWIS_Error.setVisible(True)
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
             self.progressBarInitializeRecruits.setVisible(False)
-    
+
+
+    def recruit_initialize(self, progress_callback):
+        while self.rid_queue.qsize() > 0:
+            print(f"Length of queue = {self.rid_queue.qsize()}")
+            print(f"Looking for the next Recruit ID...")
+            rid = self.rid_queue.get()
+            print(f"Processing {rid[0][0]}")
+            r = rid[0][0]
+            position = rid[0][1]
+            page = rid[1]
+            recruitpage = self.requests_session.get(page)
+            recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
+            recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
+            recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
+            gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
+            recruit = {
+                        'rid': r,
+                        'gpa': float(gpa_section.text),
+                        'ath': int(recruit_ratings_values[0].text),
+                        'spd': int(recruit_ratings_values[1].text),
+                        'dur': int(recruit_ratings_values[2].text),
+                        'we': int(recruit_ratings_values[3].text),
+                        'sta': int(recruit_ratings_values[4].text),
+                        'strength': int(recruit_ratings_values[5].text),
+                        'blk': int(recruit_ratings_values[6].text),
+                        'tkl': int(recruit_ratings_values[7].text),
+                        'han': int(recruit_ratings_values[8].text),
+                        'gi': int(recruit_ratings_values[9].text),
+                        'elu': int(recruit_ratings_values[10].text),
+                        'tec': int(recruit_ratings_values[11].text),
+                        'role_rating': ""
+            }
+
+            recruit['role_rating'] = self.calculate_role_rating(position, recruit)
+
+            self.recruit_initialize_list.append(recruit)
+            self.rid_queue.task_done()
+            progress_callback.emit(self.rid_queue.qsize())
+            if self.stopped == True:
+                return
+        return
+
+    def calculate_role_rating(self, pos, ratings):
+        rating_formulas = {
+            'QB': {
+                'r1': [10, 4, 0, 0, 0, 26, 0, 0, 0, 24, 8, 28],
+                'r2': [8, 18, 2, 1, 3, 24, 0, 0, 0, 16, 20, 8],
+                'r3': [8, 4, 1, 1, 2, 26, 0, 0, 0, 26, 8, 24],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'RB': {
+                'r1': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
+                'r2': [8, 0, 1, 1, 3, 36, 30, 0, 0, 0, 13, 8],
+                'r3': [8, 24, 1, 1, 3, 20, 0, 0, 0, 10, 25, 8],
+                'r4': [8, 20, 1, 1, 3, 25, 0, 0, 0, 10, 24, 8],
+                'r5': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
+                'r6': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8]
+            },
+            'WR': {
+                'r1': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r2': [16, 12, 1, 1, 3, 0, 0, 0, 24, 24, 11, 8],
+                'r3': [12, 23, 1, 1, 3, 0, 0, 0, 11, 18, 23, 8],
+                'r4': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r5': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'TE': {
+                'r1': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
+                'r2': [11, 0, 1, 1, 2, 36, 26, 0, 0, 15, 0, 8],
+                'r3': [16, 12, 1, 1, 2, 0, 0, 0, 24, 24, 12, 8],
+                'r4': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'OL': {
+                'r1': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r2': [12, 0, 1, 1, 2, 23, 41, 0, 0, 12, 0, 8],
+                'r3': [12, 0, 1, 1, 2, 41, 23, 0, 0, 12, 0, 8],
+                'r4': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r5': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'DL': {
+                'r1': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r2': [12, 6, 1, 1, 2, 38, 0, 17, 0, 15, 0, 8],
+                'r3': [12, 15, 1, 1, 2, 22, 0, 24, 0, 15, 0, 8],
+                'r4': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r5': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'LB': {
+                'r1': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
+                'r2': [12, 4, 1, 1, 2, 38, 0, 22, 0, 12, 0, 8],
+                'r3': [13, 12, 1, 1, 2, 21, 0, 21, 0, 21, 0, 8],
+                'r4': [13, 19, 1, 1, 2, 15, 0, 20, 0, 21, 0, 8],
+                'r5': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'DB': {
+                'r1': [16, 20, 1, 1, 4, 10, 0, 10, 10, 20, 0, 8],
+                'r2': [18, 17, 1, 1, 4, 12, 0, 12, 10, 17, 0, 8],
+                'r3': [21, 21, 1, 1, 4, 7, 0, 7, 12, 18, 0, 8],
+                'r4': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
+                'r5': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'K': {
+                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
+                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'P': {
+                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
+                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            }
+        }
+
+        recruit = [
+            ratings['ath'],
+            ratings['spd'],
+            ratings['dur'],
+            ratings['we'],
+            ratings['sta'],
+            ratings['strength'],
+            ratings['blk'],
+            ratings['tkl'],
+            ratings['han'],
+            ratings['gi'],
+            ratings['elu'],
+            ratings['tec']
+        ]
+
+        recruit_role_ratings = {
+            'r1': round(np.dot(rating_formulas[pos]['r1'], recruit)/100, 1),
+            'r2': round(np.dot(rating_formulas[pos]['r2'], recruit)/100, 1),
+            'r3': round(np.dot(rating_formulas[pos]['r3'], recruit)/100, 1),
+            'r4': round(np.dot(rating_formulas[pos]['r4'], recruit)/100, 1),
+            'r5': round(np.dot(rating_formulas[pos]['r5'], recruit)/100, 1),
+            'r6': round(np.dot(rating_formulas[pos]['r6'], recruit)/100, 1)
+        }
+
+        return recruit_role_ratings
+
     def queue_rid_urls(self, q=Queue(), t=str()):
         rids = query_Recruit_IDs(t, db)
         if t == "all":
@@ -704,6 +812,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
     def progress_fn(self, msg):
         #self.info.append(str(msg))
+        print("Running progress_fn function")
         return
 
 
@@ -711,22 +820,42 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         # Step 1: Create thread object to monitor queue
         self.thread = QThread()
         # Step 2: Create a worker object
-        self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_considering, self.rids_unsigned_length)
-        # Step 3: Move worker to the thread
-        self.worker.moveToThread(self.thread)
-        # Step 4: Connect signals and slots
-        self.thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.worker.progress.connect(self.queue_monitor_progress)
-        # Step 6: Start the thread
-        self.thread.start()
-        # Final resets
-        self.pushButtonInitializeRecruits.setEnabled(False)
-        self.pushButtonUpdateConsideringSigned.setEnabled(False)
-        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
-        self.thread.finished.connect(self.update_finished)
+        if process.__func__.__name__ == "recruit_update":
+            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_considering, self.rids_unsigned_length, "update")
+            # Step 3: Move worker to the thread
+            self.worker.moveToThread(self.thread)
+            # Step 4: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(self.queue_monitor_update_progress)
+            # Step 6: Start the thread
+            self.thread.start()
+            # Final resets
+            self.pushButtonInitializeRecruits.setEnabled(False)
+            self.pushButtonUpdateConsideringSigned.setEnabled(False)
+            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+            self.thread.finished.connect(self.update_finished)
+        elif process.__func__.__name__ == "recruit_initialize":
+            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_initialize_list, self.rids_all_length, "initialize")
+            # Step 3: Move worker to the thread
+            self.worker.moveToThread(self.thread)
+            # Step 4: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(self.queue_monitor_initialize_progress)
+            # Step 6: Start the thread
+            self.thread.start()
+            # Final resets
+            #self.pushButtonInitializeRecruits.setEnabled(False)
+            #self.pushButtonUpdateConsideringSigned.setEnabled(False)
+            #self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+            self.thread.finished.connect(self.initialize_finished)
+        else:
+            raise Exception
 
         """Execute a function in the background with a worker"""
         for i in range(self.threadCount - 1):
@@ -738,14 +867,16 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         return
 
 
+    def initialize_finished(self):
+        print("Running initialized_finished function")
+
 
     def update_finished(self):
         print("Running update_finished function")
         self.pushButtonUpdateConsideringSigned.setEnabled(True)
         self.pushButtonInitializeRecruits.setEnabled(True)
-        print(f"initialize push button SetEnabled = {self.progressBarInitializeRecruits.isEnabled()}")
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
-        print(f"MarkWatchlist push button SetEnabled = {self.progressBarMarkWatchlist.isEnabled()}")
+
 
     def recruit_update(self, progress_callback):
         while self.rid_queue.qsize() > 0:
@@ -807,7 +938,17 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         return
 
 
-    def queue_monitor_progress(self, n):
+    def queue_monitor_initialize_progress(self, n):
+        if n == 0:
+            print("Queue is empty.")
+            completed = self.rids_all_length - n
+            self.progressBarInitializeRecruits.setValue(completed)
+        else:
+            completed = self.rids_all_length - n
+            self.progressBarInitializeRecruits.setValue(completed)
+
+
+    def queue_monitor_update_progress(self, n):
         if n == 0:
             print("Queue is empty.")
             completed = self.rids_unsigned_length - n
@@ -815,6 +956,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         else:
             completed = self.rids_unsigned_length - n
             self.progressBarUpdateConsidering.setValue(completed)
+
 
 
     def runMarkRecruitsJob(self):
