@@ -343,7 +343,7 @@
          </font>
         </property>
         <property name="text">
-         <string>BLK &gt;</string>
+         <string>BLK &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -394,7 +394,7 @@
          </font>
         </property>
         <property name="text">
-         <string>HAN &gt;</string>
+         <string>HAN &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -430,7 +430,7 @@
          </font>
         </property>
         <property name="text">
-         <string>GI &gt;</string>
+         <string>GI &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -472,7 +472,7 @@
          </font>
         </property>
         <property name="text">
-         <string>STR &gt;</string>
+         <string>STR &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -505,7 +505,7 @@
          </font>
         </property>
         <property name="text">
-         <string>ELU &gt;</string>
+         <string>ELU &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -520,7 +520,7 @@
          </font>
         </property>
         <property name="text">
-         <string>DUR &gt;</string>
+         <string>DUR &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -544,7 +544,7 @@
          </font>
         </property>
         <property name="text">
-         <string>TEC &gt;</string>
+         <string>TEC &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -559,7 +559,7 @@
          </font>
         </property>
         <property name="text">
-         <string>TKL &gt;</string>
+         <string>TKL &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -574,7 +574,7 @@
          </font>
         </property>
         <property name="text">
-         <string>ATH &gt;</string>
+         <string>ATH &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -589,7 +589,7 @@
          </font>
         </property>
         <property name="text">
-         <string>SPD &gt;</string>
+         <string>SPD &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -646,7 +646,7 @@
          </font>
         </property>
         <property name="text">
-         <string>WE &gt;</string>
+         <string>WE &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -661,7 +661,7 @@
          </font>
         </property>
         <property name="text">
-         <string>STA &gt;</string>
+         <string>STA &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -671,7 +671,7 @@
       <item row="0" column="13">
        <widget class="QLabel" name="labelfilterGPA">
         <property name="text">
-         <string>GPA &gt;</string>
+         <string>GPA &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
