@@ -1,5 +1,6 @@
-version = "0.2.5"
+version = "0.3.1"
 window_title = f"GD Recruit Assistant Beta ({version})"
+from mypackages.bold_attributes_dialog import Ui_DialogBoldAttributes
 import sys
 import platform
 import logging
@@ -47,13 +48,17 @@ def logQueryError(query):
 
 wis_gd_df = ''
 gdr_csv = ''
+bold_attributes_csv = ''
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
+    bold_attributes_csv = f"{Path(sys._MEIPASS) / 'data' / 'bold_attributes.csv'}"
 else:
     gdr_csv = f"./data/gdr.csv"
+    bold_attributes_csv = f"./data/bold_attributes.csv"
 logger.info(f"gdr.csv path is = {gdr_csv}")
+logger.info(f"bold_attributes.csv path is = {bold_attributes_csv}")
 wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
-
+bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
 
 
 def query_Recruit_IDs(type, dbconn):
@@ -1082,6 +1087,308 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         super().accept()
 
 
+class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.setWindowTitle("Bold Attributes Dialog")
+        
+        # Check the boxes according to the loaded dataframe
+        
+        enable_check = {1: True, 0: False}
+
+        # QB Section
+        self.checkBox_QB_ATH.setChecked(enable_check[bold_attributes_df['ath']['qb']])
+        self.checkBox_QB_SPD.setChecked(enable_check[bold_attributes_df['spd']['qb']])
+        self.checkBox_QB_DUR.setChecked(enable_check[bold_attributes_df['dur']['qb']])
+        self.checkBox_QB_WE.setChecked(enable_check[bold_attributes_df['we']['qb']])
+        self.checkBox_QB_STA.setChecked(enable_check[bold_attributes_df['sta']['qb']])
+        self.checkBox_QB_STR.setChecked(enable_check[bold_attributes_df['str']['qb']])
+        self.checkBox_QB_BLK.setChecked(enable_check[bold_attributes_df['blk']['qb']])
+        self.checkBox_QB_TKL.setChecked(enable_check[bold_attributes_df['tkl']['qb']])
+        self.checkBox_QB_HAN.setChecked(enable_check[bold_attributes_df['han']['qb']])
+        self.checkBox_QB_GI.setChecked(enable_check[bold_attributes_df['gi']['qb']])
+        self.checkBox_QB_ELU.setChecked(enable_check[bold_attributes_df['elu']['qb']])
+        self.checkBox_QB_TEC.setChecked(enable_check[bold_attributes_df['tec']['qb']])
+
+        # RB Section
+        self.checkBox_RB_ATH.setChecked(enable_check[bold_attributes_df['ath']['rb']])
+        self.checkBox_RB_SPD.setChecked(enable_check[bold_attributes_df['spd']['rb']])
+        self.checkBox_RB_DUR.setChecked(enable_check[bold_attributes_df['dur']['rb']])
+        self.checkBox_RB_WE.setChecked(enable_check[bold_attributes_df['we']['rb']])
+        self.checkBox_RB_STA.setChecked(enable_check[bold_attributes_df['sta']['rb']])
+        self.checkBox_RB_STR.setChecked(enable_check[bold_attributes_df['str']['rb']])
+        self.checkBox_RB_BLK.setChecked(enable_check[bold_attributes_df['blk']['rb']])
+        self.checkBox_RB_TKL.setChecked(enable_check[bold_attributes_df['tkl']['rb']])
+        self.checkBox_RB_HAN.setChecked(enable_check[bold_attributes_df['han']['rb']])
+        self.checkBox_RB_GI.setChecked(enable_check[bold_attributes_df['gi']['rb']])
+        self.checkBox_RB_ELU.setChecked(enable_check[bold_attributes_df['elu']['rb']])
+        self.checkBox_RB_TEC.setChecked(enable_check[bold_attributes_df['tec']['rb']])
+
+        # WR Section
+        self.checkBox_WR_ATH.setChecked(enable_check[bold_attributes_df['ath']['wr']])
+        self.checkBox_WR_SPD.setChecked(enable_check[bold_attributes_df['spd']['wr']])
+        self.checkBox_WR_DUR.setChecked(enable_check[bold_attributes_df['dur']['wr']])
+        self.checkBox_WR_WE.setChecked(enable_check[bold_attributes_df['we']['wr']])
+        self.checkBox_WR_STA.setChecked(enable_check[bold_attributes_df['sta']['wr']])
+        self.checkBox_WR_STR.setChecked(enable_check[bold_attributes_df['str']['wr']])
+        self.checkBox_WR_BLK.setChecked(enable_check[bold_attributes_df['blk']['wr']])
+        self.checkBox_WR_TKL.setChecked(enable_check[bold_attributes_df['tkl']['wr']])
+        self.checkBox_WR_HAN.setChecked(enable_check[bold_attributes_df['han']['wr']])
+        self.checkBox_WR_GI.setChecked(enable_check[bold_attributes_df['gi']['wr']])
+        self.checkBox_WR_ELU.setChecked(enable_check[bold_attributes_df['elu']['wr']])
+        self.checkBox_WR_TEC.setChecked(enable_check[bold_attributes_df['tec']['wr']])
+
+        # TE Section
+        self.checkBox_TE_ATH.setChecked(enable_check[bold_attributes_df['ath']['te']])
+        self.checkBox_TE_SPD.setChecked(enable_check[bold_attributes_df['spd']['te']])
+        self.checkBox_TE_DUR.setChecked(enable_check[bold_attributes_df['dur']['te']])
+        self.checkBox_TE_WE.setChecked(enable_check[bold_attributes_df['we']['te']])
+        self.checkBox_TE_STA.setChecked(enable_check[bold_attributes_df['sta']['te']])
+        self.checkBox_TE_STR.setChecked(enable_check[bold_attributes_df['str']['te']])
+        self.checkBox_TE_BLK.setChecked(enable_check[bold_attributes_df['blk']['te']])
+        self.checkBox_TE_TKL.setChecked(enable_check[bold_attributes_df['tkl']['te']])
+        self.checkBox_TE_HAN.setChecked(enable_check[bold_attributes_df['han']['te']])
+        self.checkBox_TE_GI.setChecked(enable_check[bold_attributes_df['gi']['te']])
+        self.checkBox_TE_ELU.setChecked(enable_check[bold_attributes_df['elu']['te']])
+        self.checkBox_TE_TEC.setChecked(enable_check[bold_attributes_df['tec']['te']])
+
+         # OL Section
+        self.checkBox_OL_ATH.setChecked(enable_check[bold_attributes_df['ath']['ol']])
+        self.checkBox_OL_SPD.setChecked(enable_check[bold_attributes_df['spd']['ol']])
+        self.checkBox_OL_DUR.setChecked(enable_check[bold_attributes_df['dur']['ol']])
+        self.checkBox_OL_WE.setChecked(enable_check[bold_attributes_df['we']['ol']])
+        self.checkBox_OL_STA.setChecked(enable_check[bold_attributes_df['sta']['ol']])
+        self.checkBox_OL_STR.setChecked(enable_check[bold_attributes_df['str']['ol']])
+        self.checkBox_OL_BLK.setChecked(enable_check[bold_attributes_df['blk']['ol']])
+        self.checkBox_OL_TKL.setChecked(enable_check[bold_attributes_df['tkl']['ol']])
+        self.checkBox_OL_HAN.setChecked(enable_check[bold_attributes_df['han']['ol']])
+        self.checkBox_OL_GI.setChecked(enable_check[bold_attributes_df['gi']['ol']])
+        self.checkBox_OL_ELU.setChecked(enable_check[bold_attributes_df['elu']['ol']])
+        self.checkBox_OL_TEC.setChecked(enable_check[bold_attributes_df['tec']['ol']])
+
+        # DL Section
+        self.checkBox_DL_ATH.setChecked(enable_check[bold_attributes_df['ath']['dl']])
+        self.checkBox_DL_SPD.setChecked(enable_check[bold_attributes_df['spd']['dl']])
+        self.checkBox_DL_DUR.setChecked(enable_check[bold_attributes_df['dur']['dl']])
+        self.checkBox_DL_WE.setChecked(enable_check[bold_attributes_df['we']['dl']])
+        self.checkBox_DL_STA.setChecked(enable_check[bold_attributes_df['sta']['dl']])
+        self.checkBox_DL_STR.setChecked(enable_check[bold_attributes_df['str']['dl']])
+        self.checkBox_DL_BLK.setChecked(enable_check[bold_attributes_df['blk']['dl']])
+        self.checkBox_DL_TKL.setChecked(enable_check[bold_attributes_df['tkl']['dl']])
+        self.checkBox_DL_HAN.setChecked(enable_check[bold_attributes_df['han']['dl']])
+        self.checkBox_DL_GI.setChecked(enable_check[bold_attributes_df['gi']['dl']])
+        self.checkBox_DL_ELU.setChecked(enable_check[bold_attributes_df['elu']['dl']])
+        self.checkBox_DL_TEC.setChecked(enable_check[bold_attributes_df['tec']['dl']])
+
+        # LB Section
+        self.checkBox_LB_ATH.setChecked(enable_check[bold_attributes_df['ath']['lb']])
+        self.checkBox_LB_SPD.setChecked(enable_check[bold_attributes_df['spd']['lb']])
+        self.checkBox_LB_DUR.setChecked(enable_check[bold_attributes_df['dur']['lb']])
+        self.checkBox_LB_WE.setChecked(enable_check[bold_attributes_df['we']['lb']])
+        self.checkBox_LB_STA.setChecked(enable_check[bold_attributes_df['sta']['lb']])
+        self.checkBox_LB_STR.setChecked(enable_check[bold_attributes_df['str']['lb']])
+        self.checkBox_LB_BLK.setChecked(enable_check[bold_attributes_df['blk']['lb']])
+        self.checkBox_LB_TKL.setChecked(enable_check[bold_attributes_df['tkl']['lb']])
+        self.checkBox_LB_HAN.setChecked(enable_check[bold_attributes_df['han']['lb']])
+        self.checkBox_LB_GI.setChecked(enable_check[bold_attributes_df['gi']['lb']])
+        self.checkBox_LB_ELU.setChecked(enable_check[bold_attributes_df['elu']['lb']])
+        self.checkBox_LB_TEC.setChecked(enable_check[bold_attributes_df['tec']['lb']])
+
+        # DB Section
+        self.checkBox_DB_ATH.setChecked(enable_check[bold_attributes_df['ath']['db']])
+        self.checkBox_DB_SPD.setChecked(enable_check[bold_attributes_df['spd']['db']])
+        self.checkBox_DB_DUR.setChecked(enable_check[bold_attributes_df['dur']['db']])
+        self.checkBox_DB_WE.setChecked(enable_check[bold_attributes_df['we']['db']])
+        self.checkBox_DB_STA.setChecked(enable_check[bold_attributes_df['sta']['db']])
+        self.checkBox_DB_STR.setChecked(enable_check[bold_attributes_df['str']['db']])
+        self.checkBox_DB_BLK.setChecked(enable_check[bold_attributes_df['blk']['db']])
+        self.checkBox_DB_TKL.setChecked(enable_check[bold_attributes_df['tkl']['db']])
+        self.checkBox_DB_HAN.setChecked(enable_check[bold_attributes_df['han']['db']])
+        self.checkBox_DB_GI.setChecked(enable_check[bold_attributes_df['gi']['db']])
+        self.checkBox_DB_ELU.setChecked(enable_check[bold_attributes_df['elu']['db']])
+        self.checkBox_DB_TEC.setChecked(enable_check[bold_attributes_df['tec']['db']])
+
+        # K Section
+        self.checkBox_K_ATH.setChecked(enable_check[bold_attributes_df['ath']['k']])
+        self.checkBox_K_SPD.setChecked(enable_check[bold_attributes_df['spd']['k']])
+        self.checkBox_K_DUR.setChecked(enable_check[bold_attributes_df['dur']['k']])
+        self.checkBox_K_WE.setChecked(enable_check[bold_attributes_df['we']['k']])
+        self.checkBox_K_STA.setChecked(enable_check[bold_attributes_df['sta']['k']])
+        self.checkBox_K_STR.setChecked(enable_check[bold_attributes_df['str']['k']])
+        self.checkBox_K_BLK.setChecked(enable_check[bold_attributes_df['blk']['k']])
+        self.checkBox_K_TKL.setChecked(enable_check[bold_attributes_df['tkl']['k']])
+        self.checkBox_K_HAN.setChecked(enable_check[bold_attributes_df['han']['k']])
+        self.checkBox_K_GI.setChecked(enable_check[bold_attributes_df['gi']['k']])
+        self.checkBox_K_ELU.setChecked(enable_check[bold_attributes_df['elu']['k']])
+        self.checkBox_K_TEC.setChecked(enable_check[bold_attributes_df['tec']['k']])
+
+         # P Section
+        self.checkBox_P_ATH.setChecked(enable_check[bold_attributes_df['ath']['p']])
+        self.checkBox_P_SPD.setChecked(enable_check[bold_attributes_df['spd']['p']])
+        self.checkBox_P_DUR.setChecked(enable_check[bold_attributes_df['dur']['p']])
+        self.checkBox_P_WE.setChecked(enable_check[bold_attributes_df['we']['p']])
+        self.checkBox_P_STA.setChecked(enable_check[bold_attributes_df['sta']['p']])
+        self.checkBox_P_STR.setChecked(enable_check[bold_attributes_df['str']['p']])
+        self.checkBox_P_BLK.setChecked(enable_check[bold_attributes_df['blk']['p']])
+        self.checkBox_P_TKL.setChecked(enable_check[bold_attributes_df['tkl']['p']])
+        self.checkBox_P_HAN.setChecked(enable_check[bold_attributes_df['han']['p']])
+        self.checkBox_P_GI.setChecked(enable_check[bold_attributes_df['gi']['p']])
+        self.checkBox_P_ELU.setChecked(enable_check[bold_attributes_df['elu']['p']])
+        self.checkBox_P_TEC.setChecked(enable_check[bold_attributes_df['tec']['p']])
+
+    def accept(self):
+
+        # Save the state of the check boxes in dataframe and save to csv
+        
+        check_enabled = {0: 0, 2: 1}
+
+        # QB Section
+        bold_attributes_df['ath']['qb'] = check_enabled[self.checkBox_QB_ATH.checkState()]
+        bold_attributes_df['spd']['qb'] = check_enabled[self.checkBox_QB_SPD.checkState()]
+        bold_attributes_df['dur']['qb'] = check_enabled[self.checkBox_QB_DUR.checkState()]
+        bold_attributes_df['we']['qb'] = check_enabled[self.checkBox_QB_WE.checkState()]
+        bold_attributes_df['sta']['qb'] = check_enabled[self.checkBox_QB_STA.checkState()]
+        bold_attributes_df['str']['qb'] = check_enabled[self.checkBox_QB_STR.checkState()]
+        bold_attributes_df['blk']['qb'] = check_enabled[self.checkBox_QB_BLK.checkState()]
+        bold_attributes_df['tkl']['qb'] = check_enabled[self.checkBox_QB_TKL.checkState()]
+        bold_attributes_df['han']['qb'] = check_enabled[self.checkBox_QB_HAN.checkState()]
+        bold_attributes_df['gi']['qb'] = check_enabled[self.checkBox_QB_GI.checkState()]
+        bold_attributes_df['elu']['qb'] = check_enabled[self.checkBox_QB_ELU.checkState()]
+        bold_attributes_df['tec']['qb'] = check_enabled[self.checkBox_QB_TEC.checkState()]
+
+        # RB Section
+        bold_attributes_df['ath']['rb'] = check_enabled[self.checkBox_RB_ATH.checkState()]
+        bold_attributes_df['spd']['rb'] = check_enabled[self.checkBox_RB_SPD.checkState()]
+        bold_attributes_df['dur']['rb'] = check_enabled[self.checkBox_RB_DUR.checkState()]
+        bold_attributes_df['we']['rb'] = check_enabled[self.checkBox_RB_WE.checkState()]
+        bold_attributes_df['sta']['rb'] = check_enabled[self.checkBox_RB_STA.checkState()]
+        bold_attributes_df['str']['rb'] = check_enabled[self.checkBox_RB_STR.checkState()]
+        bold_attributes_df['blk']['rb'] = check_enabled[self.checkBox_RB_BLK.checkState()]
+        bold_attributes_df['tkl']['rb'] = check_enabled[self.checkBox_RB_TKL.checkState()]
+        bold_attributes_df['han']['rb'] = check_enabled[self.checkBox_RB_HAN.checkState()]
+        bold_attributes_df['gi']['rb'] = check_enabled[self.checkBox_RB_GI.checkState()]
+        bold_attributes_df['elu']['rb'] = check_enabled[self.checkBox_RB_ELU.checkState()]
+        bold_attributes_df['tec']['rb'] = check_enabled[self.checkBox_RB_TEC.checkState()]
+
+        # WR Section
+        bold_attributes_df['ath']['wr'] = check_enabled[self.checkBox_WR_ATH.checkState()]
+        bold_attributes_df['spd']['wr'] = check_enabled[self.checkBox_WR_SPD.checkState()]
+        bold_attributes_df['dur']['wr'] = check_enabled[self.checkBox_WR_DUR.checkState()]
+        bold_attributes_df['we']['wr'] = check_enabled[self.checkBox_WR_WE.checkState()]
+        bold_attributes_df['sta']['wr'] = check_enabled[self.checkBox_WR_STA.checkState()]
+        bold_attributes_df['str']['wr'] = check_enabled[self.checkBox_WR_STR.checkState()]
+        bold_attributes_df['blk']['wr'] = check_enabled[self.checkBox_WR_BLK.checkState()]
+        bold_attributes_df['tkl']['wr'] = check_enabled[self.checkBox_WR_TKL.checkState()]
+        bold_attributes_df['han']['wr'] = check_enabled[self.checkBox_WR_HAN.checkState()]
+        bold_attributes_df['gi']['wr'] = check_enabled[self.checkBox_WR_GI.checkState()]
+        bold_attributes_df['elu']['wr'] = check_enabled[self.checkBox_WR_ELU.checkState()]
+        bold_attributes_df['tec']['wr'] = check_enabled[self.checkBox_WR_TEC.checkState()]
+
+        # TE Section
+        bold_attributes_df['ath']['te'] = check_enabled[self.checkBox_TE_ATH.checkState()]
+        bold_attributes_df['spd']['te'] = check_enabled[self.checkBox_TE_SPD.checkState()]
+        bold_attributes_df['dur']['te'] = check_enabled[self.checkBox_TE_DUR.checkState()]
+        bold_attributes_df['we']['te'] = check_enabled[self.checkBox_TE_WE.checkState()]
+        bold_attributes_df['sta']['te'] = check_enabled[self.checkBox_TE_STA.checkState()]
+        bold_attributes_df['str']['te'] = check_enabled[self.checkBox_TE_STR.checkState()]
+        bold_attributes_df['blk']['te'] = check_enabled[self.checkBox_TE_BLK.checkState()]
+        bold_attributes_df['tkl']['te'] = check_enabled[self.checkBox_TE_TKL.checkState()]
+        bold_attributes_df['han']['te'] = check_enabled[self.checkBox_TE_HAN.checkState()]
+        bold_attributes_df['gi']['te'] = check_enabled[self.checkBox_TE_GI.checkState()]
+        bold_attributes_df['elu']['te'] = check_enabled[self.checkBox_TE_ELU.checkState()]
+        bold_attributes_df['tec']['te'] = check_enabled[self.checkBox_TE_TEC.checkState()]
+
+        # OL Section
+        bold_attributes_df['ath']['ol'] = check_enabled[self.checkBox_OL_ATH.checkState()]
+        bold_attributes_df['spd']['ol'] = check_enabled[self.checkBox_OL_SPD.checkState()]
+        bold_attributes_df['dur']['ol'] = check_enabled[self.checkBox_OL_DUR.checkState()]
+        bold_attributes_df['we']['ol'] = check_enabled[self.checkBox_OL_WE.checkState()]
+        bold_attributes_df['sta']['ol'] = check_enabled[self.checkBox_OL_STA.checkState()]
+        bold_attributes_df['str']['ol'] = check_enabled[self.checkBox_OL_STR.checkState()]
+        bold_attributes_df['blk']['ol'] = check_enabled[self.checkBox_OL_BLK.checkState()]
+        bold_attributes_df['tkl']['ol'] = check_enabled[self.checkBox_OL_TKL.checkState()]
+        bold_attributes_df['han']['ol'] = check_enabled[self.checkBox_OL_HAN.checkState()]
+        bold_attributes_df['gi']['ol'] = check_enabled[self.checkBox_OL_GI.checkState()]
+        bold_attributes_df['elu']['ol'] = check_enabled[self.checkBox_OL_ELU.checkState()]
+        bold_attributes_df['tec']['ol'] = check_enabled[self.checkBox_OL_TEC.checkState()]
+
+        # DL Section
+        bold_attributes_df['ath']['dl'] = check_enabled[self.checkBox_DL_ATH.checkState()]
+        bold_attributes_df['spd']['dl'] = check_enabled[self.checkBox_DL_SPD.checkState()]
+        bold_attributes_df['dur']['dl'] = check_enabled[self.checkBox_DL_DUR.checkState()]
+        bold_attributes_df['we']['dl'] = check_enabled[self.checkBox_DL_WE.checkState()]
+        bold_attributes_df['sta']['dl'] = check_enabled[self.checkBox_DL_STA.checkState()]
+        bold_attributes_df['str']['dl'] = check_enabled[self.checkBox_DL_STR.checkState()]
+        bold_attributes_df['blk']['dl'] = check_enabled[self.checkBox_DL_BLK.checkState()]
+        bold_attributes_df['tkl']['dl'] = check_enabled[self.checkBox_DL_TKL.checkState()]
+        bold_attributes_df['han']['dl'] = check_enabled[self.checkBox_DL_HAN.checkState()]
+        bold_attributes_df['gi']['dl'] = check_enabled[self.checkBox_DL_GI.checkState()]
+        bold_attributes_df['elu']['dl'] = check_enabled[self.checkBox_DL_ELU.checkState()]
+        bold_attributes_df['tec']['dl'] = check_enabled[self.checkBox_DL_TEC.checkState()]
+
+        # LB Section
+        bold_attributes_df['ath']['lb'] = check_enabled[self.checkBox_LB_ATH.checkState()]
+        bold_attributes_df['spd']['lb'] = check_enabled[self.checkBox_LB_SPD.checkState()]
+        bold_attributes_df['dur']['lb'] = check_enabled[self.checkBox_LB_DUR.checkState()]
+        bold_attributes_df['we']['lb'] = check_enabled[self.checkBox_LB_WE.checkState()]
+        bold_attributes_df['sta']['lb'] = check_enabled[self.checkBox_LB_STA.checkState()]
+        bold_attributes_df['str']['lb'] = check_enabled[self.checkBox_LB_STR.checkState()]
+        bold_attributes_df['blk']['lb'] = check_enabled[self.checkBox_LB_BLK.checkState()]
+        bold_attributes_df['tkl']['lb'] = check_enabled[self.checkBox_LB_TKL.checkState()]
+        bold_attributes_df['han']['lb'] = check_enabled[self.checkBox_LB_HAN.checkState()]
+        bold_attributes_df['gi']['lb'] = check_enabled[self.checkBox_LB_GI.checkState()]
+        bold_attributes_df['elu']['lb'] = check_enabled[self.checkBox_LB_ELU.checkState()]
+        bold_attributes_df['tec']['lb'] = check_enabled[self.checkBox_LB_TEC.checkState()]
+
+        # DB Section
+        bold_attributes_df['ath']['db'] = check_enabled[self.checkBox_DB_ATH.checkState()]
+        bold_attributes_df['spd']['db'] = check_enabled[self.checkBox_DB_SPD.checkState()]
+        bold_attributes_df['dur']['db'] = check_enabled[self.checkBox_DB_DUR.checkState()]
+        bold_attributes_df['we']['db'] = check_enabled[self.checkBox_DB_WE.checkState()]
+        bold_attributes_df['sta']['db'] = check_enabled[self.checkBox_DB_STA.checkState()]
+        bold_attributes_df['str']['db'] = check_enabled[self.checkBox_DB_STR.checkState()]
+        bold_attributes_df['blk']['db'] = check_enabled[self.checkBox_DB_BLK.checkState()]
+        bold_attributes_df['tkl']['db'] = check_enabled[self.checkBox_DB_TKL.checkState()]
+        bold_attributes_df['han']['db'] = check_enabled[self.checkBox_DB_HAN.checkState()]
+        bold_attributes_df['gi']['db'] = check_enabled[self.checkBox_DB_GI.checkState()]
+        bold_attributes_df['elu']['db'] = check_enabled[self.checkBox_DB_ELU.checkState()]
+        bold_attributes_df['tec']['db'] = check_enabled[self.checkBox_DB_TEC.checkState()]
+
+        # K Section
+        bold_attributes_df['ath']['k'] = check_enabled[self.checkBox_K_ATH.checkState()]
+        bold_attributes_df['spd']['k'] = check_enabled[self.checkBox_K_SPD.checkState()]
+        bold_attributes_df['dur']['k'] = check_enabled[self.checkBox_K_DUR.checkState()]
+        bold_attributes_df['we']['k'] = check_enabled[self.checkBox_K_WE.checkState()]
+        bold_attributes_df['sta']['k'] = check_enabled[self.checkBox_K_STA.checkState()]
+        bold_attributes_df['str']['k'] = check_enabled[self.checkBox_K_STR.checkState()]
+        bold_attributes_df['blk']['k'] = check_enabled[self.checkBox_K_BLK.checkState()]
+        bold_attributes_df['tkl']['k'] = check_enabled[self.checkBox_K_TKL.checkState()]
+        bold_attributes_df['han']['k'] = check_enabled[self.checkBox_K_HAN.checkState()]
+        bold_attributes_df['gi']['k'] = check_enabled[self.checkBox_K_GI.checkState()]
+        bold_attributes_df['elu']['k'] = check_enabled[self.checkBox_K_ELU.checkState()]
+        bold_attributes_df['tec']['k'] = check_enabled[self.checkBox_K_TEC.checkState()]
+
+        # P Section
+        bold_attributes_df['ath']['p'] = check_enabled[self.checkBox_P_ATH.checkState()]
+        bold_attributes_df['spd']['p'] = check_enabled[self.checkBox_P_SPD.checkState()]
+        bold_attributes_df['dur']['p'] = check_enabled[self.checkBox_P_DUR.checkState()]
+        bold_attributes_df['we']['p'] = check_enabled[self.checkBox_P_WE.checkState()]
+        bold_attributes_df['sta']['p'] = check_enabled[self.checkBox_P_STA.checkState()]
+        bold_attributes_df['str']['p'] = check_enabled[self.checkBox_P_STR.checkState()]
+        bold_attributes_df['blk']['p'] = check_enabled[self.checkBox_P_BLK.checkState()]
+        bold_attributes_df['tkl']['p'] = check_enabled[self.checkBox_P_TKL.checkState()]
+        bold_attributes_df['han']['p'] = check_enabled[self.checkBox_P_HAN.checkState()]
+        bold_attributes_df['gi']['p'] = check_enabled[self.checkBox_P_GI.checkState()]
+        bold_attributes_df['elu']['p'] = check_enabled[self.checkBox_P_ELU.checkState()]
+        bold_attributes_df['tec']['p'] = check_enabled[self.checkBox_P_TEC.checkState()]
+
+        # Write to csv file
+        bold_attributes_df.to_csv(bold_attributes_csv)
+
+        super().accept()
+
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1106,10 +1413,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Apply", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Data", None))
+        self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Options", None))
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"&New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"&Load Season", None))
         self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"&Grab Recruit Data", None))
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"&WIS Credentials", None))
+        self.actionBold_Attributes.setText(QCoreApplication.translate("MainWindow", u"&Bold Attributes", None))
         self.comboBoxPositionFilter.setEnabled(False)
         self.checkBoxHideSigned.setEnabled(False)
         self.checkBoxUndecided.setEnabled(False)
@@ -1154,6 +1463,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionNew_Season.triggered.connect(self.open_New_Season)
         self.actionLoad_Season.triggered.connect(self.open_Load_Season)
         self.actionGrabSeasonData.triggered.connect(self.open_Grab_Season_Data)
+        self.actionBold_Attributes.triggered.connect(self.open_Bold_Attributes)
         self.comboBoxPositionFilter.activated.connect(self.position_filter)
         self.comboBoxMilesFilter.activated.connect(self.miles_filter)
         self.checkBoxHideSigned.stateChanged.connect(self.hide_signed_filter)
@@ -1446,7 +1756,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info(f"database name = {db.databaseName()}")
         if db.databaseName() != "":
             self.loadModel()
-        
+
+
+    def open_Bold_Attributes(self):
+        logger.debug("Entering Bold Attributes dialog")
+        dialog = BoldAttributes()
+        dialog.ui = Ui_DialogBoldAttributes()
+        dialog.exec_()
+        dialog.show() 
+        logger.debug("Exiting Bold Attributes dialog")
+
 
     def check_stored_creds(self):
         coachid, user, pwd, config = load_config()
