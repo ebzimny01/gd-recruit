@@ -317,6 +317,16 @@ class MarkRecruitsWorker(QObject):
     progress = Signal(int)
     
     def run(self):
+        
+        potential_lookup = {
+                            '?': '?',
+                            'VL': "0-VL",
+                            'L': "1-L",
+                            'A': "2-A",
+                            'H': "3-H",
+                            'VH': "4-VH"
+        }
+        
         """Long-running Initialize Recruit task goes here."""
 
         # Thread signaling start
@@ -356,7 +366,7 @@ class MarkRecruitsWorker(QObject):
                     link = recruit_a_tag.attrs['href']
                     link_re = re.search(r"(\d{8})", link)
                     rid = int(link_re.group(1))
-                    potential = columns[9].text
+                    potential = potential_lookup[columns[9].text]
                     watchlist.update({rid: potential})
             signed_table = page.find(id="signed")
             if signed_table.text == "\n\n\n":
@@ -372,7 +382,7 @@ class MarkRecruitsWorker(QObject):
                     link = recruit_a_tag.attrs['href']
                     link_re = re.search(r"(\d{8})", link)
                     rid = int(link_re.group(1))
-                    potential = columns[9].text
+                    potential = potential_lookup[columns[9].text]
                     watchlist.update({rid: potential})
 
             logger.info(f"Length of watchlist = {len(watchlist)}")
@@ -430,7 +440,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         else:
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
-            self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 255, 0);")
+            self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 128, 0);")
             self.pushButtonInitializeRecruits.setText(QCoreApplication.translate("MainWindow", u"&Re-Initialize Recruits", None))
         
         self.pushButtonUpdateConsideringSigned.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Update Considering / Signed", None))
@@ -1090,6 +1100,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Disable Recruit Table until a DB table is loaded.
         self.recruit_tableView.setEnabled(False)
         
+        
         # Disable all filters by default. They will be enabled when model is loaded.
         self.pushButtonClearRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Clear", None))
         self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Apply", None))
@@ -1279,9 +1290,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if v:
                 logger.info(f"Enabling {k} filter...")
                 if k == 'gpa':
-                    self.string_filter[k] = f"{k} > {float(v)}"
+                    self.string_filter[k] = f"{k} >= {float(v)}"
                 else:
-                    self.string_filter[k] = f"{k} > {int(v)}"
+                    self.string_filter[k] = f"{k} >= {int(v)}"
             else:
                 logger.info(f"Clearing {k} filter...")
                 self.string_filter[k] = ""
@@ -1450,10 +1461,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
    
 
     def loadModel(self):
-        self.model = QSqlTableModel()
-        initializeModel(self.model)
+        self.model = TableModel()
+        # initializeModel(self.model)
         self.recruit_tableView.setModel(self.model)
         self.recruit_tableView.setEnabled(True)
+        self.recruit_tableView.setColumnHidden(30, True)
         self.comboBoxPositionFilter.setEnabled(True)
         self.checkBoxHideSigned.setEnabled(True)
         self.checkBoxUndecided.setEnabled(True)
@@ -1554,42 +1566,133 @@ def update_active_teams(coachid):
         logger.error(f"Request to grab {coachid} profile page was NOT successful. Please check coach ID.")
 
 
-def initializeModel(model):
-   model.setTable('recruits')
-   # model.setEditStrategy(QtSql.QSqlTableModel.OnFieldChange)
-   model.select()
-   model.setHeaderData(0, Qt.Horizontal, "ID")
-   model.setHeaderData(1, Qt.Horizontal, "Name")
-   model.setHeaderData(2, Qt.Horizontal, "Pos")
-   model.setHeaderData(3, Qt.Horizontal, "Height")
-   model.setHeaderData(4, Qt.Horizontal, "Weight")
-   model.setHeaderData(5, Qt.Horizontal, "Rating")
-   model.setHeaderData(6, Qt.Horizontal, "Rank")
-   model.setHeaderData(7, Qt.Horizontal, "Hometown")
-   model.setHeaderData(8, Qt.Horizontal, "Miles")
-   model.setHeaderData(9, Qt.Horizontal, "Considering")
-   model.setHeaderData(10, Qt.Horizontal, "ATH")
-   model.setHeaderData(11, Qt.Horizontal, "SPD")
-   model.setHeaderData(12, Qt.Horizontal, "DUR")
-   model.setHeaderData(13, Qt.Horizontal, "WE")
-   model.setHeaderData(14, Qt.Horizontal, "STA")
-   model.setHeaderData(15, Qt.Horizontal, "STR")
-   model.setHeaderData(16, Qt.Horizontal, "BLK")
-   model.setHeaderData(17, Qt.Horizontal, "TKL")
-   model.setHeaderData(18, Qt.Horizontal, "HAN")
-   model.setHeaderData(19, Qt.Horizontal, "GI")
-   model.setHeaderData(20, Qt.Horizontal, "ELU")
-   model.setHeaderData(21, Qt.Horizontal, "TEC")
-   model.setHeaderData(22, Qt.Horizontal, "R1")
-   model.setHeaderData(23, Qt.Horizontal, "R2")
-   model.setHeaderData(24, Qt.Horizontal, "R3")
-   model.setHeaderData(25, Qt.Horizontal, "R4")
-   model.setHeaderData(26, Qt.Horizontal, "R5")
-   model.setHeaderData(27, Qt.Horizontal, "R6")
-   model.setHeaderData(28, Qt.Horizontal, "GPA")
-   model.setHeaderData(29, Qt.Horizontal, "Pot")
-   model.setHeaderData(30, Qt.Horizontal, "Signed")
-   model.setHeaderData(31, Qt.Horizontal, "Watched")
+class TableModel(QSqlTableModel):
+    def __init__(self, *args, **kwargs):
+        super(TableModel, self).__init__(*args, **kwargs)
+        logger.debug("-> TableModel.__init__:")
+        self.setTable('recruits')
+        # model.setEditStrategy(QtSql.QSqlTableModel.OnFieldChange)
+        self.select()
+        self.setHeaderData(0, Qt.Horizontal, "ID")
+        self.setHeaderData(1, Qt.Horizontal, "Name")
+        self.setHeaderData(2, Qt.Horizontal, "Pos")
+        self.setHeaderData(3, Qt.Horizontal, "Height")
+        self.setHeaderData(4, Qt.Horizontal, "Weight")
+        self.setHeaderData(5, Qt.Horizontal, "Rating")
+        self.setHeaderData(6, Qt.Horizontal, "Rank")
+        self.setHeaderData(7, Qt.Horizontal, "Hometown")
+        self.setHeaderData(8, Qt.Horizontal, "Miles")
+        self.setHeaderData(9, Qt.Horizontal, "Considering")
+        self.setHeaderData(10, Qt.Horizontal, "ATH")
+        self.setHeaderData(11, Qt.Horizontal, "SPD")
+        self.setHeaderData(12, Qt.Horizontal, "DUR")
+        self.setHeaderData(13, Qt.Horizontal, "WE")
+        self.setHeaderData(14, Qt.Horizontal, "STA")
+        self.setHeaderData(15, Qt.Horizontal, "STR")
+        self.setHeaderData(16, Qt.Horizontal, "BLK")
+        self.setHeaderData(17, Qt.Horizontal, "TKL")
+        self.setHeaderData(18, Qt.Horizontal, "HAN")
+        self.setHeaderData(19, Qt.Horizontal, "GI")
+        self.setHeaderData(20, Qt.Horizontal, "ELU")
+        self.setHeaderData(21, Qt.Horizontal, "TEC")
+        self.setHeaderData(22, Qt.Horizontal, "R1")
+        self.setHeaderData(23, Qt.Horizontal, "R2")
+        self.setHeaderData(24, Qt.Horizontal, "R3")
+        self.setHeaderData(25, Qt.Horizontal, "R4")
+        self.setHeaderData(26, Qt.Horizontal, "R5")
+        self.setHeaderData(27, Qt.Horizontal, "R6")
+        self.setHeaderData(28, Qt.Horizontal, "GPA")
+        self.setHeaderData(29, Qt.Horizontal, "Pot")
+        self.setHeaderData(30, Qt.Horizontal, "Signed")
+        self.setHeaderData(31, Qt.Horizontal, "Watched")
+        self.info()
+        logger.debug("<- TableModel.__init__")
+
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+            self.checkmarkicon = f"{Path(sys._MEIPASS) / 'images' / 'checkmark_1.png'}"
+            self.x_icon = f"{Path(sys._MEIPASS) / 'images' / 'x_icon.png'}"
+        #checkmarkicon = f"{sys._MEIPASS}/images/checkmark_1.png"
+        else:
+            self.checkmarkicon = f"./images/checkmark_1.png"
+            self.x_icon = f"./images/x_icon.png"
+
+
+    def info(self):
+        logger.debug("     -> info")
+        logger.debug("         TableModel tables inside :", self.database().tables())
+        logger.debug("         TableModel self.db       :", self.database())
+        logger.debug("         TableModel self.Table    :", self.tableName())
+        logger.debug("         TableModel self.rowCount :", self.rowCount())
+        logger.debug("         TableModel self.lastEror :", self.lastError().text())
+        logger.debug("     <- info")
+
+    def data(self, index, role):
+        if role == Qt.ForegroundRole:
+            # Format blue text for Recruit ID and Hometown columns to indicate hyperlinks
+            if index.column() in [0,7]:
+                return QColor('dark blue')
+
+            # Format potential in different colors
+            if index.column() == 29:
+                value = super(TableModel, self).data(index)
+                if value == '0-VL':
+                    return QColor('darkred')
+                elif value == '1-L':
+                    return QColor('peru')
+                elif value == '2-A' or value == '?':
+                    return QColor('black')
+                elif value == '3-H':
+                    return QColor('blue')
+                elif value == '4-VH':
+                    return QColor('darkgreen')
+
+        # Right Align most columns
+        if role == Qt.TextAlignmentRole:
+            if index.column() in [3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 31]:
+                return Qt.AlignRight
+
+        # Format columns with float data to 1 decimal point
+        if role == Qt.DisplayRole:
+            if index.column() in [22, 23, 24, 25, 26, 27, 28]:
+                value = super(TableModel, self).data(index)
+                return "%.1f" % value
+
+        # Add a checkmark icon if a player is watched
+        if role == Qt.DecorationRole:
+            if index.column() in [31]:
+                value = super(TableModel, self).data(index)
+                if value == 1:
+                    return QIcon(self.checkmarkicon)
+
+        # Format background of the entire row to light gray if a player is signed
+        if role == Qt.BackgroundRole:
+            if super(TableModel, self).data(self.index(index.row(), 30), Qt.DisplayRole) == 1:
+                return QBrush(Qt.lightGray)
+
+        # Section to Bold the text for the critical attributes for each position
+        if role == Qt.FontRole:
+            position = super(TableModel, self).data(self.index(index.row(), 2), Qt.DisplayRole)
+            if position == "OL":
+                if index.column() in [15, 16]:
+                    font = QFont()
+                    font.setBold(True)
+                    font.setPointSize(10)
+                    return font
+
+        return QSqlTableModel.data(self, index, role)
+    
+    def setData(self, index, value, role=Qt.EditRole):
+        if not index.isValid():
+            return False
+        else:
+            return QSqlTableModel.setData(self, index, value, role)
+
+
+    def flags(self, index):
+        if not index.isValid():
+            return Qt.NoItemFlags
+        else:
+            return QSqlTableModel.flags(self, index)
 
 
 if __name__ == "__main__":
