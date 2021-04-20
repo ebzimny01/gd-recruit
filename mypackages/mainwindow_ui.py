@@ -23,6 +23,8 @@ class Ui_MainWindow(object):
         self.actionWIS_Credentials = QAction(MainWindow)
         self.actionWIS_Credentials.setObjectName(u"actionWIS_Credentials")
         self.actionWIS_Credentials.setFont(font)
+        self.actionBold_Attributes = QAction(MainWindow)
+        self.actionBold_Attributes.setObjectName(u"actionBold_Attributes")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.verticalLayout = QVBoxLayout(self.centralwidget)
@@ -351,11 +353,13 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1169, 21))
+        self.menubar.setGeometry(QRect(0, 0, 1169, 22))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName(u"menuFile")
         self.menudata = QMenu(self.menubar)
         self.menudata.setObjectName(u"menudata")
+        self.menuOptions = QMenu(self.menubar)
+        self.menuOptions.setObjectName(u"menuOptions")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QStatusBar(MainWindow)
         self.statusbar.setObjectName(u"statusbar")
@@ -384,10 +388,12 @@ class Ui_MainWindow(object):
 
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menudata.menuAction())
+        self.menubar.addAction(self.menuOptions.menuAction())
         self.menuFile.addAction(self.actionWIS_Credentials)
         self.menuFile.addAction(self.actionNew_Season)
         self.menuFile.addAction(self.actionLoad_Season)
         self.menudata.addAction(self.actionGrabSeasonData)
+        self.menuOptions.addAction(self.actionBold_Attributes)
 
         self.retranslateUi(MainWindow)
 
@@ -400,6 +406,7 @@ class Ui_MainWindow(object):
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"Load Season", None))
         self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"Grab Recruit Data", None))
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"WIS Credentials", None))
+        self.actionBold_Attributes.setText(QCoreApplication.translate("MainWindow", u"Bold Attributes", None))
         self.labelPositionFilter.setText(QCoreApplication.translate("MainWindow", u"Pos:", None))
         self.comboBoxPositionFilter.setItemText(0, QCoreApplication.translate("MainWindow", u"ALL", None))
         self.comboBoxPositionFilter.setItemText(1, QCoreApplication.translate("MainWindow", u"QB", None))
@@ -426,6 +433,9 @@ class Ui_MainWindow(object):
         self.comboBoxMilesFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"1400", None))
 
         self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"Apply", None))
+#if QT_CONFIG(shortcut)
+        self.pushButtonApplyRatingsFilters.setShortcut("")
+#endif // QT_CONFIG(shortcut)
         self.labelfilterBLK.setText(QCoreApplication.translate("MainWindow", u"BLK >=", None))
         self.labelfilterHAN.setText(QCoreApplication.translate("MainWindow", u"HAN >=", None))
         self.pushButtonClearRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
@@ -443,5 +453,6 @@ class Ui_MainWindow(object):
         self.labelfilterGPA.setText(QCoreApplication.translate("MainWindow", u"GPA >=", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"Data", None))
+        self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"Options", None))
     # retranslateUi
 
