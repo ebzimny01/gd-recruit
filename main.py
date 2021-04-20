@@ -1,4 +1,4 @@
-version = "0.2.4"
+version = "0.2.5"
 window_title = f"GD Recruit Assistant Beta ({version})"
 import sys
 import platform
@@ -13,8 +13,10 @@ logger = logging.getLogger(__name__)
 
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 import os
+from queue import Queue
 import datetime, time
 import requests
+import traceback
 from playwright.async_api import async_playwright
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -151,16 +153,92 @@ class InitializeWorker(QObject):
         self.progress.emit(1, 1)
         result = wis_browser(config, user, pwd, "scrape_recruit_IDs", db_t, self.progress)
         if result:
-            # After grabbing all Recruit IDs and storing in DB
-            # Now need to grab all static data
-            logger.info("Running query_Recruit_IDs after wis_browser...")
-            rids = query_Recruit_IDs("all", db_t)
-            rids_length = len(rids)
-            logger.info(f"Number of recruits to process = {rids_length}")
-            print(f"Number of recruits to process = {rids_length}")
-            openDB(db_t)
-            queryUpdate = QSqlQuery(db_t)
-            queryUpdate.prepare("UPDATE recruits "
+            # After grabbing all Recruit IDs and storing in DB.
+            # This thread is finished and now need to signal 
+            # creation of new threads for grabbing static attributes of recruits.
+            self.finished.emit()
+        else:
+            # Implies there was an error authenticating to WIS
+            self.progress.emit(999999,1)
+
+
+#https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
+class Worker(QRunnable):
+    """Worker thread for running background tasks."""
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+        self.signals = WorkerSignals()
+        self.kwargs['progress_callback'] = self.signals.progress
+
+    @Slot()
+    def run(self):
+        try:
+            logger.debug("Worker QRunnable 'try' section")
+            result = self.fn(
+                *self.args, **self.kwargs,
+            )
+        except:
+            logger.debug("Worker QRunnable 'except' section")
+            traceback.print_exc()
+            exctype, value = sys.exc_info()[:2]
+            self.signals.error.emit((exctype, value, traceback.format_exc()))
+        else:
+            logger.debug("Worker QRunnable 'else' section")
+            self.signals.result.emit(result)
+        finally:
+            logger.debug("Worker QRunnable 'finally' section")
+            self.signals.finished.emit()
+
+
+class WorkerSignals(QObject):
+    """
+    Defines the signals available from a running worker thread.
+    Supported signals are:
+    finished
+        No data
+    error
+        `tuple` (exctype, value, traceback.format_exc() )
+    result
+        `object` data returned from processing, anything
+    """
+    finished = Signal()
+    error = Signal(tuple)
+    result =Signal(object)
+    progress = Signal(int)
+
+
+class QueueMonitorWorker(QObject):
+    finished = Signal()
+    progress = Signal(int)
+    
+    def __init__(self, q, rc, rl, t):
+        super(QueueMonitorWorker, self).__init__()
+        self.q = q      # Queue object
+        self.rc = rc    # recruit ID list, either an initialize list or update list
+        self.rl = rl    # recruit list length
+        self.t = t      # type = 'initialize' or 'update'
+
+    def run(self):
+        logger.info("Started QueueMonitorWorker.run function")
+        # Loop to monitor queue size
+        while self.q.qsize() > 0:
+            logger.debug(f"Queue size = {self.q.qsize()}")
+            self.progress.emit(self.q.qsize())
+            time.sleep(1)
+        # Once queue is empty, update each recruit in the DB
+        self.progress.emit(self.q.qsize())
+        logger.debug(f"Queue is empty -> Queue size = {self.q.qsize()}")
+        db_t.setDatabaseName(db.databaseName())        
+        openDB(db_t)
+        query = QSqlQuery(db_t)
+        if self.t == "initialize":
+            logger.info(f"Initializing recruit attributes in database...")
+            query.prepare("UPDATE recruits "
                                 "SET ath = :ath, "
                                     "spd = :spd, "
                                     "dur = :dur, "
@@ -181,236 +259,55 @@ class InitializeWorker(QObject):
                                     "r6 = :r6, "
                                     "gpa = :gpa "
                                 "WHERE id = :id")
-            
-            #Thread progress signaling that Grab Recruit Static Data is starting
-            i = 1000
-            logger.info(f"before emit {i}...")
-            self.progress.emit(i, rids_length)
+            # Signal that we are now updating DB
+            self.progress.emit(11111111)
+            counter = 1000000
+            with Bar('Initializing Recruit Static Data...', max=self.rl) as bar:
+                for r in self.rc:
+                    query.bindValue(":ath", r['ath'])
+                    query.bindValue(":spd", r['spd'])
+                    query.bindValue(":dur", r['dur'])
+                    query.bindValue(":we", r['we'])
+                    query.bindValue(":sta", r['sta'])
+                    query.bindValue(":str", r['strength'])
+                    query.bindValue(":blk", r['blk'])
+                    query.bindValue(":tkl", r['tkl'])
+                    query.bindValue(":han", r['han'])
+                    query.bindValue(":gi", r['gi'])
+                    query.bindValue(":elu", r['elu'])
+                    query.bindValue(":tec", r['tec'])
+                    query.bindValue(":r1", float(r['role_rating']['r1']))
+                    query.bindValue(":r2", float(r['role_rating']['r2']))
+                    query.bindValue(":r3", float(r['role_rating']['r3']))
+                    query.bindValue(":r4", float(r['role_rating']['r4']))
+                    query.bindValue(":r5", float(r['role_rating']['r5']))
+                    query.bindValue(":r6", float(r['role_rating']['r6']))
+                    query.bindValue(":gpa", r['gpa'])
+                    query.bindValue(":id", r['rid'])
 
-            with Bar('Initializing Recruit Static Data...', max=rids_length) as bar:
-                for rid in rids:
-                    r = rid[0]
-                    position = rid[1]
-                    recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid={r}")
-                    recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-                    recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
-                    recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
-                    gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
-                    gpa = float(gpa_section.text)
-                    ath = int(recruit_ratings_values[0].text)
-                    spd = int(recruit_ratings_values[1].text)
-                    dur = int(recruit_ratings_values[2].text)
-                    we = int(recruit_ratings_values[3].text)
-                    sta = int(recruit_ratings_values[4].text)
-                    strength = int(recruit_ratings_values[5].text)
-                    blk = int(recruit_ratings_values[6].text)
-                    tkl = int(recruit_ratings_values[7].text)
-                    han = int(recruit_ratings_values[8].text)
-                    gi = int(recruit_ratings_values[9].text)
-                    elu = int(recruit_ratings_values[10].text)
-                    tec = int(recruit_ratings_values[11].text)
-                    r_ratings = [ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec]
-                    role_rating = self.calculate_role_rating(position, r_ratings)
-                    queryUpdate.bindValue(":ath", ath)
-                    queryUpdate.bindValue(":spd", spd)
-                    queryUpdate.bindValue(":dur", dur)
-                    queryUpdate.bindValue(":we", we)
-                    queryUpdate.bindValue(":sta", sta)
-                    queryUpdate.bindValue(":str", strength)
-                    queryUpdate.bindValue(":blk", blk)
-                    queryUpdate.bindValue(":tkl", tkl)
-                    queryUpdate.bindValue(":han", han)
-                    queryUpdate.bindValue(":gi", gi)
-                    queryUpdate.bindValue(":elu", elu)
-                    queryUpdate.bindValue(":tec", tec)
-                    queryUpdate.bindValue(":r1", float(role_rating['r1']))
-                    queryUpdate.bindValue(":r2", float(role_rating['r2']))
-                    queryUpdate.bindValue(":r3", float(role_rating['r3']))
-                    queryUpdate.bindValue(":r4", float(role_rating['r4']))
-                    queryUpdate.bindValue(":r5", float(role_rating['r5']))
-                    queryUpdate.bindValue(":r6", float(role_rating['r6']))
-                    queryUpdate.bindValue(":gpa", gpa)
-                    queryUpdate.bindValue(":id", r)
-                    
-                    if not queryUpdate.exec_():
-                        logQueryError(queryUpdate)
-                                        
-                    # Thread progress signal for Grab Recruit Static Data
-                    i += 1
-                    self.progress.emit(i, rids_length)
+                    if not query.exec_():
+                        logQueryError(query)
+                    counter += 1
+                    self.progress.emit(counter)
                     bar.next()
-
-            queryUpdate.finish()
-            db_t.close()
-        else:
-            # Implies there was an error authenticating to WIS
-            self.progress.emit(999999,1)
-
-        self.finished.emit()
-
-
-    def calculate_role_rating(self, pos, ratings):
-        rating_formulas = {
-            'QB': {
-                'r1': [10, 4, 0, 0, 0, 26, 0, 0, 0, 24, 8, 28],
-                'r2': [8, 18, 2, 1, 3, 24, 0, 0, 0, 16, 20, 8],
-                'r3': [8, 4, 1, 1, 2, 26, 0, 0, 0, 26, 8, 24],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'RB': {
-                'r1': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
-                'r2': [8, 0, 1, 1, 3, 36, 30, 0, 0, 0, 13, 8],
-                'r3': [8, 24, 1, 1, 3, 20, 0, 0, 0, 10, 25, 8],
-                'r4': [8, 20, 1, 1, 3, 25, 0, 0, 0, 10, 24, 8],
-                'r5': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
-                'r6': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8]
-            },
-            'WR': {
-                'r1': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r2': [16, 12, 1, 1, 3, 0, 0, 0, 24, 24, 11, 8],
-                'r3': [12, 23, 1, 1, 3, 0, 0, 0, 11, 18, 23, 8],
-                'r4': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r5': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'TE': {
-                'r1': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
-                'r2': [11, 0, 1, 1, 2, 36, 26, 0, 0, 15, 0, 8],
-                'r3': [16, 12, 1, 1, 2, 0, 0, 0, 24, 24, 12, 8],
-                'r4': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'OL': {
-                'r1': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r2': [12, 0, 1, 1, 2, 23, 41, 0, 0, 12, 0, 8],
-                'r3': [12, 0, 1, 1, 2, 41, 23, 0, 0, 12, 0, 8],
-                'r4': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r5': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'DL': {
-                'r1': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r2': [12, 6, 1, 1, 2, 38, 0, 17, 0, 15, 0, 8],
-                'r3': [12, 15, 1, 1, 2, 22, 0, 24, 0, 15, 0, 8],
-                'r4': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r5': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'LB': {
-                'r1': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
-                'r2': [12, 4, 1, 1, 2, 38, 0, 22, 0, 12, 0, 8],
-                'r3': [13, 12, 1, 1, 2, 21, 0, 21, 0, 21, 0, 8],
-                'r4': [13, 19, 1, 1, 2, 15, 0, 20, 0, 21, 0, 8],
-                'r5': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'DB': {
-                'r1': [16, 20, 1, 1, 4, 10, 0, 10, 10, 20, 0, 8],
-                'r2': [18, 17, 1, 1, 4, 12, 0, 12, 10, 17, 0, 8],
-                'r3': [21, 21, 1, 1, 4, 7, 0, 7, 12, 18, 0, 8],
-                'r4': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
-                'r5': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'K': {
-                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
-                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'P': {
-                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
-                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            }
-        }
-
-        recruit_role_ratings = {
-            'r1': round(np.dot(rating_formulas[pos]['r1'], ratings)/100,1),
-            'r2': round(np.dot(rating_formulas[pos]['r2'], ratings)/100,1),
-            'r3': round(np.dot(rating_formulas[pos]['r3'], ratings)/100,1),
-            'r4': round(np.dot(rating_formulas[pos]['r4'], ratings)/100,1),
-            'r5': round(np.dot(rating_formulas[pos]['r5'], ratings)/100,1),
-            'r6': round(np.dot(rating_formulas[pos]['r6'], ratings)/100,1)
-        }
-
-        return recruit_role_ratings
-
-
-class UpdateConsideringWorker(QObject):
-    finished = Signal()
-    progress = Signal(int, int)
-        
-    def run(self):
-        """Long-running Initialize Recruit task goes here."""
-        logger.info("Started UpdateConsideringWorker.run function")
-        # Thread signaling start
-        self.progress.emit(0,1)
-
-        i = 0
-        db_t.setDatabaseName(db.databaseName())
-        rids_unsigned = query_Recruit_IDs("unsigned", db_t)
-        rids_unsigned_length = len(rids_unsigned)
-        
-        openDB(db_t)
-        queryUpdateConsidering = QSqlQuery(db_t)
-        queryUpdateConsidering.prepare("UPDATE recruits "
-                                        "SET considering = :considering, "
-                                        "signed = :signed "
-                                        "WHERE id = :id")
-
-        requests_session = requests.Session()
-        with Bar('Update Recruits Considering...', max=rids_unsigned_length) as bar:            
-            logger.info(f"Updating {rids_unsigned_length} unsigned recruits . . . ")
-            for rid in rids_unsigned:
-                recruitpage = requests_session.get(f"https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid={rid}")
-                recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-                teams_table = recruitpage_soup.find("table", id="tblTeams")
-                teams_table_body = teams_table.find("tbody")
-                team_rows = teams_table_body.find_all("tr")
-                considering = ''
-                signed = 0
-                for row in team_rows:
-                    team_data = row.find_all("td")
-                    if "undecided" in team_data[0].text:
-                        considering = "undecided\n"
-                    elif "already signed" in team_data[0].text:
-                        find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
-                        href_tag = find_signed_with.attrs['href']
-                        href_tag_re = re.search(r'(\d{5})', href_tag)
-                        team_id = int(href_tag_re.group(1))
-                        considering = f"{wis_gd_df.school_short[team_id]}\n"
-                        signed = 1
-                    else:
-                        school = team_data[0].text
-                        coach = team_data[1].text
-                        division = team_data[2].text
-                        scholarships_total = team_data[3].text
-                        scholarships_open = team_data[4].text
-                        distance = team_data[5].text # WIS bug always shows N/A for distance???
-                        considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
-                        # print(considering)
-                queryUpdateConsidering.bindValue(":considering", considering[:-1]) # remove newline at end
-                queryUpdateConsidering.bindValue(":signed", signed)
-                queryUpdateConsidering.bindValue(":id", rid)
-                if not queryUpdateConsidering.exec_():
-                    logQueryError(queryUpdateConsidering)
-                                    
-                # Increment counter and progress bar
-                i += 1
-                self.progress.emit(i, rids_unsigned_length)
-                bar.next()
-
-        logger.info(f"Finished updating {rids_unsigned_length} unsigned recruits.")
-        queryUpdateConsidering.finish()
+        elif self.t == "update":
+            logger.info(f"Updating recruit considering in database...")
+            query.prepare("UPDATE recruits "
+                                            "SET considering = :considering, "
+                                            "signed = :signed "
+                                            "WHERE id = :id")
+            with Bar('Update Recruits Considering...', max=self.rl) as bar:
+                for each in self.rc:
+                    rid = each[0]
+                    signed = each[1]
+                    considering = each[2]
+                    query.bindValue(":considering", considering[:-1]) # remove newline at end
+                    query.bindValue(":signed", signed)
+                    query.bindValue(":id", rid)
+                    if not query.exec_():
+                        logQueryError(query)
+                    bar.next()
+        query.finish()
         db_t.close()
         self.finished.emit()
 
@@ -516,6 +413,14 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        # Queue to process recruit IDs
+        self.rid_queue = Queue()
+        self.threadpool = QThreadPool()
+        self.threadCount = QThreadPool.globalInstance().maxThreadCount()
+        self.requests_session = requests.Session()
+        self.recruit_initialize_list = []
+        self.recruit_considering = []
+        self.rids_unsigned_length = 0
         self.rids_all = query_Recruit_IDs("all", db)
         self.rids_all_length = len(self.rids_all)
         if self.rids_all_length == 0:
@@ -525,7 +430,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         else:
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
-            self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
+            self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 255, 0);")
             self.pushButtonInitializeRecruits.setText(QCoreApplication.translate("MainWindow", u"&Re-Initialize Recruits", None))
         
         self.pushButtonUpdateConsideringSigned.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Update Considering / Signed", None))
@@ -552,7 +457,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.progressBarUpdateConsidering.setValue(0)
         self.labelUpdateProgressBarMax.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
-        self.pushButtonUpdateConsideringSigned.clicked.connect(self.runUpdateConsideringJob)
+        self.pushButtonUpdateConsideringSigned.clicked.connect(self.queue_run_update_considering)
         self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
         self.progressBarMarkWatchlist.setVisible(False)
 
@@ -588,9 +493,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckMarkGrabUnsigned.setVisible(False)
         self.labelCheckMarkGrabSigned.setVisible(False)
         self.labelCheckMarkGrabStaticData.setVisible(False)
-        self.thread.finished.connect(
-            lambda: self.pushButtonInitializeRecruits.setEnabled(True)
-        )
+        self.thread.finished.connect(self.queue_run_initialize_attributes)
 
     def reportInitializeProgress(self, n, m):
         # print(f"n = {n}\nm = {m}")
@@ -648,50 +551,354 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.labelCheckMarkAuthWIS_Error.setVisible(True)
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
             self.progressBarInitializeRecruits.setVisible(False)
-    
 
-    def runUpdateConsideringJob(self):
-        logger.info("Button Pressed: Update Considering / Signed")
-        # Step 1: Create a QThread object
+
+    def queue_run_initialize_attributes(self):
+        logger.info(f"Running queue_run_initialize_attributes function")
+        self.queue_rid_urls(self.rid_queue, "all")
+        self.labelRecruitsInitialized.setText(f"Initializing {self.rids_all_length} Recruits...")
+        self.progressBarInitializeRecruits.setRange(0, self.rids_all_length)
+        self.progressBarInitializeRecruits.setValue(0)
+        self.progressBarInitializeRecruits.value()
+        self.stopped = False
+        self.run_threads(self.recruit_initialize, self.completed)
+
+
+    def recruit_initialize(self, progress_callback):
+        while self.rid_queue.qsize() > 0:
+            logger.debug(f"Looking for the next Recruit ID...")
+            rid = self.rid_queue.get()
+            logger.debug(f"Processing {rid}")
+            r = rid[0]
+            position = rid[1]
+            page = rid[2]
+            recruitpage = self.requests_session.get(page)
+            recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
+            recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
+            recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
+            gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
+            recruit = {
+                        'rid': r,
+                        'gpa': float(gpa_section.text),
+                        'ath': int(recruit_ratings_values[0].text),
+                        'spd': int(recruit_ratings_values[1].text),
+                        'dur': int(recruit_ratings_values[2].text),
+                        'we': int(recruit_ratings_values[3].text),
+                        'sta': int(recruit_ratings_values[4].text),
+                        'strength': int(recruit_ratings_values[5].text),
+                        'blk': int(recruit_ratings_values[6].text),
+                        'tkl': int(recruit_ratings_values[7].text),
+                        'han': int(recruit_ratings_values[8].text),
+                        'gi': int(recruit_ratings_values[9].text),
+                        'elu': int(recruit_ratings_values[10].text),
+                        'tec': int(recruit_ratings_values[11].text),
+                        'role_rating': ""
+            }
+
+            recruit['role_rating'] = self.calculate_role_rating(position, recruit)
+
+            self.recruit_initialize_list.append(recruit)
+            self.rid_queue.task_done()
+            progress_callback.emit(self.rid_queue.qsize())
+            if self.stopped == True:
+                return
+        return
+
+
+    def calculate_role_rating(self, pos, ratings):
+        rating_formulas = {
+            'QB': {
+                'r1': [10, 4, 0, 0, 0, 26, 0, 0, 0, 24, 8, 28],
+                'r2': [8, 18, 2, 1, 3, 24, 0, 0, 0, 16, 20, 8],
+                'r3': [8, 4, 1, 1, 2, 26, 0, 0, 0, 26, 8, 24],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'RB': {
+                'r1': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
+                'r2': [8, 0, 1, 1, 3, 36, 30, 0, 0, 0, 13, 8],
+                'r3': [8, 24, 1, 1, 3, 20, 0, 0, 0, 10, 25, 8],
+                'r4': [8, 20, 1, 1, 3, 25, 0, 0, 0, 10, 24, 8],
+                'r5': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
+                'r6': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8]
+            },
+            'WR': {
+                'r1': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r2': [16, 12, 1, 1, 3, 0, 0, 0, 24, 24, 11, 8],
+                'r3': [12, 23, 1, 1, 3, 0, 0, 0, 11, 18, 23, 8],
+                'r4': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r5': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'TE': {
+                'r1': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
+                'r2': [11, 0, 1, 1, 2, 36, 26, 0, 0, 15, 0, 8],
+                'r3': [16, 12, 1, 1, 2, 0, 0, 0, 24, 24, 12, 8],
+                'r4': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'OL': {
+                'r1': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r2': [12, 0, 1, 1, 2, 23, 41, 0, 0, 12, 0, 8],
+                'r3': [12, 0, 1, 1, 2, 41, 23, 0, 0, 12, 0, 8],
+                'r4': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r5': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'DL': {
+                'r1': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r2': [12, 6, 1, 1, 2, 38, 0, 17, 0, 15, 0, 8],
+                'r3': [12, 15, 1, 1, 2, 22, 0, 24, 0, 15, 0, 8],
+                'r4': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r5': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'LB': {
+                'r1': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
+                'r2': [12, 4, 1, 1, 2, 38, 0, 22, 0, 12, 0, 8],
+                'r3': [13, 12, 1, 1, 2, 21, 0, 21, 0, 21, 0, 8],
+                'r4': [13, 19, 1, 1, 2, 15, 0, 20, 0, 21, 0, 8],
+                'r5': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'DB': {
+                'r1': [16, 20, 1, 1, 4, 10, 0, 10, 10, 20, 0, 8],
+                'r2': [18, 17, 1, 1, 4, 12, 0, 12, 10, 17, 0, 8],
+                'r3': [21, 21, 1, 1, 4, 7, 0, 7, 12, 18, 0, 8],
+                'r4': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
+                'r5': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'K': {
+                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
+                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            },
+            'P': {
+                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
+                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            }
+        }
+
+        recruit = [
+            ratings['ath'],
+            ratings['spd'],
+            ratings['dur'],
+            ratings['we'],
+            ratings['sta'],
+            ratings['strength'],
+            ratings['blk'],
+            ratings['tkl'],
+            ratings['han'],
+            ratings['gi'],
+            ratings['elu'],
+            ratings['tec']
+        ]
+
+        recruit_role_ratings = {
+            'r1': round(np.dot(rating_formulas[pos]['r1'], recruit)/100, 1),
+            'r2': round(np.dot(rating_formulas[pos]['r2'], recruit)/100, 1),
+            'r3': round(np.dot(rating_formulas[pos]['r3'], recruit)/100, 1),
+            'r4': round(np.dot(rating_formulas[pos]['r4'], recruit)/100, 1),
+            'r5': round(np.dot(rating_formulas[pos]['r5'], recruit)/100, 1),
+            'r6': round(np.dot(rating_formulas[pos]['r6'], recruit)/100, 1)
+        }
+
+        return recruit_role_ratings
+
+
+    def queue_rid_urls(self, q=Queue(), t=str()):
+        rids = query_Recruit_IDs(t, db)
+        if t == "all":
+            self.rids_all_length = len(rids)
+            logger.info(f"All recruits = {self.rids_unsigned_length}")
+            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid="
+            for each in rids:
+                rid = each[0]
+                position = each[1]
+                recruit = (rid, position, f"{url_base}{rid}")
+                logger.debug(f"Queuing ({t}): {recruit}")
+                q.put(recruit)
+        elif t == "unsigned":
+            self.rids_unsigned_length = len(rids)
+            logger.info(f"Unsigned recruits = {self.rids_unsigned_length}")
+            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid="
+            url_suffix = "&section=Ratings"
+            for rid in rids:
+                recruit = (rid, f"{url_base}{rid}")
+                logger.debug(f"Queuing ({t}): {recruit}")
+                q.put(recruit)
+            
+
+    def progress_fn(self, msg):
+        #self.info.append(str(msg))
+        logger.debug("Running progress_fn function")
+        return
+
+
+    def run_threads(self, process, on_complete):
+        # Step 1: Create thread object to monitor queue
         self.thread = QThread()
         # Step 2: Create a worker object
-        self.worker = UpdateConsideringWorker()
-        # Step 3: Move worker to the thread
-        self.worker.moveToThread(self.thread)
-        # Step 4: Connect signals and slots
-        self.thread.started.connect(self.worker.run)
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.worker.progress.connect(self.reportUpdateConsideringProgress)
-        # Step 6: Start the thread
-        self.thread.start()
-        # Final resets
+        if process.__func__.__name__ == "recruit_update":
+            logger.debug("run_threads function -> recruit_update conditional statement")
+            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_considering, self.rids_unsigned_length, "update")
+            # Step 3: Move worker to the thread
+            self.worker.moveToThread(self.thread)
+            # Step 4: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(self.queue_monitor_update_progress)
+            # Step 6: Start the thread
+            self.thread.start()
+            # Final resets
+            self.pushButtonInitializeRecruits.setEnabled(False)
+            self.pushButtonUpdateConsideringSigned.setEnabled(False)
+            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+            self.thread.finished.connect(self.update_finished)
+        elif process.__func__.__name__ == "recruit_initialize":
+            logger.debug("run_threads function -> recruit_initialize conditional statement")
+            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_initialize_list, self.rids_all_length, "initialize")
+            # Step 3: Move worker to the thread
+            self.worker.moveToThread(self.thread)
+            # Step 4: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(self.queue_monitor_initialize_progress)
+            # Step 6: Start the thread
+            self.thread.start()
+            # Final resets
+            #self.pushButtonInitializeRecruits.setEnabled(False)
+            #self.pushButtonUpdateConsideringSigned.setEnabled(False)
+            #self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+            self.thread.finished.connect(self.initialize_finished)
+        else:
+            raise Exception
+
+        """Execute a function in the background with a worker"""
+        for i in range(self.threadCount - 1):
+            worker = Worker(fn=process)
+            self.threadpool.start(worker)
+            worker.signals.finished.connect(on_complete)
+            worker.signals.progress.connect(self.progress_fn)
+            #self.progressbar.setRange(0,0)
+        return
+
+
+    def initialize_finished(self):
+        logger.debug("Running initialized_finished function")
+        self.pushButtonUpdateConsideringSigned.setVisible(True)
+        self.pushButtonUpdateConsideringSigned.setEnabled(True)
+        self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+        self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
+        self.labelRecruitsInitialized.setText(f"Initialized {self.rids_all_length} Recruits...")
+
+
+    def update_finished(self):
+        logger.debug("Running update_finished function")
+        self.pushButtonUpdateConsideringSigned.setEnabled(True)
+        self.pushButtonInitializeRecruits.setEnabled(True)
+        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+
+
+    def recruit_update(self, progress_callback):
+        while self.rid_queue.qsize() > 0:
+            logger.debug(f"Length of queue = {self.rid_queue.qsize()}")
+            logger.debug(f"Looking for the next Recruit ID...")
+            rid = self.rid_queue.get()
+            logger.debug(f"Processing {rid}")
+            recruitpage = self.requests_session.get(rid[1])
+            recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
+            teams_table = recruitpage_soup.find("table", id="tblTeams")
+            teams_table_body = teams_table.find("tbody")
+            team_rows = teams_table_body.find_all("tr")
+            considering = ''
+            signed = 0
+            for row in team_rows:
+                team_data = row.find_all("td")
+                if "undecided" in team_data[0].text:
+                    considering = "undecided\n"
+                elif "already signed" in team_data[0].text:
+                    find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
+                    href_tag = find_signed_with.attrs['href']
+                    href_tag_re = re.search(r'(\d{5})', href_tag)
+                    team_id = int(href_tag_re.group(1))
+                    considering = f"{wis_gd_df.school_short[team_id]}\n"
+                    signed = 1
+                else:
+                    school = team_data[0].text
+                    coach = team_data[1].text
+                    division = team_data[2].text
+                    scholarships_total = team_data[3].text
+                    scholarships_open = team_data[4].text
+                    distance = team_data[5].text # WIS bug always shows N/A for distance???
+                    considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
+            self.recruit_considering.append((rid[0], signed, considering))
+            self.rid_queue.task_done()    
+            progress_callback.emit(self.rid_queue.qsize())
+            if self.stopped == True:
+                return
+        return
+
+    def queue_run_update_considering(self):
+        self.progressBarUpdateConsidering.setVisible(True)
         self.pushButtonInitializeRecruits.setEnabled(False)
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
         self.pushButtonUpdateConsideringSigned.setEnabled(False)
-        self.thread.finished.connect(
-            lambda: self.pushButtonUpdateConsideringSigned.setEnabled(True)
-        )
+        self.labelUpdateProgressBarMax.setVisible(True)
+        self.queue_rid_urls(self.rid_queue, "unsigned")
+        self.labelUpdateProgressBarMax.setText(f"of {self.rids_unsigned_length}")
+        self.progressBarUpdateConsidering.setRange(0, self.rids_unsigned_length)
+        self.stopped = False
+        self.run_threads(self.recruit_update, self.completed)
+
+    def stop(self):
+        self.stopped=True
+        return
+
+    def completed(self):
+        logger.debug(f"Running threading completed function")
+        return
 
 
-    def reportUpdateConsideringProgress(self, n, m):
-        # print(f"n = {n}\nm = {m}")
+    def queue_monitor_initialize_progress(self, n):
         if n == 0:
-            self.progressBarMarkWatchlist.setVisible(False)
-            mw.statusbar.showMessage(f"Updating {m} recruits . . . ")
-            self.progressBarUpdateConsidering.setVisible(True)
-        if n > 0 and n <= m:
-            self.labelUpdateProgressBarMax.setVisible(True)
-            self.labelUpdateProgressBarMax.setText(f"of {m}")
-            self.progressBarUpdateConsidering.setRange(0, m)
-            self.progressBarUpdateConsidering.setValue(n)
-            # self.progressBarUpdateConsidering.value()
-        if n == m:
-            self.pushButtonInitializeRecruits.setEnabled(True)
-            self.pushButtonUpdateConsideringSigned.setEnabled(True)
-            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
-            mw.statusbar.showMessage(f"Finished updating {m} recruits.")
+            logger.debug("Queue is empty.")
+            completed = self.rids_all_length - n
+            self.progressBarInitializeRecruits.setValue(completed)
+            self.labelCheckMarkGrabStaticData.setVisible(True)
+        elif n > 0 and n < 1000000:
+            completed = self.rids_all_length - n
+            self.progressBarInitializeRecruits.setValue(completed)
+        elif n == 1000000:
+            self.progressBarInitializeRecruits.setValue(0)
+        elif n > 1000000:
+            self.progressBarInitializeRecruits.setValue(n - 1000000)
+
+
+    def queue_monitor_update_progress(self, n):
+        if n == 0:
+            logger.debug("Queue is empty.")
+            completed = self.rids_unsigned_length - n
+            self.progressBarUpdateConsidering.setValue(completed)
+        else:
+            completed = self.rids_unsigned_length - n
+            self.progressBarUpdateConsidering.setValue(completed)
+
 
 
     def runMarkRecruitsJob(self):
@@ -1405,7 +1612,7 @@ if __name__ == "__main__":
     QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv)
     
-    
+        
     # Default database connection
     db = QSqlDatabase.addDatabase('QSQLITE')
     # Database connection to be used by thread
