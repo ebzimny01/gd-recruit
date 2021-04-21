@@ -13,7 +13,8 @@ logging.basicConfig(filename="./gdrecruit.log",
 logger = logging.getLogger(__name__)
 
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
-import os
+import os, os.path
+from os import path
 from queue import Queue
 import datetime, time
 import requests
@@ -51,14 +52,14 @@ gdr_csv = ''
 bold_attributes_csv = ''
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
-    bold_attributes_csv = f"{Path(sys._MEIPASS) / 'data' / 'bold_attributes.csv'}"
+    #bold_attributes_csv = f"{Path(sys._MEIPASS) / 'data' / 'bold_attributes.csv'}"
 else:
     gdr_csv = f"./data/gdr.csv"
-    bold_attributes_csv = f"./data/bold_attributes.csv"
+    #bold_attributes_csv = f"./data/bold_attributes.csv"
 logger.info(f"gdr.csv path is = {gdr_csv}")
-logger.info(f"bold_attributes.csv path is = {bold_attributes_csv}")
+#logger.info(f"bold_attributes.csv path is = {bold_attributes_csv}")
 wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
-bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
+#bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
 
 
 def query_Recruit_IDs(type, dbconn):
@@ -2029,6 +2030,34 @@ if __name__ == "__main__":
     logger.info(f"Platform Machine = {platform.machine()}")
     logger.info(f"Platform Processor = {platform.processor()}")
     
+    # Bold Attributes Config
+    bold_attributes_csv = "./bold_attributes.csv" 
+    if path.exists(bold_attributes_csv):
+        logger.debug("bold_attributes_csv file path found.")
+        try:
+            bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
+        except Exception as e:
+            logger.error(f"Exception ({e}) reading bold_attributes.csv file.")
+    else:
+        logger.debug("bold_attributes_csv file path NOT found.")
+        logger.debug("Creating bold_attributes.csv file...")
+
+        data = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+        index_names = ['qb', 'rb', 'wr', 'te', 'ol', 'dl', 'lb', 'db', 'k', 'p']
+        column_headers = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
+        bold_attributes_df = pd.DataFrame(data, columns=column_headers, index=index_names)
+        bold_attributes_df.to_csv(bold_attributes_csv)
+
     # Configure for High DPI
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
     QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
