@@ -1,6 +1,5 @@
 version = "0.3.1"
 window_title = f"GD Recruit Assistant Beta ({version})"
-from mypackages.bold_attributes_dialog import Ui_DialogBoldAttributes
 import sys
 import platform
 import logging
@@ -12,7 +11,6 @@ logging.basicConfig(filename="./gdrecruit.log",
 )
 logger = logging.getLogger(__name__)
 
-from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 import os, os.path
 from os import path
 from queue import Queue
@@ -28,6 +26,8 @@ from mypackages.mainwindow_ui import Ui_MainWindow
 from mypackages.wis_cred_dialog import Ui_WISCredentialDialog
 from mypackages.new_season_dialog import Ui_DialogNewSeason
 from mypackages.load_season_dialog import Ui_DialogLoadSeason
+from mypackages.bold_attributes_dialog import Ui_DialogBoldAttributes
+from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
 import configparser
@@ -1386,7 +1386,6 @@ class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
 
         # Write to csv file
         bold_attributes_df.to_csv(bold_attributes_csv)
-
         super().accept()
 
 
@@ -1414,7 +1413,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Apply", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Data", None))
-        self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Options", None))
+        self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"&Options", None))
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"&New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"&Load Season", None))
         self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"&Grab Recruit Data", None))
@@ -1766,6 +1765,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show() 
         logger.debug("Exiting Bold Attributes dialog")
+        if db.databaseName() != "":
+            self.loadModel()
 
 
     def check_stored_creds(self):
@@ -1893,38 +1894,75 @@ class TableModel(QSqlTableModel):
         self.setTable('recruits')
         # model.setEditStrategy(QtSql.QSqlTableModel.OnFieldChange)
         self.select()
-        self.setHeaderData(0, Qt.Horizontal, "ID")
-        self.setHeaderData(1, Qt.Horizontal, "Name")
-        self.setHeaderData(2, Qt.Horizontal, "Pos")
-        self.setHeaderData(3, Qt.Horizontal, "Height")
-        self.setHeaderData(4, Qt.Horizontal, "Weight")
-        self.setHeaderData(5, Qt.Horizontal, "Rating")
-        self.setHeaderData(6, Qt.Horizontal, "Rank")
-        self.setHeaderData(7, Qt.Horizontal, "Hometown")
-        self.setHeaderData(8, Qt.Horizontal, "Miles")
-        self.setHeaderData(9, Qt.Horizontal, "Considering")
-        self.setHeaderData(10, Qt.Horizontal, "ATH")
-        self.setHeaderData(11, Qt.Horizontal, "SPD")
-        self.setHeaderData(12, Qt.Horizontal, "DUR")
-        self.setHeaderData(13, Qt.Horizontal, "WE")
-        self.setHeaderData(14, Qt.Horizontal, "STA")
-        self.setHeaderData(15, Qt.Horizontal, "STR")
-        self.setHeaderData(16, Qt.Horizontal, "BLK")
-        self.setHeaderData(17, Qt.Horizontal, "TKL")
-        self.setHeaderData(18, Qt.Horizontal, "HAN")
-        self.setHeaderData(19, Qt.Horizontal, "GI")
-        self.setHeaderData(20, Qt.Horizontal, "ELU")
-        self.setHeaderData(21, Qt.Horizontal, "TEC")
-        self.setHeaderData(22, Qt.Horizontal, "R1")
-        self.setHeaderData(23, Qt.Horizontal, "R2")
-        self.setHeaderData(24, Qt.Horizontal, "R3")
-        self.setHeaderData(25, Qt.Horizontal, "R4")
-        self.setHeaderData(26, Qt.Horizontal, "R5")
-        self.setHeaderData(27, Qt.Horizontal, "R6")
-        self.setHeaderData(28, Qt.Horizontal, "GPA")
-        self.setHeaderData(29, Qt.Horizontal, "Pot")
-        self.setHeaderData(30, Qt.Horizontal, "Signed")
-        self.setHeaderData(31, Qt.Horizontal, "Watched")
+        
+        # Dict to map column headers to column ID
+        col_head = {
+            'ID': 0,
+            'Name': 1,
+            'Pos': 2,
+            'Height': 3,
+            'Weight': 4,
+            'Rating': 5,
+            'Rank': 6,
+            'Hometown': 7,
+            'Miles': 8,
+            'Considering': 9,
+            'ATH': 10,
+            'SPD': 11,
+            'DUR': 12,
+            'WE': 13,
+            'STA': 14,
+            'STR': 15,
+            'BLK': 16,
+            'TKL': 17,
+            'HAN': 18,
+            'GI': 19,
+            'ELU': 20,
+            'TEC': 21,
+            'R1': 22,
+            'R2': 23,
+            'R3': 24,
+            'R4': 25,
+            'R5': 26,
+            'R6': 27,
+            'GPA': 28,
+            'Pot': 29,
+            'Signed': 30,
+            'Watched': 31
+        }
+        
+        self.setHeaderData(col_head['ID'], Qt.Horizontal, "ID")
+        self.setHeaderData(col_head['Name'], Qt.Horizontal, "Name")
+        self.setHeaderData(col_head['Pos'], Qt.Horizontal, "Pos")
+        self.setHeaderData(col_head['Height'], Qt.Horizontal, "Height")
+        self.setHeaderData(col_head['Weight'], Qt.Horizontal, "Weight")
+        self.setHeaderData(col_head['Rating'], Qt.Horizontal, "Rating")
+        self.setHeaderData(col_head['Rank'], Qt.Horizontal, "Rank")
+        self.setHeaderData(col_head['Hometown'], Qt.Horizontal, "Hometown")
+        self.setHeaderData(col_head['Miles'], Qt.Horizontal, "Miles")
+        self.setHeaderData(col_head['Considering'], Qt.Horizontal, "Considering")
+        self.setHeaderData(col_head['ATH'], Qt.Horizontal, "ATH")
+        self.setHeaderData(col_head['SPD'], Qt.Horizontal, "SPD")
+        self.setHeaderData(col_head['DUR'], Qt.Horizontal, "DUR")
+        self.setHeaderData(col_head['WE'], Qt.Horizontal, "WE")
+        self.setHeaderData(col_head['STA'], Qt.Horizontal, "STA")
+        self.setHeaderData(col_head['STR'], Qt.Horizontal, "STR")
+        self.setHeaderData(col_head['BLK'], Qt.Horizontal, "BLK")
+        self.setHeaderData(col_head['TKL'], Qt.Horizontal, "TKL")
+        self.setHeaderData(col_head['HAN'], Qt.Horizontal, "HAN")
+        self.setHeaderData(col_head['GI'], Qt.Horizontal, "GI")
+        self.setHeaderData(col_head['ELU'], Qt.Horizontal, "ELU")
+        self.setHeaderData(col_head['TEC'], Qt.Horizontal, "TEC")
+        self.setHeaderData(col_head['R1'], Qt.Horizontal, "R1")
+        self.setHeaderData(col_head['R2'], Qt.Horizontal, "R2")
+        self.setHeaderData(col_head['R3'], Qt.Horizontal, "R3")
+        self.setHeaderData(col_head['R4'], Qt.Horizontal, "R4")
+        self.setHeaderData(col_head['R5'], Qt.Horizontal, "R5")
+        self.setHeaderData(col_head['R6'], Qt.Horizontal, "R6")
+        self.setHeaderData(col_head['GPA'], Qt.Horizontal, "GPA")
+        self.setHeaderData(col_head['Pot'], Qt.Horizontal, "Pot")
+        self.setHeaderData(col_head['Signed'], Qt.Horizontal, "Signed")
+        self.setHeaderData(col_head['Watched'], Qt.Horizontal, "Watched")
         self.info()
         logger.debug("<- TableModel.__init__")
 
@@ -1936,21 +1974,54 @@ class TableModel(QSqlTableModel):
             self.checkmarkicon = f"./images/checkmark_1.png"
             self.x_icon = f"./images/x_icon.png"
 
+        # Dataframe to be used with Bold Attributes
+        data = [[col_head['ATH'], col_head['SPD'], col_head['DUR'], col_head['WE'],
+                col_head['STA'], col_head['STR'], col_head['BLK'], col_head['TKL'],
+                col_head['HAN'], col_head['GI'], col_head['ELU'], col_head['TEC']]
+                ]
+        index_names = ['qb', 'rb', 'wr', 'te', 'ol', 'dl', 'lb', 'db', 'k', 'p']
+        column_headers = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
+        column_mapping_df = pd.DataFrame(data, columns=column_headers, index=index_names)
+
+        # Multiple bold attributes dataframe with column mapping dataframe
+        # End result should be which column IDs to include in a list
+        # which can then be used to make conditional formatting
+        bold_mapping = bold_attributes_df.mul(column_mapping_df)
+        self.qb_bold = set(bold_mapping.loc['qb'])
+        self.qb_bold.discard(0)
+        self.rb_bold = set(bold_mapping.loc['rb'])
+        self.rb_bold.discard(0)
+        self.wr_bold = set(bold_mapping.loc['wr'])
+        self.wr_bold.discard(0)
+        self.te_bold = set(bold_mapping.loc['te'])
+        self.te_bold.discard(0)
+        self.ol_bold = set(bold_mapping.loc['ol'])
+        self.ol_bold.discard(0)
+        self.dl_bold = set(bold_mapping.loc['dl'])
+        self.dl_bold.discard(0)
+        self.lb_bold = set(bold_mapping.loc['lb'])
+        self.lb_bold.discard(0)
+        self.db_bold = set(bold_mapping.loc['db'])
+        self.db_bold.discard(0)
+        self.k_bold = set(bold_mapping.loc['k'])
+        self.k_bold.discard(0)
+        self.p_bold = set(bold_mapping.loc['p'])
+        self.p_bold.discard(0)
 
     def info(self):
         logger.debug("     -> info")
-        logger.debug("         TableModel tables inside :", self.database().tables())
-        logger.debug("         TableModel self.db       :", self.database())
-        logger.debug("         TableModel self.Table    :", self.tableName())
-        logger.debug("         TableModel self.rowCount :", self.rowCount())
-        logger.debug("         TableModel self.lastEror :", self.lastError().text())
+        logger.debug(f"         TableModel tables inside : {self.database().tables()}")
+        logger.debug(f"         TableModel self.db       : {self.database()}")
+        logger.debug(f"         TableModel self.Table    : {self.tableName()}")
+        logger.debug(f"         TableModel self.rowCount : {self.rowCount()}")
+        logger.debug(f"         TableModel self.lastEror : {self.lastError().text()}")
         logger.debug("     <- info")
 
     def data(self, index, role):
         if role == Qt.ForegroundRole:
             # Format blue text for Recruit ID and Hometown columns to indicate hyperlinks
             if index.column() in [0,7]:
-                return QColor('dark blue')
+                return QColor('darkblue')
 
             # Format potential in different colors
             if index.column() == 29:
@@ -1992,12 +2063,40 @@ class TableModel(QSqlTableModel):
         # Section to Bold the text for the critical attributes for each position
         if role == Qt.FontRole:
             position = super(TableModel, self).data(self.index(index.row(), 2), Qt.DisplayRole)
-            if position == "OL":
-                if index.column() in [15, 16]:
-                    font = QFont()
-                    font.setBold(True)
-                    font.setPointSize(10)
+            font = QFont()
+            font.setBold(True)
+            font.setPointSize(11)
+            if position == "QB":
+                if index.column() in self.qb_bold:
                     return font
+            if position == "RB":
+                if index.column() in self.rb_bold:
+                    return font
+            if position == "WR":
+                if index.column() in self.wr_bold:
+                    return font
+            if position == "TE":
+                if index.column() in self.te_bold:
+                    return font
+            if position == "OL":
+                if index.column() in self.ol_bold:
+                    return font
+            if position == "DL":
+                if index.column() in self.dl_bold:
+                    return font
+            if position == "LB":
+                if index.column() in self.lb_bold:
+                    return font
+            if position == "DB":
+                if index.column() in self.db_bold:
+                    return font
+            if position == "K":
+                if index.column() in self.k_bold:
+                    return font
+            if position == "P":
+                if index.column() in self.p_bold:
+                    return font
+
 
         return QSqlTableModel.data(self, index, role)
     
