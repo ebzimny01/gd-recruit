@@ -134,6 +134,19 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout.addItem(self.horizontalSpacer)
 
+        self.pushButtonDonatePayPal = QPushButton(self.centralwidget)
+        self.pushButtonDonatePayPal.setObjectName(u"pushButtonDonatePayPal")
+        font1 = QFont()
+        font1.setFamily(u"Arial")
+        font1.setPointSize(10)
+        font1.setBold(False)
+        font1.setWeight(50)
+        self.pushButtonDonatePayPal.setFont(font1)
+        self.pushButtonDonatePayPal.setStyleSheet(u"color: white;\n"
+"background-color: green;")
+
+        self.horizontalLayout.addWidget(self.pushButtonDonatePayPal)
+
 
         self.verticalLayout.addLayout(self.horizontalLayout)
 
@@ -452,6 +465,10 @@ class Ui_MainWindow(object):
         self.comboBoxMilesFilter.setItemText(2, QCoreApplication.translate("MainWindow", u"360", None))
         self.comboBoxMilesFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"1400", None))
 
+#if QT_CONFIG(tooltip)
+        self.pushButtonDonatePayPal.setToolTip(QCoreApplication.translate("MainWindow", u"PayPal Donation Link", None))
+#endif // QT_CONFIG(tooltip)
+        self.pushButtonDonatePayPal.setText(QCoreApplication.translate("MainWindow", u"Donate $", None))
         self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"Apply", None))
 #if QT_CONFIG(shortcut)
         self.pushButtonApplyRatingsFilters.setShortcut("")
@@ -476,4 +493,5 @@ class Ui_MainWindow(object):
         self.menuExport_to_CSV.setTitle(QCoreApplication.translate("MainWindow", u"Export to CSV", None))
         self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"Options", None))
     # retranslateUi
+
 

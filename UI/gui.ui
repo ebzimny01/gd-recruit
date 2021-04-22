@@ -279,6 +279,28 @@
         </property>
        </spacer>
       </item>
+      <item>
+       <widget class="QPushButton" name="pushButtonDonatePayPal">
+        <property name="font">
+         <font>
+          <family>Arial</family>
+          <pointsize>10</pointsize>
+          <weight>50</weight>
+          <bold>false</bold>
+         </font>
+        </property>
+        <property name="toolTip">
+         <string>PayPal Donation Link</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">color: white;
+background-color: green;</string>
+        </property>
+        <property name="text">
+         <string>Donate $</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </item>
     <item>
