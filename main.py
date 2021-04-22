@@ -1,4 +1,4 @@
-version = "0.3.1"
+version = "0.3.2"
 window_title = f"GD Recruit Assistant Beta ({version})"
 import sys
 import platform
@@ -5047,11 +5047,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Apply", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Data", None))
+        self.menuExport_to_CSV.setTitle(QCoreApplication.translate("MainWindow", u"&Export to CSV", None))
         self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"&Options", None))
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"&New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"&Load Season", None))
         self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"&Grab Recruit Data", None))
-        self.actionExport_to_CSV.setText(QCoreApplication.translate("MainWindow", u"&Export to CSV", None))
+        self.actionAll_Recruits.setText(QCoreApplication.translate("MainWindow", u"&All Recruits", None))
+        self.actionWatchlist_Only.setText(QCoreApplication.translate("MainWindow", u"&Watchlist Only", None))
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"&WIS Credentials", None))
         self.actionBold_Attributes.setText(QCoreApplication.translate("MainWindow", u"&Bold Attributes", None))
         self.actionRole_Ratings.setText(QCoreApplication.translate("MainWindow", u"&Role Ratings", None))
@@ -5076,7 +5078,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterTKL.setEnabled(False)
         self.lineEditfilterWE.setEnabled(False)
         self.lineEditfilterGPA.setEnabled(False)
-        self.actionExport_to_CSV.setEnabled(False)
+        self.actionAll_Recruits.setEnabled(False)
+        self.actionWatchlist_Only.setEnabled(False)
         
         # Allow only integers to be entered into the ratings filter fields
         self.onlyInt = QIntValidator()
@@ -5100,7 +5103,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionNew_Season.triggered.connect(self.open_New_Season)
         self.actionLoad_Season.triggered.connect(self.open_Load_Season)
         self.actionGrabSeasonData.triggered.connect(self.open_Grab_Season_Data)
-        self.actionExport_to_CSV.triggered.connect(self.export_db_to_csv)
+        self.actionAll_Recruits.triggered.connect(self.export_db_to_csv_all)
+        self.actionWatchlist_Only.triggered.connect(self.export_db_to_csv_watchlist)
         self.actionBold_Attributes.triggered.connect(self.open_Bold_Attributes)
         self.actionRole_Ratings.triggered.connect(self.open_Role_Ratings)
         self.comboBoxPositionFilter.activated.connect(self.position_filter)
@@ -5145,14 +5149,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             False
 
 
-    def export_db_to_csv(self):
+    def export_db_to_csv_all(self):
         dbname = db.databaseName()
         logger.info(f"Exporting {dbname} to csv...")
         conn = sqlite3.connect(db.databaseName(), isolation_level=None,
                         detect_types=sqlite3.PARSE_COLNAMES)
-        db_df = pd.read_sql_query("SELECT * FROM recruits", conn)
-        db_df.to_csv(f"{dbname}.csv", index=False)
-        mw.statusbar.showMessage(f"Exported data to: '{dbname}.csv'")
+        filename = f"{dbname} (ALL).csv"
+        try:
+            logger.debug(f"Export to CSV -> Querying DB for ALL recruits...")
+            db_df = pd.read_sql_query("SELECT * FROM recruits", conn)
+        except Exception as e:
+            logger.debug(f"Export to CSV exception: {e}")
+            mw.statusbar.showMessage(f"Export failure. Be sure you have a season loaded with recruits before exporting.")
+        else:
+            db_df.to_csv(filename, index=False)
+            mw.statusbar.showMessage(f"Exported data to: '{filename}'")
+
+
+    def export_db_to_csv_watchlist(self):
+        dbname = db.databaseName()
+        logger.info(f"Exporting {dbname} to csv...")
+        conn = sqlite3.connect(db.databaseName(), isolation_level=None,
+                        detect_types=sqlite3.PARSE_COLNAMES)
+        filename = f"{dbname} (WATCHLIST).csv"
+        try:
+            logger.debug(f"Export to CSV -> Querying DB for WATCHLIST recruits...")
+            db_df = pd.read_sql_query("SELECT * FROM recruits WHERE watched=1", conn)
+        except Exception as e:
+            logger.debug(f"Export to CSV exception: {e}")
+            mw.statusbar.showMessage(f"Export failure. Be sure you have a season loaded with recruits before exporting.")
+        else:
+            db_df.to_csv(filename, index=False)
+            mw.statusbar.showMessage(f"Exported data to: '{filename}'")
 
 
     def tableclickaction(self, item):
@@ -5380,7 +5408,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.setWindowTitle(f"{window_title} - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
-            self.actionExport_to_CSV.setEnabled(True)
+            self.actionAll_Recruits.setEnabled(True)
+            self.actionWatchlist_Only.setEnabled(True)
             self.loadModel()
             
             
@@ -5394,7 +5423,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.setWindowTitle(f"{window_title} - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
-            self.actionExport_to_CSV.setEnabled(True)
+            self.actionAll_Recruits.setEnabled(True)
+            self.actionWatchlist_Only.setEnabled(True)
             self.loadModel()
             
 
