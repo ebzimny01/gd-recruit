@@ -1,4 +1,4 @@
-version = "0.3.3"
+version = "0.3.4"
 window_title = f"GD Recruit Assistant Beta ({version})"
 import sys
 import platform
