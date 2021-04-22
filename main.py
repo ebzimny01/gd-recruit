@@ -17,6 +17,7 @@ from queue import Queue
 import datetime, time
 import requests
 import traceback
+import sqlite3
 from playwright.async_api import async_playwright
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -28,6 +29,8 @@ from mypackages.new_season_dialog import Ui_DialogNewSeason
 from mypackages.load_season_dialog import Ui_DialogLoadSeason
 from mypackages.bold_attributes_dialog import Ui_DialogBoldAttributes
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
+from mypackages.role_ratings_dialog import Ui_DialogRoleRatings
+from mypackages.role_ratings_update_db import Ui_DialogRoleRatingUpdateDB_Progress
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
 import configparser
@@ -79,11 +82,193 @@ def query_Recruit_IDs(type, dbconn):
             logQueryError(queryRecruitIDs)
         while queryRecruitIDs.next():
             rids.append(queryRecruitIDs.value('id'))
+    elif type == "update_role_ratings":
+        if not queryRecruitIDs.exec_("Select id,pos,ath,spd,dur,we,sta,str,blk,tkl,han,gi,elu,tec FROM recruits"):
+            logQueryError(queryRecruitIDs)
+        while queryRecruitIDs.next():
+            r = queryRecruitIDs.value('id')
+            pos = queryRecruitIDs.value('pos')
+            ath = queryRecruitIDs.value('ath')
+            spd = queryRecruitIDs.value('spd')
+            dur = queryRecruitIDs.value('dur')
+            we = queryRecruitIDs.value('we')
+            sta = queryRecruitIDs.value('sta')
+            strength = queryRecruitIDs.value('str')
+            blk = queryRecruitIDs.value('blk')
+            tkl = queryRecruitIDs.value('tkl')
+            han = queryRecruitIDs.value('han')
+            gi = queryRecruitIDs.value('gi')
+            elu = queryRecruitIDs.value('elu')
+            tec = queryRecruitIDs.value('tec')
+            rids.append([r, pos, ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec])
     queryRecruitIDs.finish()
     logger.info(f"Closing {dbconn.databaseName()}...")
     dbconn.close()
     logger.info("End of query_Recruit_IDs function")
     return rids
+
+
+def calculate_role_rating(pos, ratings):
+        attributes = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
+        rating_formulas = {
+            'QB': {
+                'r1': list(role_ratings_df.loc['qbr1'][attributes]),
+                'r2': list(role_ratings_df.loc['qbr2'][attributes]),
+                'r3': list(role_ratings_df.loc['qbr3'][attributes]),
+                'r4': list(role_ratings_df.loc['qbr4'][attributes]),
+                'r5': list(role_ratings_df.loc['qbr5'][attributes]),
+                'r6': list(role_ratings_df.loc['qbr6'][attributes])
+            },
+            'RB': {
+                'r1': list(role_ratings_df.loc['rbr1'][attributes]),
+                'r2': list(role_ratings_df.loc['rbr2'][attributes]),
+                'r3': list(role_ratings_df.loc['rbr3'][attributes]),
+                'r4': list(role_ratings_df.loc['rbr4'][attributes]),
+                'r5': list(role_ratings_df.loc['rbr5'][attributes]),
+                'r6': list(role_ratings_df.loc['rbr6'][attributes])
+            },
+            'WR': {
+                'r1': list(role_ratings_df.loc['wrr1'][attributes]),
+                'r2': list(role_ratings_df.loc['wrr2'][attributes]),
+                'r3': list(role_ratings_df.loc['wrr3'][attributes]),
+                'r4': list(role_ratings_df.loc['wrr4'][attributes]),
+                'r5': list(role_ratings_df.loc['wrr5'][attributes]),
+                'r6': list(role_ratings_df.loc['wrr6'][attributes])
+            },
+            'TE': {
+                'r1': list(role_ratings_df.loc['ter1'][attributes]),
+                'r2': list(role_ratings_df.loc['ter2'][attributes]),
+                'r3': list(role_ratings_df.loc['ter3'][attributes]),
+                'r4': list(role_ratings_df.loc['ter4'][attributes]),
+                'r5': list(role_ratings_df.loc['ter5'][attributes]),
+                'r6': list(role_ratings_df.loc['ter6'][attributes])
+            },
+            'OL': {
+                'r1': list(role_ratings_df.loc['olr1'][attributes]),
+                'r2': list(role_ratings_df.loc['olr2'][attributes]),
+                'r3': list(role_ratings_df.loc['olr3'][attributes]),
+                'r4': list(role_ratings_df.loc['olr4'][attributes]),
+                'r5': list(role_ratings_df.loc['olr5'][attributes]),
+                'r6': list(role_ratings_df.loc['olr6'][attributes])
+            },
+            'DL': {
+                'r1': list(role_ratings_df.loc['dlr1'][attributes]),
+                'r2': list(role_ratings_df.loc['dlr2'][attributes]),
+                'r3': list(role_ratings_df.loc['dlr3'][attributes]),
+                'r4': list(role_ratings_df.loc['dlr4'][attributes]),
+                'r5': list(role_ratings_df.loc['dlr5'][attributes]),
+                'r6': list(role_ratings_df.loc['dlr6'][attributes])
+            },
+            'LB': {
+                'r1': list(role_ratings_df.loc['lbr1'][attributes]),
+                'r2': list(role_ratings_df.loc['lbr2'][attributes]),
+                'r3': list(role_ratings_df.loc['lbr3'][attributes]),
+                'r4': list(role_ratings_df.loc['lbr4'][attributes]),
+                'r5': list(role_ratings_df.loc['lbr5'][attributes]),
+                'r6': list(role_ratings_df.loc['lbr6'][attributes])
+            },
+            'DB': {
+                'r1': list(role_ratings_df.loc['dbr1'][attributes]),
+                'r2': list(role_ratings_df.loc['dbr2'][attributes]),
+                'r3': list(role_ratings_df.loc['dbr3'][attributes]),
+                'r4': list(role_ratings_df.loc['dbr4'][attributes]),
+                'r5': list(role_ratings_df.loc['dbr5'][attributes]),
+                'r6': list(role_ratings_df.loc['dbr6'][attributes])
+            },
+            'K': {
+                'r1': list(role_ratings_df.loc['kr1'][attributes]),
+                'r2': list(role_ratings_df.loc['kr2'][attributes]),
+                'r3': list(role_ratings_df.loc['kr3'][attributes]),
+                'r4': list(role_ratings_df.loc['kr4'][attributes]),
+                'r5': list(role_ratings_df.loc['kr5'][attributes]),
+                'r6': list(role_ratings_df.loc['kr6'][attributes])
+            },
+            'P': {
+                'r1': list(role_ratings_df.loc['pr1'][attributes]),
+                'r2': list(role_ratings_df.loc['pr2'][attributes]),
+                'r3': list(role_ratings_df.loc['pr3'][attributes]),
+                'r4': list(role_ratings_df.loc['pr4'][attributes]),
+                'r5': list(role_ratings_df.loc['pr5'][attributes]),
+                'r6': list(role_ratings_df.loc['pr6'][attributes])
+            }
+        }
+
+        recruit = [
+            ratings['ath'],
+            ratings['spd'],
+            ratings['dur'],
+            ratings['we'],
+            ratings['sta'],
+            ratings['strength'],
+            ratings['blk'],
+            ratings['tkl'],
+            ratings['han'],
+            ratings['gi'],
+            ratings['elu'],
+            ratings['tec']
+        ]
+
+        recruit_role_ratings = {
+            'r1': round(np.dot(rating_formulas[pos]['r1'], recruit)/100, 1),
+            'r2': round(np.dot(rating_formulas[pos]['r2'], recruit)/100, 1),
+            'r3': round(np.dot(rating_formulas[pos]['r3'], recruit)/100, 1),
+            'r4': round(np.dot(rating_formulas[pos]['r4'], recruit)/100, 1),
+            'r5': round(np.dot(rating_formulas[pos]['r5'], recruit)/100, 1),
+            'r6': round(np.dot(rating_formulas[pos]['r6'], recruit)/100, 1)
+        }
+
+        return recruit_role_ratings
+
+
+class RoleRatingDBWorker(QObject):
+    finished = Signal()
+    progress = Signal(int)
+    
+        
+    def run(self):
+        """Long-running Initialize Recruit task goes here."""
+        logger.info("Started RoleRatingDBWorker.run function")
+        # Thread signaling start
+        self.progress.emit(0)
+        # Update role ratings for all recruits in DB
+        if db.databaseName() != "":
+            # Returned list of lists should contain this data:
+            # [r, pos, ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec]
+            ratings_keys = ['ath', 'spd', 'dur', 'we', 'sta', 'strength', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
+            recruits = query_Recruit_IDs("update_role_ratings", db)
+            openDB(db)
+            query = QSqlQuery(db)
+            query.prepare("UPDATE recruits "
+                            "SET r1 = :r1, "
+                                "r2 = :r2, "
+                                "r3 = :r3, "
+                                "r4 = :r4, "
+                                "r5 = :r5, "
+                                "r6 = :r6 "
+                            "WHERE id = :id")
+            with Bar('Updating recruit role ratings in DB...', max=len(recruits)) as bar:
+                logger.info(f"Updating recruit role ratings in database...")
+                for r in recruits:
+                    rid = r[0]
+                    pos = r[1]
+                    rating_values = r[2:]
+                    ratings = dict(zip(ratings_keys, rating_values))
+                    role_ratings = calculate_role_rating(pos, ratings)
+                    query.bindValue(":r1", float(role_ratings['r1']))
+                    query.bindValue(":r2", float(role_ratings['r2']))
+                    query.bindValue(":r3", float(role_ratings['r3']))
+                    query.bindValue(":r4", float(role_ratings['r4']))
+                    query.bindValue(":r5", float(role_ratings['r5']))
+                    query.bindValue(":r6", float(role_ratings['r6']))
+                    query.bindValue(":id", rid)
+                    if not query.exec_():
+                        logQueryError(query)
+                    bar.next()
+                    self.progress.emit(round(bar.index / bar.max * 100))
+        query.finish()
+        db.close()
+        self.finished.emit()
+
 
 
 class InitializeWorker(QObject):
@@ -611,7 +796,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                         'role_rating': ""
             }
 
-            recruit['role_rating'] = self.calculate_role_rating(position, recruit)
+            recruit['role_rating'] = calculate_role_rating(position, recruit)
 
             self.recruit_initialize_list.append(recruit)
             self.rid_queue.task_done()
@@ -619,117 +804,6 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             if self.stopped == True:
                 return
         return
-
-
-    def calculate_role_rating(self, pos, ratings):
-        rating_formulas = {
-            'QB': {
-                'r1': [10, 4, 0, 0, 0, 26, 0, 0, 0, 24, 8, 28],
-                'r2': [8, 18, 2, 1, 3, 24, 0, 0, 0, 16, 20, 8],
-                'r3': [8, 4, 1, 1, 2, 26, 0, 0, 0, 26, 8, 24],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'RB': {
-                'r1': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
-                'r2': [8, 0, 1, 1, 3, 36, 30, 0, 0, 0, 13, 8],
-                'r3': [8, 24, 1, 1, 3, 20, 0, 0, 0, 10, 25, 8],
-                'r4': [8, 20, 1, 1, 3, 25, 0, 0, 0, 10, 24, 8],
-                'r5': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8],
-                'r6': [8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8]
-            },
-            'WR': {
-                'r1': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r2': [16, 12, 1, 1, 3, 0, 0, 0, 24, 24, 11, 8],
-                'r3': [12, 23, 1, 1, 3, 0, 0, 0, 11, 18, 23, 8],
-                'r4': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r5': [15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'TE': {
-                'r1': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
-                'r2': [11, 0, 1, 1, 2, 36, 26, 0, 0, 15, 0, 8],
-                'r3': [16, 12, 1, 1, 2, 0, 0, 0, 24, 24, 12, 8],
-                'r4': [14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'OL': {
-                'r1': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r2': [12, 0, 1, 1, 2, 23, 41, 0, 0, 12, 0, 8],
-                'r3': [12, 0, 1, 1, 2, 41, 23, 0, 0, 12, 0, 8],
-                'r4': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r5': [12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'DL': {
-                'r1': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r2': [12, 6, 1, 1, 2, 38, 0, 17, 0, 15, 0, 8],
-                'r3': [12, 15, 1, 1, 2, 22, 0, 24, 0, 15, 0, 8],
-                'r4': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r5': [13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'LB': {
-                'r1': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
-                'r2': [12, 4, 1, 1, 2, 38, 0, 22, 0, 12, 0, 8],
-                'r3': [13, 12, 1, 1, 2, 21, 0, 21, 0, 21, 0, 8],
-                'r4': [13, 19, 1, 1, 2, 15, 0, 20, 0, 21, 0, 8],
-                'r5': [15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'DB': {
-                'r1': [16, 20, 1, 1, 4, 10, 0, 10, 10, 20, 0, 8],
-                'r2': [18, 17, 1, 1, 4, 12, 0, 12, 10, 17, 0, 8],
-                'r3': [21, 21, 1, 1, 4, 7, 0, 7, 12, 18, 0, 8],
-                'r4': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
-                'r5': [15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'K': {
-                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
-                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            },
-            'P': {
-                'r1': [8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36],
-                'r2': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r3': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r4': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r5': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                'r6': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            }
-        }
-
-        recruit = [
-            ratings['ath'],
-            ratings['spd'],
-            ratings['dur'],
-            ratings['we'],
-            ratings['sta'],
-            ratings['strength'],
-            ratings['blk'],
-            ratings['tkl'],
-            ratings['han'],
-            ratings['gi'],
-            ratings['elu'],
-            ratings['tec']
-        ]
-
-        recruit_role_ratings = {
-            'r1': round(np.dot(rating_formulas[pos]['r1'], recruit)/100, 1),
-            'r2': round(np.dot(rating_formulas[pos]['r2'], recruit)/100, 1),
-            'r3': round(np.dot(rating_formulas[pos]['r3'], recruit)/100, 1),
-            'r4': round(np.dot(rating_formulas[pos]['r4'], recruit)/100, 1),
-            'r5': round(np.dot(rating_formulas[pos]['r5'], recruit)/100, 1),
-            'r6': round(np.dot(rating_formulas[pos]['r6'], recruit)/100, 1)
-        }
-
-        return recruit_role_ratings
 
 
     def queue_rid_urls(self, q=Queue(), t=str()):
@@ -797,9 +871,6 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             # Step 6: Start the thread
             self.thread.start()
             # Final resets
-            #self.pushButtonInitializeRecruits.setEnabled(False)
-            #self.pushButtonUpdateConsideringSigned.setEnabled(False)
-            #self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
             self.thread.finished.connect(self.initialize_finished)
         else:
             raise Exception
@@ -1087,6 +1158,3569 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         update_active_teams(coachid)
         super().accept()
 
+
+class RoleRatings(QDialog, Ui_DialogRoleRatings):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        
+        # QB Section
+        self.lineEdit_R1_QB.setText(role_ratings_df['label']['qbr1'])
+        self.spinBox_R1_ATH_QB.setValue(role_ratings_df['ath']['qbr1'])
+        self.spinBox_R1_SPD_QB.setValue(role_ratings_df['spd']['qbr1'])
+        self.spinBox_R1_DUR_QB.setValue(role_ratings_df['dur']['qbr1'])
+        self.spinBox_R1_WE_QB.setValue(role_ratings_df['we']['qbr1'])
+        self.spinBox_R1_STA_QB.setValue(role_ratings_df['sta']['qbr1'])
+        self.spinBox_R1_STR_QB.setValue(role_ratings_df['str']['qbr1'])
+        self.spinBox_R1_BLK_QB.setValue(role_ratings_df['blk']['qbr1'])
+        self.spinBox_R1_TKL_QB.setValue(role_ratings_df['tkl']['qbr1'])
+        self.spinBox_R1_HAN_QB.setValue(role_ratings_df['han']['qbr1'])
+        self.spinBox_R1_GI_QB.setValue(role_ratings_df['gi']['qbr1'])
+        self.spinBox_R1_ELU_QB.setValue(role_ratings_df['elu']['qbr1'])
+        self.spinBox_R1_TEC_QB.setValue(role_ratings_df['tec']['qbr1'])
+        self.lcdNumber_R1_QB.display(role_ratings_df['total']['qbr1'])
+        self.spinBox_R1_ATH_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_QB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_QB.setText(role_ratings_df['label']['qbr2'])
+        self.spinBox_R2_ATH_QB.setValue(role_ratings_df['ath']['qbr2'])
+        self.spinBox_R2_SPD_QB.setValue(role_ratings_df['spd']['qbr2'])
+        self.spinBox_R2_DUR_QB.setValue(role_ratings_df['dur']['qbr2'])
+        self.spinBox_R2_WE_QB.setValue(role_ratings_df['we']['qbr2'])
+        self.spinBox_R2_STA_QB.setValue(role_ratings_df['sta']['qbr2'])
+        self.spinBox_R2_STR_QB.setValue(role_ratings_df['str']['qbr2'])
+        self.spinBox_R2_BLK_QB.setValue(role_ratings_df['blk']['qbr2'])
+        self.spinBox_R2_TKL_QB.setValue(role_ratings_df['tkl']['qbr2'])
+        self.spinBox_R2_HAN_QB.setValue(role_ratings_df['han']['qbr2'])
+        self.spinBox_R2_GI_QB.setValue(role_ratings_df['gi']['qbr2'])
+        self.spinBox_R2_ELU_QB.setValue(role_ratings_df['elu']['qbr2'])
+        self.spinBox_R2_TEC_QB.setValue(role_ratings_df['tec']['qbr2'])
+        self.lcdNumber_R2_QB.display(role_ratings_df['total']['qbr2'])
+        self.spinBox_R2_ATH_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_QB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_QB.setText(role_ratings_df['label']['qbr3'])
+        self.spinBox_R3_ATH_QB.setValue(role_ratings_df['ath']['qbr3'])
+        self.spinBox_R3_SPD_QB.setValue(role_ratings_df['spd']['qbr3'])
+        self.spinBox_R3_DUR_QB.setValue(role_ratings_df['dur']['qbr3'])
+        self.spinBox_R3_WE_QB.setValue(role_ratings_df['we']['qbr3'])
+        self.spinBox_R3_STA_QB.setValue(role_ratings_df['sta']['qbr3'])
+        self.spinBox_R3_STR_QB.setValue(role_ratings_df['str']['qbr3'])
+        self.spinBox_R3_BLK_QB.setValue(role_ratings_df['blk']['qbr3'])
+        self.spinBox_R3_TKL_QB.setValue(role_ratings_df['tkl']['qbr3'])
+        self.spinBox_R3_HAN_QB.setValue(role_ratings_df['han']['qbr3'])
+        self.spinBox_R3_GI_QB.setValue(role_ratings_df['gi']['qbr3'])
+        self.spinBox_R3_ELU_QB.setValue(role_ratings_df['elu']['qbr3'])
+        self.spinBox_R3_TEC_QB.setValue(role_ratings_df['tec']['qbr3'])
+        self.lcdNumber_R3_QB.display(role_ratings_df['total']['qbr3'])
+        self.spinBox_R3_ATH_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_QB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_QB.setText(role_ratings_df['label']['qbr4'])
+        self.spinBox_R4_ATH_QB.setValue(role_ratings_df['ath']['qbr4'])
+        self.spinBox_R4_SPD_QB.setValue(role_ratings_df['spd']['qbr4'])
+        self.spinBox_R4_DUR_QB.setValue(role_ratings_df['dur']['qbr4'])
+        self.spinBox_R4_WE_QB.setValue(role_ratings_df['we']['qbr4'])
+        self.spinBox_R4_STA_QB.setValue(role_ratings_df['sta']['qbr4'])
+        self.spinBox_R4_STR_QB.setValue(role_ratings_df['str']['qbr4'])
+        self.spinBox_R4_BLK_QB.setValue(role_ratings_df['blk']['qbr4'])
+        self.spinBox_R4_TKL_QB.setValue(role_ratings_df['tkl']['qbr4'])
+        self.spinBox_R4_HAN_QB.setValue(role_ratings_df['han']['qbr4'])
+        self.spinBox_R4_GI_QB.setValue(role_ratings_df['gi']['qbr4'])
+        self.spinBox_R4_ELU_QB.setValue(role_ratings_df['elu']['qbr4'])
+        self.spinBox_R4_TEC_QB.setValue(role_ratings_df['tec']['qbr4'])
+        self.lcdNumber_R4_QB.display(role_ratings_df['total']['qbr4'])
+        self.spinBox_R4_ATH_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_QB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_QB.setText(role_ratings_df['label']['qbr5'])
+        self.spinBox_R5_ATH_QB.setValue(role_ratings_df['ath']['qbr5'])
+        self.spinBox_R5_SPD_QB.setValue(role_ratings_df['spd']['qbr5'])
+        self.spinBox_R5_DUR_QB.setValue(role_ratings_df['dur']['qbr5'])
+        self.spinBox_R5_WE_QB.setValue(role_ratings_df['we']['qbr5'])
+        self.spinBox_R5_STA_QB.setValue(role_ratings_df['sta']['qbr5'])
+        self.spinBox_R5_STR_QB.setValue(role_ratings_df['str']['qbr5'])
+        self.spinBox_R5_BLK_QB.setValue(role_ratings_df['blk']['qbr5'])
+        self.spinBox_R5_TKL_QB.setValue(role_ratings_df['tkl']['qbr5'])
+        self.spinBox_R5_HAN_QB.setValue(role_ratings_df['han']['qbr5'])
+        self.spinBox_R5_GI_QB.setValue(role_ratings_df['gi']['qbr5'])
+        self.spinBox_R5_ELU_QB.setValue(role_ratings_df['elu']['qbr5'])
+        self.spinBox_R5_TEC_QB.setValue(role_ratings_df['tec']['qbr5'])
+        self.lcdNumber_R5_QB.display(role_ratings_df['total']['qbr5'])
+        self.spinBox_R5_ATH_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_QB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_QB.setText(role_ratings_df['label']['qbr6'])
+        self.spinBox_R6_ATH_QB.setValue(role_ratings_df['ath']['qbr6'])
+        self.spinBox_R6_SPD_QB.setValue(role_ratings_df['spd']['qbr6'])
+        self.spinBox_R6_DUR_QB.setValue(role_ratings_df['dur']['qbr6'])
+        self.spinBox_R6_WE_QB.setValue(role_ratings_df['we']['qbr6'])
+        self.spinBox_R6_STA_QB.setValue(role_ratings_df['sta']['qbr6'])
+        self.spinBox_R6_STR_QB.setValue(role_ratings_df['str']['qbr6'])
+        self.spinBox_R6_BLK_QB.setValue(role_ratings_df['blk']['qbr6'])
+        self.spinBox_R6_TKL_QB.setValue(role_ratings_df['tkl']['qbr6'])
+        self.spinBox_R6_HAN_QB.setValue(role_ratings_df['han']['qbr6'])
+        self.spinBox_R6_GI_QB.setValue(role_ratings_df['gi']['qbr6'])
+        self.spinBox_R6_ELU_QB.setValue(role_ratings_df['elu']['qbr6'])
+        self.spinBox_R6_TEC_QB.setValue(role_ratings_df['tec']['qbr6'])
+        self.lcdNumber_R6_QB.display(role_ratings_df['total']['qbr6'])
+        self.spinBox_R6_ATH_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_QB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_QB.valueChanged.connect(self.update_row_total)
+
+        # RB Section
+        self.lineEdit_R1_RB.setText(role_ratings_df['label']['rbr1'])
+        self.spinBox_R1_ATH_RB.setValue(role_ratings_df['ath']['rbr1'])
+        self.spinBox_R1_SPD_RB.setValue(role_ratings_df['spd']['rbr1'])
+        self.spinBox_R1_DUR_RB.setValue(role_ratings_df['dur']['rbr1'])
+        self.spinBox_R1_WE_RB.setValue(role_ratings_df['we']['rbr1'])
+        self.spinBox_R1_STA_RB.setValue(role_ratings_df['sta']['rbr1'])
+        self.spinBox_R1_STR_RB.setValue(role_ratings_df['str']['rbr1'])
+        self.spinBox_R1_BLK_RB.setValue(role_ratings_df['blk']['rbr1'])
+        self.spinBox_R1_TKL_RB.setValue(role_ratings_df['tkl']['rbr1'])
+        self.spinBox_R1_HAN_RB.setValue(role_ratings_df['han']['rbr1'])
+        self.spinBox_R1_GI_RB.setValue(role_ratings_df['gi']['rbr1'])
+        self.spinBox_R1_ELU_RB.setValue(role_ratings_df['elu']['rbr1'])
+        self.spinBox_R1_TEC_RB.setValue(role_ratings_df['tec']['rbr1'])
+        self.lcdNumber_R1_RB.display(role_ratings_df['total']['rbr1'])
+        self.spinBox_R1_ATH_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_RB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_RB.setText(role_ratings_df['label']['rbr2'])
+        self.spinBox_R2_ATH_RB.setValue(role_ratings_df['ath']['rbr2'])
+        self.spinBox_R2_SPD_RB.setValue(role_ratings_df['spd']['rbr2'])
+        self.spinBox_R2_DUR_RB.setValue(role_ratings_df['dur']['rbr2'])
+        self.spinBox_R2_WE_RB.setValue(role_ratings_df['we']['rbr2'])
+        self.spinBox_R2_STA_RB.setValue(role_ratings_df['sta']['rbr2'])
+        self.spinBox_R2_STR_RB.setValue(role_ratings_df['str']['rbr2'])
+        self.spinBox_R2_BLK_RB.setValue(role_ratings_df['blk']['rbr2'])
+        self.spinBox_R2_TKL_RB.setValue(role_ratings_df['tkl']['rbr2'])
+        self.spinBox_R2_HAN_RB.setValue(role_ratings_df['han']['rbr2'])
+        self.spinBox_R2_GI_RB.setValue(role_ratings_df['gi']['rbr2'])
+        self.spinBox_R2_ELU_RB.setValue(role_ratings_df['elu']['rbr2'])
+        self.spinBox_R2_TEC_RB.setValue(role_ratings_df['tec']['rbr2'])
+        self.lcdNumber_R2_RB.display(role_ratings_df['total']['rbr2'])
+        self.spinBox_R2_ATH_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_RB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_RB.setText(role_ratings_df['label']['rbr3'])
+        self.spinBox_R3_ATH_RB.setValue(role_ratings_df['ath']['rbr3'])
+        self.spinBox_R3_SPD_RB.setValue(role_ratings_df['spd']['rbr3'])
+        self.spinBox_R3_DUR_RB.setValue(role_ratings_df['dur']['rbr3'])
+        self.spinBox_R3_WE_RB.setValue(role_ratings_df['we']['rbr3'])
+        self.spinBox_R3_STA_RB.setValue(role_ratings_df['sta']['rbr3'])
+        self.spinBox_R3_STR_RB.setValue(role_ratings_df['str']['rbr3'])
+        self.spinBox_R3_BLK_RB.setValue(role_ratings_df['blk']['rbr3'])
+        self.spinBox_R3_TKL_RB.setValue(role_ratings_df['tkl']['rbr3'])
+        self.spinBox_R3_HAN_RB.setValue(role_ratings_df['han']['rbr3'])
+        self.spinBox_R3_GI_RB.setValue(role_ratings_df['gi']['rbr3'])
+        self.spinBox_R3_ELU_RB.setValue(role_ratings_df['elu']['rbr3'])
+        self.spinBox_R3_TEC_RB.setValue(role_ratings_df['tec']['rbr3'])
+        self.lcdNumber_R3_RB.display(role_ratings_df['total']['rbr3'])
+        self.spinBox_R3_ATH_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_RB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_RB.setText(role_ratings_df['label']['rbr4'])
+        self.spinBox_R4_ATH_RB.setValue(role_ratings_df['ath']['rbr4'])
+        self.spinBox_R4_SPD_RB.setValue(role_ratings_df['spd']['rbr4'])
+        self.spinBox_R4_DUR_RB.setValue(role_ratings_df['dur']['rbr4'])
+        self.spinBox_R4_WE_RB.setValue(role_ratings_df['we']['rbr4'])
+        self.spinBox_R4_STA_RB.setValue(role_ratings_df['sta']['rbr4'])
+        self.spinBox_R4_STR_RB.setValue(role_ratings_df['str']['rbr4'])
+        self.spinBox_R4_BLK_RB.setValue(role_ratings_df['blk']['rbr4'])
+        self.spinBox_R4_TKL_RB.setValue(role_ratings_df['tkl']['rbr4'])
+        self.spinBox_R4_HAN_RB.setValue(role_ratings_df['han']['rbr4'])
+        self.spinBox_R4_GI_RB.setValue(role_ratings_df['gi']['rbr4'])
+        self.spinBox_R4_ELU_RB.setValue(role_ratings_df['elu']['rbr4'])
+        self.spinBox_R4_TEC_RB.setValue(role_ratings_df['tec']['rbr4'])
+        self.lcdNumber_R4_RB.display(role_ratings_df['total']['rbr4'])
+        self.spinBox_R4_ATH_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_RB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_RB.setText(role_ratings_df['label']['rbr5'])
+        self.spinBox_R5_ATH_RB.setValue(role_ratings_df['ath']['rbr5'])
+        self.spinBox_R5_SPD_RB.setValue(role_ratings_df['spd']['rbr5'])
+        self.spinBox_R5_DUR_RB.setValue(role_ratings_df['dur']['rbr5'])
+        self.spinBox_R5_WE_RB.setValue(role_ratings_df['we']['rbr5'])
+        self.spinBox_R5_STA_RB.setValue(role_ratings_df['sta']['rbr5'])
+        self.spinBox_R5_STR_RB.setValue(role_ratings_df['str']['rbr5'])
+        self.spinBox_R5_BLK_RB.setValue(role_ratings_df['blk']['rbr5'])
+        self.spinBox_R5_TKL_RB.setValue(role_ratings_df['tkl']['rbr5'])
+        self.spinBox_R5_HAN_RB.setValue(role_ratings_df['han']['rbr5'])
+        self.spinBox_R5_GI_RB.setValue(role_ratings_df['gi']['rbr5'])
+        self.spinBox_R5_ELU_RB.setValue(role_ratings_df['elu']['rbr5'])
+        self.spinBox_R5_TEC_RB.setValue(role_ratings_df['tec']['rbr5'])
+        self.lcdNumber_R5_RB.display(role_ratings_df['total']['rbr5'])
+        self.spinBox_R5_ATH_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_RB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_RB.setText(role_ratings_df['label']['rbr6'])
+        self.spinBox_R6_ATH_RB.setValue(role_ratings_df['ath']['rbr6'])
+        self.spinBox_R6_SPD_RB.setValue(role_ratings_df['spd']['rbr6'])
+        self.spinBox_R6_DUR_RB.setValue(role_ratings_df['dur']['rbr6'])
+        self.spinBox_R6_WE_RB.setValue(role_ratings_df['we']['rbr6'])
+        self.spinBox_R6_STA_RB.setValue(role_ratings_df['sta']['rbr6'])
+        self.spinBox_R6_STR_RB.setValue(role_ratings_df['str']['rbr6'])
+        self.spinBox_R6_BLK_RB.setValue(role_ratings_df['blk']['rbr6'])
+        self.spinBox_R6_TKL_RB.setValue(role_ratings_df['tkl']['rbr6'])
+        self.spinBox_R6_HAN_RB.setValue(role_ratings_df['han']['rbr6'])
+        self.spinBox_R6_GI_RB.setValue(role_ratings_df['gi']['rbr6'])
+        self.spinBox_R6_ELU_RB.setValue(role_ratings_df['elu']['rbr6'])
+        self.spinBox_R6_TEC_RB.setValue(role_ratings_df['tec']['rbr6'])
+        self.lcdNumber_R6_RB.display(role_ratings_df['total']['rbr6'])
+        self.spinBox_R6_ATH_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_RB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_RB.valueChanged.connect(self.update_row_total)
+
+        # WR Section
+        self.lineEdit_R1_WR.setText(role_ratings_df['label']['wrr1'])
+        self.spinBox_R1_ATH_WR.setValue(role_ratings_df['ath']['wrr1'])
+        self.spinBox_R1_SPD_WR.setValue(role_ratings_df['spd']['wrr1'])
+        self.spinBox_R1_DUR_WR.setValue(role_ratings_df['dur']['wrr1'])
+        self.spinBox_R1_WE_WR.setValue(role_ratings_df['we']['wrr1'])
+        self.spinBox_R1_STA_WR.setValue(role_ratings_df['sta']['wrr1'])
+        self.spinBox_R1_STR_WR.setValue(role_ratings_df['str']['wrr1'])
+        self.spinBox_R1_BLK_WR.setValue(role_ratings_df['blk']['wrr1'])
+        self.spinBox_R1_TKL_WR.setValue(role_ratings_df['tkl']['wrr1'])
+        self.spinBox_R1_HAN_WR.setValue(role_ratings_df['han']['wrr1'])
+        self.spinBox_R1_GI_WR.setValue(role_ratings_df['gi']['wrr1'])
+        self.spinBox_R1_ELU_WR.setValue(role_ratings_df['elu']['wrr1'])
+        self.spinBox_R1_TEC_WR.setValue(role_ratings_df['tec']['wrr1'])
+        self.lcdNumber_R1_WR.display(role_ratings_df['total']['wrr1'])
+        self.spinBox_R1_ATH_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_WR.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_WR.setText(role_ratings_df['label']['wrr2'])
+        self.spinBox_R2_ATH_WR.setValue(role_ratings_df['ath']['wrr2'])
+        self.spinBox_R2_SPD_WR.setValue(role_ratings_df['spd']['wrr2'])
+        self.spinBox_R2_DUR_WR.setValue(role_ratings_df['dur']['wrr2'])
+        self.spinBox_R2_WE_WR.setValue(role_ratings_df['we']['wrr2'])
+        self.spinBox_R2_STA_WR.setValue(role_ratings_df['sta']['wrr2'])
+        self.spinBox_R2_STR_WR.setValue(role_ratings_df['str']['wrr2'])
+        self.spinBox_R2_BLK_WR.setValue(role_ratings_df['blk']['wrr2'])
+        self.spinBox_R2_TKL_WR.setValue(role_ratings_df['tkl']['wrr2'])
+        self.spinBox_R2_HAN_WR.setValue(role_ratings_df['han']['wrr2'])
+        self.spinBox_R2_GI_WR.setValue(role_ratings_df['gi']['wrr2'])
+        self.spinBox_R2_ELU_WR.setValue(role_ratings_df['elu']['wrr2'])
+        self.spinBox_R2_TEC_WR.setValue(role_ratings_df['tec']['wrr2'])
+        self.lcdNumber_R2_WR.display(role_ratings_df['total']['wrr2'])
+        self.spinBox_R2_ATH_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_WR.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_WR.setText(role_ratings_df['label']['wrr3'])
+        self.spinBox_R3_ATH_WR.setValue(role_ratings_df['ath']['wrr3'])
+        self.spinBox_R3_SPD_WR.setValue(role_ratings_df['spd']['wrr3'])
+        self.spinBox_R3_DUR_WR.setValue(role_ratings_df['dur']['wrr3'])
+        self.spinBox_R3_WE_WR.setValue(role_ratings_df['we']['wrr3'])
+        self.spinBox_R3_STA_WR.setValue(role_ratings_df['sta']['wrr3'])
+        self.spinBox_R3_STR_WR.setValue(role_ratings_df['str']['wrr3'])
+        self.spinBox_R3_BLK_WR.setValue(role_ratings_df['blk']['wrr3'])
+        self.spinBox_R3_TKL_WR.setValue(role_ratings_df['tkl']['wrr3'])
+        self.spinBox_R3_HAN_WR.setValue(role_ratings_df['han']['wrr3'])
+        self.spinBox_R3_GI_WR.setValue(role_ratings_df['gi']['wrr3'])
+        self.spinBox_R3_ELU_WR.setValue(role_ratings_df['elu']['wrr3'])
+        self.spinBox_R3_TEC_WR.setValue(role_ratings_df['tec']['wrr3'])
+        self.lcdNumber_R3_WR.display(role_ratings_df['total']['wrr3'])
+        self.spinBox_R3_ATH_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_WR.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_WR.setText(role_ratings_df['label']['wrr4'])
+        self.spinBox_R4_ATH_WR.setValue(role_ratings_df['ath']['wrr4'])
+        self.spinBox_R4_SPD_WR.setValue(role_ratings_df['spd']['wrr4'])
+        self.spinBox_R4_DUR_WR.setValue(role_ratings_df['dur']['wrr4'])
+        self.spinBox_R4_WE_WR.setValue(role_ratings_df['we']['wrr4'])
+        self.spinBox_R4_STA_WR.setValue(role_ratings_df['sta']['wrr4'])
+        self.spinBox_R4_STR_WR.setValue(role_ratings_df['str']['wrr4'])
+        self.spinBox_R4_BLK_WR.setValue(role_ratings_df['blk']['wrr4'])
+        self.spinBox_R4_TKL_WR.setValue(role_ratings_df['tkl']['wrr4'])
+        self.spinBox_R4_HAN_WR.setValue(role_ratings_df['han']['wrr4'])
+        self.spinBox_R4_GI_WR.setValue(role_ratings_df['gi']['wrr4'])
+        self.spinBox_R4_ELU_WR.setValue(role_ratings_df['elu']['wrr4'])
+        self.spinBox_R4_TEC_WR.setValue(role_ratings_df['tec']['wrr4'])
+        self.lcdNumber_R4_WR.display(role_ratings_df['total']['wrr4'])
+        self.spinBox_R4_ATH_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_WR.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_WR.setText(role_ratings_df['label']['wrr5'])
+        self.spinBox_R5_ATH_WR.setValue(role_ratings_df['ath']['wrr5'])
+        self.spinBox_R5_SPD_WR.setValue(role_ratings_df['spd']['wrr5'])
+        self.spinBox_R5_DUR_WR.setValue(role_ratings_df['dur']['wrr5'])
+        self.spinBox_R5_WE_WR.setValue(role_ratings_df['we']['wrr5'])
+        self.spinBox_R5_STA_WR.setValue(role_ratings_df['sta']['wrr5'])
+        self.spinBox_R5_STR_WR.setValue(role_ratings_df['str']['wrr5'])
+        self.spinBox_R5_BLK_WR.setValue(role_ratings_df['blk']['wrr5'])
+        self.spinBox_R5_TKL_WR.setValue(role_ratings_df['tkl']['wrr5'])
+        self.spinBox_R5_HAN_WR.setValue(role_ratings_df['han']['wrr5'])
+        self.spinBox_R5_GI_WR.setValue(role_ratings_df['gi']['wrr5'])
+        self.spinBox_R5_ELU_WR.setValue(role_ratings_df['elu']['wrr5'])
+        self.spinBox_R5_TEC_WR.setValue(role_ratings_df['tec']['wrr5'])
+        self.lcdNumber_R5_WR.display(role_ratings_df['total']['wrr5'])
+        self.spinBox_R5_ATH_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_WR.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_WR.setText(role_ratings_df['label']['wrr6'])
+        self.spinBox_R6_ATH_WR.setValue(role_ratings_df['ath']['wrr6'])
+        self.spinBox_R6_SPD_WR.setValue(role_ratings_df['spd']['wrr6'])
+        self.spinBox_R6_DUR_WR.setValue(role_ratings_df['dur']['wrr6'])
+        self.spinBox_R6_WE_WR.setValue(role_ratings_df['we']['wrr6'])
+        self.spinBox_R6_STA_WR.setValue(role_ratings_df['sta']['wrr6'])
+        self.spinBox_R6_STR_WR.setValue(role_ratings_df['str']['wrr6'])
+        self.spinBox_R6_BLK_WR.setValue(role_ratings_df['blk']['wrr6'])
+        self.spinBox_R6_TKL_WR.setValue(role_ratings_df['tkl']['wrr6'])
+        self.spinBox_R6_HAN_WR.setValue(role_ratings_df['han']['wrr6'])
+        self.spinBox_R6_GI_WR.setValue(role_ratings_df['gi']['wrr6'])
+        self.spinBox_R6_ELU_WR.setValue(role_ratings_df['elu']['wrr6'])
+        self.spinBox_R6_TEC_WR.setValue(role_ratings_df['tec']['wrr6'])
+        self.lcdNumber_R6_WR.display(role_ratings_df['total']['wrr6'])
+        self.spinBox_R6_ATH_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_WR.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_WR.valueChanged.connect(self.update_row_total)
+
+        # TE Section
+        self.lineEdit_R1_TE.setText(role_ratings_df['label']['ter1'])
+        self.spinBox_R1_ATH_TE.setValue(role_ratings_df['ath']['ter1'])
+        self.spinBox_R1_SPD_TE.setValue(role_ratings_df['spd']['ter1'])
+        self.spinBox_R1_DUR_TE.setValue(role_ratings_df['dur']['ter1'])
+        self.spinBox_R1_WE_TE.setValue(role_ratings_df['we']['ter1'])
+        self.spinBox_R1_STA_TE.setValue(role_ratings_df['sta']['ter1'])
+        self.spinBox_R1_STR_TE.setValue(role_ratings_df['str']['ter1'])
+        self.spinBox_R1_BLK_TE.setValue(role_ratings_df['blk']['ter1'])
+        self.spinBox_R1_TKL_TE.setValue(role_ratings_df['tkl']['ter1'])
+        self.spinBox_R1_HAN_TE.setValue(role_ratings_df['han']['ter1'])
+        self.spinBox_R1_GI_TE.setValue(role_ratings_df['gi']['ter1'])
+        self.spinBox_R1_ELU_TE.setValue(role_ratings_df['elu']['ter1'])
+        self.spinBox_R1_TEC_TE.setValue(role_ratings_df['tec']['ter1'])
+        self.lcdNumber_R1_TE.display(role_ratings_df['total']['ter1'])
+        self.spinBox_R1_ATH_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_TE.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_TE.setText(role_ratings_df['label']['ter2'])
+        self.spinBox_R2_ATH_TE.setValue(role_ratings_df['ath']['ter2'])
+        self.spinBox_R2_SPD_TE.setValue(role_ratings_df['spd']['ter2'])
+        self.spinBox_R2_DUR_TE.setValue(role_ratings_df['dur']['ter2'])
+        self.spinBox_R2_WE_TE.setValue(role_ratings_df['we']['ter2'])
+        self.spinBox_R2_STA_TE.setValue(role_ratings_df['sta']['ter2'])
+        self.spinBox_R2_STR_TE.setValue(role_ratings_df['str']['ter2'])
+        self.spinBox_R2_BLK_TE.setValue(role_ratings_df['blk']['ter2'])
+        self.spinBox_R2_TKL_TE.setValue(role_ratings_df['tkl']['ter2'])
+        self.spinBox_R2_HAN_TE.setValue(role_ratings_df['han']['ter2'])
+        self.spinBox_R2_GI_TE.setValue(role_ratings_df['gi']['ter2'])
+        self.spinBox_R2_ELU_TE.setValue(role_ratings_df['elu']['ter2'])
+        self.spinBox_R2_TEC_TE.setValue(role_ratings_df['tec']['ter2'])
+        self.lcdNumber_R2_TE.display(role_ratings_df['total']['ter2'])
+        self.spinBox_R2_ATH_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_TE.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_TE.setText(role_ratings_df['label']['ter3'])
+        self.spinBox_R3_ATH_TE.setValue(role_ratings_df['ath']['ter3'])
+        self.spinBox_R3_SPD_TE.setValue(role_ratings_df['spd']['ter3'])
+        self.spinBox_R3_DUR_TE.setValue(role_ratings_df['dur']['ter3'])
+        self.spinBox_R3_WE_TE.setValue(role_ratings_df['we']['ter3'])
+        self.spinBox_R3_STA_TE.setValue(role_ratings_df['sta']['ter3'])
+        self.spinBox_R3_STR_TE.setValue(role_ratings_df['str']['ter3'])
+        self.spinBox_R3_BLK_TE.setValue(role_ratings_df['blk']['ter3'])
+        self.spinBox_R3_TKL_TE.setValue(role_ratings_df['tkl']['ter3'])
+        self.spinBox_R3_HAN_TE.setValue(role_ratings_df['han']['ter3'])
+        self.spinBox_R3_GI_TE.setValue(role_ratings_df['gi']['ter3'])
+        self.spinBox_R3_ELU_TE.setValue(role_ratings_df['elu']['ter3'])
+        self.spinBox_R3_TEC_TE.setValue(role_ratings_df['tec']['ter3'])
+        self.lcdNumber_R3_TE.display(role_ratings_df['total']['ter3'])
+        self.spinBox_R3_ATH_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_TE.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_TE.setText(role_ratings_df['label']['ter4'])
+        self.spinBox_R4_ATH_TE.setValue(role_ratings_df['ath']['ter4'])
+        self.spinBox_R4_SPD_TE.setValue(role_ratings_df['spd']['ter4'])
+        self.spinBox_R4_DUR_TE.setValue(role_ratings_df['dur']['ter4'])
+        self.spinBox_R4_WE_TE.setValue(role_ratings_df['we']['ter4'])
+        self.spinBox_R4_STA_TE.setValue(role_ratings_df['sta']['ter4'])
+        self.spinBox_R4_STR_TE.setValue(role_ratings_df['str']['ter4'])
+        self.spinBox_R4_BLK_TE.setValue(role_ratings_df['blk']['ter4'])
+        self.spinBox_R4_TKL_TE.setValue(role_ratings_df['tkl']['ter4'])
+        self.spinBox_R4_HAN_TE.setValue(role_ratings_df['han']['ter4'])
+        self.spinBox_R4_GI_TE.setValue(role_ratings_df['gi']['ter4'])
+        self.spinBox_R4_ELU_TE.setValue(role_ratings_df['elu']['ter4'])
+        self.spinBox_R4_TEC_TE.setValue(role_ratings_df['tec']['ter4'])
+        self.lcdNumber_R4_TE.display(role_ratings_df['total']['ter4'])
+        self.spinBox_R4_ATH_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_TE.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_TE.setText(role_ratings_df['label']['ter5'])
+        self.spinBox_R5_ATH_TE.setValue(role_ratings_df['ath']['ter5'])
+        self.spinBox_R5_SPD_TE.setValue(role_ratings_df['spd']['ter5'])
+        self.spinBox_R5_DUR_TE.setValue(role_ratings_df['dur']['ter5'])
+        self.spinBox_R5_WE_TE.setValue(role_ratings_df['we']['ter5'])
+        self.spinBox_R5_STA_TE.setValue(role_ratings_df['sta']['ter5'])
+        self.spinBox_R5_STR_TE.setValue(role_ratings_df['str']['ter5'])
+        self.spinBox_R5_BLK_TE.setValue(role_ratings_df['blk']['ter5'])
+        self.spinBox_R5_TKL_TE.setValue(role_ratings_df['tkl']['ter5'])
+        self.spinBox_R5_HAN_TE.setValue(role_ratings_df['han']['ter5'])
+        self.spinBox_R5_GI_TE.setValue(role_ratings_df['gi']['ter5'])
+        self.spinBox_R5_ELU_TE.setValue(role_ratings_df['elu']['ter5'])
+        self.spinBox_R5_TEC_TE.setValue(role_ratings_df['tec']['ter5'])
+        self.lcdNumber_R5_TE.display(role_ratings_df['total']['ter5'])
+        self.spinBox_R5_ATH_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_TE.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_TE.setText(role_ratings_df['label']['ter6'])
+        self.spinBox_R6_ATH_TE.setValue(role_ratings_df['ath']['ter6'])
+        self.spinBox_R6_SPD_TE.setValue(role_ratings_df['spd']['ter6'])
+        self.spinBox_R6_DUR_TE.setValue(role_ratings_df['dur']['ter6'])
+        self.spinBox_R6_WE_TE.setValue(role_ratings_df['we']['ter6'])
+        self.spinBox_R6_STA_TE.setValue(role_ratings_df['sta']['ter6'])
+        self.spinBox_R6_STR_TE.setValue(role_ratings_df['str']['ter6'])
+        self.spinBox_R6_BLK_TE.setValue(role_ratings_df['blk']['ter6'])
+        self.spinBox_R6_TKL_TE.setValue(role_ratings_df['tkl']['ter6'])
+        self.spinBox_R6_HAN_TE.setValue(role_ratings_df['han']['ter6'])
+        self.spinBox_R6_GI_TE.setValue(role_ratings_df['gi']['ter6'])
+        self.spinBox_R6_ELU_TE.setValue(role_ratings_df['elu']['ter6'])
+        self.spinBox_R6_TEC_TE.setValue(role_ratings_df['tec']['ter6'])
+        self.lcdNumber_R6_TE.display(role_ratings_df['total']['ter6'])
+        self.spinBox_R6_ATH_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_TE.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_TE.valueChanged.connect(self.update_row_total)
+
+        # OL Section
+        self.lineEdit_R1_OL.setText(role_ratings_df['label']['olr1'])
+        self.spinBox_R1_ATH_OL.setValue(role_ratings_df['ath']['olr1'])
+        self.spinBox_R1_SPD_OL.setValue(role_ratings_df['spd']['olr1'])
+        self.spinBox_R1_DUR_OL.setValue(role_ratings_df['dur']['olr1'])
+        self.spinBox_R1_WE_OL.setValue(role_ratings_df['we']['olr1'])
+        self.spinBox_R1_STA_OL.setValue(role_ratings_df['sta']['olr1'])
+        self.spinBox_R1_STR_OL.setValue(role_ratings_df['str']['olr1'])
+        self.spinBox_R1_BLK_OL.setValue(role_ratings_df['blk']['olr1'])
+        self.spinBox_R1_TKL_OL.setValue(role_ratings_df['tkl']['olr1'])
+        self.spinBox_R1_HAN_OL.setValue(role_ratings_df['han']['olr1'])
+        self.spinBox_R1_GI_OL.setValue(role_ratings_df['gi']['olr1'])
+        self.spinBox_R1_ELU_OL.setValue(role_ratings_df['elu']['olr1'])
+        self.spinBox_R1_TEC_OL.setValue(role_ratings_df['tec']['olr1'])
+        self.lcdNumber_R1_OL.display(role_ratings_df['total']['olr1'])
+        self.spinBox_R1_ATH_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_OL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_OL.setText(role_ratings_df['label']['olr2'])
+        self.spinBox_R2_ATH_OL.setValue(role_ratings_df['ath']['olr2'])
+        self.spinBox_R2_SPD_OL.setValue(role_ratings_df['spd']['olr2'])
+        self.spinBox_R2_DUR_OL.setValue(role_ratings_df['dur']['olr2'])
+        self.spinBox_R2_WE_OL.setValue(role_ratings_df['we']['olr2'])
+        self.spinBox_R2_STA_OL.setValue(role_ratings_df['sta']['olr2'])
+        self.spinBox_R2_STR_OL.setValue(role_ratings_df['str']['olr2'])
+        self.spinBox_R2_BLK_OL.setValue(role_ratings_df['blk']['olr2'])
+        self.spinBox_R2_TKL_OL.setValue(role_ratings_df['tkl']['olr2'])
+        self.spinBox_R2_HAN_OL.setValue(role_ratings_df['han']['olr2'])
+        self.spinBox_R2_GI_OL.setValue(role_ratings_df['gi']['olr2'])
+        self.spinBox_R2_ELU_OL.setValue(role_ratings_df['elu']['olr2'])
+        self.spinBox_R2_TEC_OL.setValue(role_ratings_df['tec']['olr2'])
+        self.lcdNumber_R2_OL.display(role_ratings_df['total']['olr2'])
+        self.spinBox_R2_ATH_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_OL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_OL.setText(role_ratings_df['label']['olr3'])
+        self.spinBox_R3_ATH_OL.setValue(role_ratings_df['ath']['olr3'])
+        self.spinBox_R3_SPD_OL.setValue(role_ratings_df['spd']['olr3'])
+        self.spinBox_R3_DUR_OL.setValue(role_ratings_df['dur']['olr3'])
+        self.spinBox_R3_WE_OL.setValue(role_ratings_df['we']['olr3'])
+        self.spinBox_R3_STA_OL.setValue(role_ratings_df['sta']['olr3'])
+        self.spinBox_R3_STR_OL.setValue(role_ratings_df['str']['olr3'])
+        self.spinBox_R3_BLK_OL.setValue(role_ratings_df['blk']['olr3'])
+        self.spinBox_R3_TKL_OL.setValue(role_ratings_df['tkl']['olr3'])
+        self.spinBox_R3_HAN_OL.setValue(role_ratings_df['han']['olr3'])
+        self.spinBox_R3_GI_OL.setValue(role_ratings_df['gi']['olr3'])
+        self.spinBox_R3_ELU_OL.setValue(role_ratings_df['elu']['olr3'])
+        self.spinBox_R3_TEC_OL.setValue(role_ratings_df['tec']['olr3'])
+        self.lcdNumber_R3_OL.display(role_ratings_df['total']['olr3'])
+        self.spinBox_R3_ATH_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_OL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_OL.setText(role_ratings_df['label']['olr4'])
+        self.spinBox_R4_ATH_OL.setValue(role_ratings_df['ath']['olr4'])
+        self.spinBox_R4_SPD_OL.setValue(role_ratings_df['spd']['olr4'])
+        self.spinBox_R4_DUR_OL.setValue(role_ratings_df['dur']['olr4'])
+        self.spinBox_R4_WE_OL.setValue(role_ratings_df['we']['olr4'])
+        self.spinBox_R4_STA_OL.setValue(role_ratings_df['sta']['olr4'])
+        self.spinBox_R4_STR_OL.setValue(role_ratings_df['str']['olr4'])
+        self.spinBox_R4_BLK_OL.setValue(role_ratings_df['blk']['olr4'])
+        self.spinBox_R4_TKL_OL.setValue(role_ratings_df['tkl']['olr4'])
+        self.spinBox_R4_HAN_OL.setValue(role_ratings_df['han']['olr4'])
+        self.spinBox_R4_GI_OL.setValue(role_ratings_df['gi']['olr4'])
+        self.spinBox_R4_ELU_OL.setValue(role_ratings_df['elu']['olr4'])
+        self.spinBox_R4_TEC_OL.setValue(role_ratings_df['tec']['olr4'])
+        self.lcdNumber_R4_OL.display(role_ratings_df['total']['olr4'])
+        self.spinBox_R4_ATH_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_OL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_OL.setText(role_ratings_df['label']['olr5'])
+        self.spinBox_R5_ATH_OL.setValue(role_ratings_df['ath']['olr5'])
+        self.spinBox_R5_SPD_OL.setValue(role_ratings_df['spd']['olr5'])
+        self.spinBox_R5_DUR_OL.setValue(role_ratings_df['dur']['olr5'])
+        self.spinBox_R5_WE_OL.setValue(role_ratings_df['we']['olr5'])
+        self.spinBox_R5_STA_OL.setValue(role_ratings_df['sta']['olr5'])
+        self.spinBox_R5_STR_OL.setValue(role_ratings_df['str']['olr5'])
+        self.spinBox_R5_BLK_OL.setValue(role_ratings_df['blk']['olr5'])
+        self.spinBox_R5_TKL_OL.setValue(role_ratings_df['tkl']['olr5'])
+        self.spinBox_R5_HAN_OL.setValue(role_ratings_df['han']['olr5'])
+        self.spinBox_R5_GI_OL.setValue(role_ratings_df['gi']['olr5'])
+        self.spinBox_R5_ELU_OL.setValue(role_ratings_df['elu']['olr5'])
+        self.spinBox_R5_TEC_OL.setValue(role_ratings_df['tec']['olr5'])
+        self.lcdNumber_R5_OL.display(role_ratings_df['total']['olr5'])
+        self.spinBox_R5_ATH_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_OL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_OL.setText(role_ratings_df['label']['olr6'])
+        self.spinBox_R6_ATH_OL.setValue(role_ratings_df['ath']['olr6'])
+        self.spinBox_R6_SPD_OL.setValue(role_ratings_df['spd']['olr6'])
+        self.spinBox_R6_DUR_OL.setValue(role_ratings_df['dur']['olr6'])
+        self.spinBox_R6_WE_OL.setValue(role_ratings_df['we']['olr6'])
+        self.spinBox_R6_STA_OL.setValue(role_ratings_df['sta']['olr6'])
+        self.spinBox_R6_STR_OL.setValue(role_ratings_df['str']['olr6'])
+        self.spinBox_R6_BLK_OL.setValue(role_ratings_df['blk']['olr6'])
+        self.spinBox_R6_TKL_OL.setValue(role_ratings_df['tkl']['olr6'])
+        self.spinBox_R6_HAN_OL.setValue(role_ratings_df['han']['olr6'])
+        self.spinBox_R6_GI_OL.setValue(role_ratings_df['gi']['olr6'])
+        self.spinBox_R6_ELU_OL.setValue(role_ratings_df['elu']['olr6'])
+        self.spinBox_R6_TEC_OL.setValue(role_ratings_df['tec']['olr6'])
+        self.lcdNumber_R6_OL.display(role_ratings_df['total']['olr6'])
+        self.spinBox_R6_ATH_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_OL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_OL.valueChanged.connect(self.update_row_total)
+
+        # DL Section
+        self.lineEdit_R1_DL.setText(role_ratings_df['label']['dlr1'])
+        self.spinBox_R1_ATH_DL.setValue(role_ratings_df['ath']['dlr1'])
+        self.spinBox_R1_SPD_DL.setValue(role_ratings_df['spd']['dlr1'])
+        self.spinBox_R1_DUR_DL.setValue(role_ratings_df['dur']['dlr1'])
+        self.spinBox_R1_WE_DL.setValue(role_ratings_df['we']['dlr1'])
+        self.spinBox_R1_STA_DL.setValue(role_ratings_df['sta']['dlr1'])
+        self.spinBox_R1_STR_DL.setValue(role_ratings_df['str']['dlr1'])
+        self.spinBox_R1_BLK_DL.setValue(role_ratings_df['blk']['dlr1'])
+        self.spinBox_R1_TKL_DL.setValue(role_ratings_df['tkl']['dlr1'])
+        self.spinBox_R1_HAN_DL.setValue(role_ratings_df['han']['dlr1'])
+        self.spinBox_R1_GI_DL.setValue(role_ratings_df['gi']['dlr1'])
+        self.spinBox_R1_ELU_DL.setValue(role_ratings_df['elu']['dlr1'])
+        self.spinBox_R1_TEC_DL.setValue(role_ratings_df['tec']['dlr1'])
+        self.lcdNumber_R1_DL.display(role_ratings_df['total']['dlr1'])
+        self.spinBox_R1_ATH_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_DL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_DL.setText(role_ratings_df['label']['dlr2'])
+        self.spinBox_R2_ATH_DL.setValue(role_ratings_df['ath']['dlr2'])
+        self.spinBox_R2_SPD_DL.setValue(role_ratings_df['spd']['dlr2'])
+        self.spinBox_R2_DUR_DL.setValue(role_ratings_df['dur']['dlr2'])
+        self.spinBox_R2_WE_DL.setValue(role_ratings_df['we']['dlr2'])
+        self.spinBox_R2_STA_DL.setValue(role_ratings_df['sta']['dlr2'])
+        self.spinBox_R2_STR_DL.setValue(role_ratings_df['str']['dlr2'])
+        self.spinBox_R2_BLK_DL.setValue(role_ratings_df['blk']['dlr2'])
+        self.spinBox_R2_TKL_DL.setValue(role_ratings_df['tkl']['dlr2'])
+        self.spinBox_R2_HAN_DL.setValue(role_ratings_df['han']['dlr2'])
+        self.spinBox_R2_GI_DL.setValue(role_ratings_df['gi']['dlr2'])
+        self.spinBox_R2_ELU_DL.setValue(role_ratings_df['elu']['dlr2'])
+        self.spinBox_R2_TEC_DL.setValue(role_ratings_df['tec']['dlr2'])
+        self.lcdNumber_R2_DL.display(role_ratings_df['total']['dlr2'])
+        self.spinBox_R2_ATH_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_DL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_DL.setText(role_ratings_df['label']['dlr3'])
+        self.spinBox_R3_ATH_DL.setValue(role_ratings_df['ath']['dlr3'])
+        self.spinBox_R3_SPD_DL.setValue(role_ratings_df['spd']['dlr3'])
+        self.spinBox_R3_DUR_DL.setValue(role_ratings_df['dur']['dlr3'])
+        self.spinBox_R3_WE_DL.setValue(role_ratings_df['we']['dlr3'])
+        self.spinBox_R3_STA_DL.setValue(role_ratings_df['sta']['dlr3'])
+        self.spinBox_R3_STR_DL.setValue(role_ratings_df['str']['dlr3'])
+        self.spinBox_R3_BLK_DL.setValue(role_ratings_df['blk']['dlr3'])
+        self.spinBox_R3_TKL_DL.setValue(role_ratings_df['tkl']['dlr3'])
+        self.spinBox_R3_HAN_DL.setValue(role_ratings_df['han']['dlr3'])
+        self.spinBox_R3_GI_DL.setValue(role_ratings_df['gi']['dlr3'])
+        self.spinBox_R3_ELU_DL.setValue(role_ratings_df['elu']['dlr3'])
+        self.spinBox_R3_TEC_DL.setValue(role_ratings_df['tec']['dlr3'])
+        self.lcdNumber_R3_DL.display(role_ratings_df['total']['dlr3'])
+        self.spinBox_R3_ATH_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_DL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_DL.setText(role_ratings_df['label']['dlr4'])
+        self.spinBox_R4_ATH_DL.setValue(role_ratings_df['ath']['dlr4'])
+        self.spinBox_R4_SPD_DL.setValue(role_ratings_df['spd']['dlr4'])
+        self.spinBox_R4_DUR_DL.setValue(role_ratings_df['dur']['dlr4'])
+        self.spinBox_R4_WE_DL.setValue(role_ratings_df['we']['dlr4'])
+        self.spinBox_R4_STA_DL.setValue(role_ratings_df['sta']['dlr4'])
+        self.spinBox_R4_STR_DL.setValue(role_ratings_df['str']['dlr4'])
+        self.spinBox_R4_BLK_DL.setValue(role_ratings_df['blk']['dlr4'])
+        self.spinBox_R4_TKL_DL.setValue(role_ratings_df['tkl']['dlr4'])
+        self.spinBox_R4_HAN_DL.setValue(role_ratings_df['han']['dlr4'])
+        self.spinBox_R4_GI_DL.setValue(role_ratings_df['gi']['dlr4'])
+        self.spinBox_R4_ELU_DL.setValue(role_ratings_df['elu']['dlr4'])
+        self.spinBox_R4_TEC_DL.setValue(role_ratings_df['tec']['dlr4'])
+        self.lcdNumber_R4_DL.display(role_ratings_df['total']['dlr4'])
+        self.spinBox_R4_ATH_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_DL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_DL.setText(role_ratings_df['label']['dlr5'])
+        self.spinBox_R5_ATH_DL.setValue(role_ratings_df['ath']['dlr5'])
+        self.spinBox_R5_SPD_DL.setValue(role_ratings_df['spd']['dlr5'])
+        self.spinBox_R5_DUR_DL.setValue(role_ratings_df['dur']['dlr5'])
+        self.spinBox_R5_WE_DL.setValue(role_ratings_df['we']['dlr5'])
+        self.spinBox_R5_STA_DL.setValue(role_ratings_df['sta']['dlr5'])
+        self.spinBox_R5_STR_DL.setValue(role_ratings_df['str']['dlr5'])
+        self.spinBox_R5_BLK_DL.setValue(role_ratings_df['blk']['dlr5'])
+        self.spinBox_R5_TKL_DL.setValue(role_ratings_df['tkl']['dlr5'])
+        self.spinBox_R5_HAN_DL.setValue(role_ratings_df['han']['dlr5'])
+        self.spinBox_R5_GI_DL.setValue(role_ratings_df['gi']['dlr5'])
+        self.spinBox_R5_ELU_DL.setValue(role_ratings_df['elu']['dlr5'])
+        self.spinBox_R5_TEC_DL.setValue(role_ratings_df['tec']['dlr5'])
+        self.lcdNumber_R5_DL.display(role_ratings_df['total']['dlr5'])
+        self.spinBox_R5_ATH_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_DL.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_DL.setText(role_ratings_df['label']['dlr6'])
+        self.spinBox_R6_ATH_DL.setValue(role_ratings_df['ath']['dlr6'])
+        self.spinBox_R6_SPD_DL.setValue(role_ratings_df['spd']['dlr6'])
+        self.spinBox_R6_DUR_DL.setValue(role_ratings_df['dur']['dlr6'])
+        self.spinBox_R6_WE_DL.setValue(role_ratings_df['we']['dlr6'])
+        self.spinBox_R6_STA_DL.setValue(role_ratings_df['sta']['dlr6'])
+        self.spinBox_R6_STR_DL.setValue(role_ratings_df['str']['dlr6'])
+        self.spinBox_R6_BLK_DL.setValue(role_ratings_df['blk']['dlr6'])
+        self.spinBox_R6_TKL_DL.setValue(role_ratings_df['tkl']['dlr6'])
+        self.spinBox_R6_HAN_DL.setValue(role_ratings_df['han']['dlr6'])
+        self.spinBox_R6_GI_DL.setValue(role_ratings_df['gi']['dlr6'])
+        self.spinBox_R6_ELU_DL.setValue(role_ratings_df['elu']['dlr6'])
+        self.spinBox_R6_TEC_DL.setValue(role_ratings_df['tec']['dlr6'])
+        self.lcdNumber_R6_DL.display(role_ratings_df['total']['dlr6'])
+        self.spinBox_R6_ATH_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_DL.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_DL.valueChanged.connect(self.update_row_total)
+
+        # LB Section
+        self.lineEdit_R1_LB.setText(role_ratings_df['label']['lbr1'])
+        self.spinBox_R1_ATH_LB.setValue(role_ratings_df['ath']['lbr1'])
+        self.spinBox_R1_SPD_LB.setValue(role_ratings_df['spd']['lbr1'])
+        self.spinBox_R1_DUR_LB.setValue(role_ratings_df['dur']['lbr1'])
+        self.spinBox_R1_WE_LB.setValue(role_ratings_df['we']['lbr1'])
+        self.spinBox_R1_STA_LB.setValue(role_ratings_df['sta']['lbr1'])
+        self.spinBox_R1_STR_LB.setValue(role_ratings_df['str']['lbr1'])
+        self.spinBox_R1_BLK_LB.setValue(role_ratings_df['blk']['lbr1'])
+        self.spinBox_R1_TKL_LB.setValue(role_ratings_df['tkl']['lbr1'])
+        self.spinBox_R1_HAN_LB.setValue(role_ratings_df['han']['lbr1'])
+        self.spinBox_R1_GI_LB.setValue(role_ratings_df['gi']['lbr1'])
+        self.spinBox_R1_ELU_LB.setValue(role_ratings_df['elu']['lbr1'])
+        self.spinBox_R1_TEC_LB.setValue(role_ratings_df['tec']['lbr1'])
+        self.lcdNumber_R1_LB.display(role_ratings_df['total']['lbr1'])
+        self.spinBox_R1_ATH_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_LB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_LB.setText(role_ratings_df['label']['lbr2'])
+        self.spinBox_R2_ATH_LB.setValue(role_ratings_df['ath']['lbr2'])
+        self.spinBox_R2_SPD_LB.setValue(role_ratings_df['spd']['lbr2'])
+        self.spinBox_R2_DUR_LB.setValue(role_ratings_df['dur']['lbr2'])
+        self.spinBox_R2_WE_LB.setValue(role_ratings_df['we']['lbr2'])
+        self.spinBox_R2_STA_LB.setValue(role_ratings_df['sta']['lbr2'])
+        self.spinBox_R2_STR_LB.setValue(role_ratings_df['str']['lbr2'])
+        self.spinBox_R2_BLK_LB.setValue(role_ratings_df['blk']['lbr2'])
+        self.spinBox_R2_TKL_LB.setValue(role_ratings_df['tkl']['lbr2'])
+        self.spinBox_R2_HAN_LB.setValue(role_ratings_df['han']['lbr2'])
+        self.spinBox_R2_GI_LB.setValue(role_ratings_df['gi']['lbr2'])
+        self.spinBox_R2_ELU_LB.setValue(role_ratings_df['elu']['lbr2'])
+        self.spinBox_R2_TEC_LB.setValue(role_ratings_df['tec']['lbr2'])
+        self.lcdNumber_R2_LB.display(role_ratings_df['total']['lbr2'])
+        self.spinBox_R2_ATH_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_LB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_LB.setText(role_ratings_df['label']['lbr3'])
+        self.spinBox_R3_ATH_LB.setValue(role_ratings_df['ath']['lbr3'])
+        self.spinBox_R3_SPD_LB.setValue(role_ratings_df['spd']['lbr3'])
+        self.spinBox_R3_DUR_LB.setValue(role_ratings_df['dur']['lbr3'])
+        self.spinBox_R3_WE_LB.setValue(role_ratings_df['we']['lbr3'])
+        self.spinBox_R3_STA_LB.setValue(role_ratings_df['sta']['lbr3'])
+        self.spinBox_R3_STR_LB.setValue(role_ratings_df['str']['lbr3'])
+        self.spinBox_R3_BLK_LB.setValue(role_ratings_df['blk']['lbr3'])
+        self.spinBox_R3_TKL_LB.setValue(role_ratings_df['tkl']['lbr3'])
+        self.spinBox_R3_HAN_LB.setValue(role_ratings_df['han']['lbr3'])
+        self.spinBox_R3_GI_LB.setValue(role_ratings_df['gi']['lbr3'])
+        self.spinBox_R3_ELU_LB.setValue(role_ratings_df['elu']['lbr3'])
+        self.spinBox_R3_TEC_LB.setValue(role_ratings_df['tec']['lbr3'])
+        self.lcdNumber_R3_LB.display(role_ratings_df['total']['lbr3'])
+        self.spinBox_R3_ATH_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_LB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_LB.setText(role_ratings_df['label']['lbr4'])
+        self.spinBox_R4_ATH_LB.setValue(role_ratings_df['ath']['lbr4'])
+        self.spinBox_R4_SPD_LB.setValue(role_ratings_df['spd']['lbr4'])
+        self.spinBox_R4_DUR_LB.setValue(role_ratings_df['dur']['lbr4'])
+        self.spinBox_R4_WE_LB.setValue(role_ratings_df['we']['lbr4'])
+        self.spinBox_R4_STA_LB.setValue(role_ratings_df['sta']['lbr4'])
+        self.spinBox_R4_STR_LB.setValue(role_ratings_df['str']['lbr4'])
+        self.spinBox_R4_BLK_LB.setValue(role_ratings_df['blk']['lbr4'])
+        self.spinBox_R4_TKL_LB.setValue(role_ratings_df['tkl']['lbr4'])
+        self.spinBox_R4_HAN_LB.setValue(role_ratings_df['han']['lbr4'])
+        self.spinBox_R4_GI_LB.setValue(role_ratings_df['gi']['lbr4'])
+        self.spinBox_R4_ELU_LB.setValue(role_ratings_df['elu']['lbr4'])
+        self.spinBox_R4_TEC_LB.setValue(role_ratings_df['tec']['lbr4'])
+        self.lcdNumber_R4_LB.display(role_ratings_df['total']['lbr4'])
+        self.spinBox_R4_ATH_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_LB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_LB.setText(role_ratings_df['label']['lbr5'])
+        self.spinBox_R5_ATH_LB.setValue(role_ratings_df['ath']['lbr5'])
+        self.spinBox_R5_SPD_LB.setValue(role_ratings_df['spd']['lbr5'])
+        self.spinBox_R5_DUR_LB.setValue(role_ratings_df['dur']['lbr5'])
+        self.spinBox_R5_WE_LB.setValue(role_ratings_df['we']['lbr5'])
+        self.spinBox_R5_STA_LB.setValue(role_ratings_df['sta']['lbr5'])
+        self.spinBox_R5_STR_LB.setValue(role_ratings_df['str']['lbr5'])
+        self.spinBox_R5_BLK_LB.setValue(role_ratings_df['blk']['lbr5'])
+        self.spinBox_R5_TKL_LB.setValue(role_ratings_df['tkl']['lbr5'])
+        self.spinBox_R5_HAN_LB.setValue(role_ratings_df['han']['lbr5'])
+        self.spinBox_R5_GI_LB.setValue(role_ratings_df['gi']['lbr5'])
+        self.spinBox_R5_ELU_LB.setValue(role_ratings_df['elu']['lbr5'])
+        self.spinBox_R5_TEC_LB.setValue(role_ratings_df['tec']['lbr5'])
+        self.lcdNumber_R5_LB.display(role_ratings_df['total']['lbr5'])
+        self.spinBox_R5_ATH_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_LB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_LB.setText(role_ratings_df['label']['lbr6'])
+        self.spinBox_R6_ATH_LB.setValue(role_ratings_df['ath']['lbr6'])
+        self.spinBox_R6_SPD_LB.setValue(role_ratings_df['spd']['lbr6'])
+        self.spinBox_R6_DUR_LB.setValue(role_ratings_df['dur']['lbr6'])
+        self.spinBox_R6_WE_LB.setValue(role_ratings_df['we']['lbr6'])
+        self.spinBox_R6_STA_LB.setValue(role_ratings_df['sta']['lbr6'])
+        self.spinBox_R6_STR_LB.setValue(role_ratings_df['str']['lbr6'])
+        self.spinBox_R6_BLK_LB.setValue(role_ratings_df['blk']['lbr6'])
+        self.spinBox_R6_TKL_LB.setValue(role_ratings_df['tkl']['lbr6'])
+        self.spinBox_R6_HAN_LB.setValue(role_ratings_df['han']['lbr6'])
+        self.spinBox_R6_GI_LB.setValue(role_ratings_df['gi']['lbr6'])
+        self.spinBox_R6_ELU_LB.setValue(role_ratings_df['elu']['lbr6'])
+        self.spinBox_R6_TEC_LB.setValue(role_ratings_df['tec']['lbr6'])
+        self.lcdNumber_R6_LB.display(role_ratings_df['total']['lbr6'])
+        self.spinBox_R6_ATH_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_LB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_LB.valueChanged.connect(self.update_row_total)
+
+        # DB Section
+        self.lineEdit_R1_DB.setText(role_ratings_df['label']['dbr1'])
+        self.spinBox_R1_ATH_DB.setValue(role_ratings_df['ath']['dbr1'])
+        self.spinBox_R1_SPD_DB.setValue(role_ratings_df['spd']['dbr1'])
+        self.spinBox_R1_DUR_DB.setValue(role_ratings_df['dur']['dbr1'])
+        self.spinBox_R1_WE_DB.setValue(role_ratings_df['we']['dbr1'])
+        self.spinBox_R1_STA_DB.setValue(role_ratings_df['sta']['dbr1'])
+        self.spinBox_R1_STR_DB.setValue(role_ratings_df['str']['dbr1'])
+        self.spinBox_R1_BLK_DB.setValue(role_ratings_df['blk']['dbr1'])
+        self.spinBox_R1_TKL_DB.setValue(role_ratings_df['tkl']['dbr1'])
+        self.spinBox_R1_HAN_DB.setValue(role_ratings_df['han']['dbr1'])
+        self.spinBox_R1_GI_DB.setValue(role_ratings_df['gi']['dbr1'])
+        self.spinBox_R1_ELU_DB.setValue(role_ratings_df['elu']['dbr1'])
+        self.spinBox_R1_TEC_DB.setValue(role_ratings_df['tec']['dbr1'])
+        self.lcdNumber_R1_DB.display(role_ratings_df['total']['dbr1'])
+        self.spinBox_R1_ATH_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_DB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_DB.setText(role_ratings_df['label']['dbr2'])
+        self.spinBox_R2_ATH_DB.setValue(role_ratings_df['ath']['dbr2'])
+        self.spinBox_R2_SPD_DB.setValue(role_ratings_df['spd']['dbr2'])
+        self.spinBox_R2_DUR_DB.setValue(role_ratings_df['dur']['dbr2'])
+        self.spinBox_R2_WE_DB.setValue(role_ratings_df['we']['dbr2'])
+        self.spinBox_R2_STA_DB.setValue(role_ratings_df['sta']['dbr2'])
+        self.spinBox_R2_STR_DB.setValue(role_ratings_df['str']['dbr2'])
+        self.spinBox_R2_BLK_DB.setValue(role_ratings_df['blk']['dbr2'])
+        self.spinBox_R2_TKL_DB.setValue(role_ratings_df['tkl']['dbr2'])
+        self.spinBox_R2_HAN_DB.setValue(role_ratings_df['han']['dbr2'])
+        self.spinBox_R2_GI_DB.setValue(role_ratings_df['gi']['dbr2'])
+        self.spinBox_R2_ELU_DB.setValue(role_ratings_df['elu']['dbr2'])
+        self.spinBox_R2_TEC_DB.setValue(role_ratings_df['tec']['dbr2'])
+        self.lcdNumber_R2_DB.display(role_ratings_df['total']['dbr2'])
+        self.spinBox_R2_ATH_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_DB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_DB.setText(role_ratings_df['label']['dbr3'])
+        self.spinBox_R3_ATH_DB.setValue(role_ratings_df['ath']['dbr3'])
+        self.spinBox_R3_SPD_DB.setValue(role_ratings_df['spd']['dbr3'])
+        self.spinBox_R3_DUR_DB.setValue(role_ratings_df['dur']['dbr3'])
+        self.spinBox_R3_WE_DB.setValue(role_ratings_df['we']['dbr3'])
+        self.spinBox_R3_STA_DB.setValue(role_ratings_df['sta']['dbr3'])
+        self.spinBox_R3_STR_DB.setValue(role_ratings_df['str']['dbr3'])
+        self.spinBox_R3_BLK_DB.setValue(role_ratings_df['blk']['dbr3'])
+        self.spinBox_R3_TKL_DB.setValue(role_ratings_df['tkl']['dbr3'])
+        self.spinBox_R3_HAN_DB.setValue(role_ratings_df['han']['dbr3'])
+        self.spinBox_R3_GI_DB.setValue(role_ratings_df['gi']['dbr3'])
+        self.spinBox_R3_ELU_DB.setValue(role_ratings_df['elu']['dbr3'])
+        self.spinBox_R3_TEC_DB.setValue(role_ratings_df['tec']['dbr3'])
+        self.lcdNumber_R3_DB.display(role_ratings_df['total']['dbr3'])
+        self.spinBox_R3_ATH_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_DB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_DB.setText(role_ratings_df['label']['dbr4'])
+        self.spinBox_R4_ATH_DB.setValue(role_ratings_df['ath']['dbr4'])
+        self.spinBox_R4_SPD_DB.setValue(role_ratings_df['spd']['dbr4'])
+        self.spinBox_R4_DUR_DB.setValue(role_ratings_df['dur']['dbr4'])
+        self.spinBox_R4_WE_DB.setValue(role_ratings_df['we']['dbr4'])
+        self.spinBox_R4_STA_DB.setValue(role_ratings_df['sta']['dbr4'])
+        self.spinBox_R4_STR_DB.setValue(role_ratings_df['str']['dbr4'])
+        self.spinBox_R4_BLK_DB.setValue(role_ratings_df['blk']['dbr4'])
+        self.spinBox_R4_TKL_DB.setValue(role_ratings_df['tkl']['dbr4'])
+        self.spinBox_R4_HAN_DB.setValue(role_ratings_df['han']['dbr4'])
+        self.spinBox_R4_GI_DB.setValue(role_ratings_df['gi']['dbr4'])
+        self.spinBox_R4_ELU_DB.setValue(role_ratings_df['elu']['dbr4'])
+        self.spinBox_R4_TEC_DB.setValue(role_ratings_df['tec']['dbr4'])
+        self.lcdNumber_R4_DB.display(role_ratings_df['total']['dbr4'])
+        self.spinBox_R4_ATH_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_DB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_DB.setText(role_ratings_df['label']['dbr5'])
+        self.spinBox_R5_ATH_DB.setValue(role_ratings_df['ath']['dbr5'])
+        self.spinBox_R5_SPD_DB.setValue(role_ratings_df['spd']['dbr5'])
+        self.spinBox_R5_DUR_DB.setValue(role_ratings_df['dur']['dbr5'])
+        self.spinBox_R5_WE_DB.setValue(role_ratings_df['we']['dbr5'])
+        self.spinBox_R5_STA_DB.setValue(role_ratings_df['sta']['dbr5'])
+        self.spinBox_R5_STR_DB.setValue(role_ratings_df['str']['dbr5'])
+        self.spinBox_R5_BLK_DB.setValue(role_ratings_df['blk']['dbr5'])
+        self.spinBox_R5_TKL_DB.setValue(role_ratings_df['tkl']['dbr5'])
+        self.spinBox_R5_HAN_DB.setValue(role_ratings_df['han']['dbr5'])
+        self.spinBox_R5_GI_DB.setValue(role_ratings_df['gi']['dbr5'])
+        self.spinBox_R5_ELU_DB.setValue(role_ratings_df['elu']['dbr5'])
+        self.spinBox_R5_TEC_DB.setValue(role_ratings_df['tec']['dbr5'])
+        self.lcdNumber_R5_DB.display(role_ratings_df['total']['dbr5'])
+        self.spinBox_R5_ATH_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_DB.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_DB.setText(role_ratings_df['label']['dbr6'])
+        self.spinBox_R6_ATH_DB.setValue(role_ratings_df['ath']['dbr6'])
+        self.spinBox_R6_SPD_DB.setValue(role_ratings_df['spd']['dbr6'])
+        self.spinBox_R6_DUR_DB.setValue(role_ratings_df['dur']['dbr6'])
+        self.spinBox_R6_WE_DB.setValue(role_ratings_df['we']['dbr6'])
+        self.spinBox_R6_STA_DB.setValue(role_ratings_df['sta']['dbr6'])
+        self.spinBox_R6_STR_DB.setValue(role_ratings_df['str']['dbr6'])
+        self.spinBox_R6_BLK_DB.setValue(role_ratings_df['blk']['dbr6'])
+        self.spinBox_R6_TKL_DB.setValue(role_ratings_df['tkl']['dbr6'])
+        self.spinBox_R6_HAN_DB.setValue(role_ratings_df['han']['dbr6'])
+        self.spinBox_R6_GI_DB.setValue(role_ratings_df['gi']['dbr6'])
+        self.spinBox_R6_ELU_DB.setValue(role_ratings_df['elu']['dbr6'])
+        self.spinBox_R6_TEC_DB.setValue(role_ratings_df['tec']['dbr6'])
+        self.lcdNumber_R6_DB.display(role_ratings_df['total']['dbr6'])
+        self.spinBox_R6_ATH_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_DB.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_DB.valueChanged.connect(self.update_row_total)
+
+        # K Section
+        self.lineEdit_R1_K.setText(role_ratings_df['label']['kr1'])
+        self.spinBox_R1_ATH_K.setValue(role_ratings_df['ath']['kr1'])
+        self.spinBox_R1_SPD_K.setValue(role_ratings_df['spd']['kr1'])
+        self.spinBox_R1_DUR_K.setValue(role_ratings_df['dur']['kr1'])
+        self.spinBox_R1_WE_K.setValue(role_ratings_df['we']['kr1'])
+        self.spinBox_R1_STA_K.setValue(role_ratings_df['sta']['kr1'])
+        self.spinBox_R1_STR_K.setValue(role_ratings_df['str']['kr1'])
+        self.spinBox_R1_BLK_K.setValue(role_ratings_df['blk']['kr1'])
+        self.spinBox_R1_TKL_K.setValue(role_ratings_df['tkl']['kr1'])
+        self.spinBox_R1_HAN_K.setValue(role_ratings_df['han']['kr1'])
+        self.spinBox_R1_GI_K.setValue(role_ratings_df['gi']['kr1'])
+        self.spinBox_R1_ELU_K.setValue(role_ratings_df['elu']['kr1'])
+        self.spinBox_R1_TEC_K.setValue(role_ratings_df['tec']['kr1'])
+        self.lcdNumber_R1_K.display(role_ratings_df['total']['kr1'])
+        self.spinBox_R1_ATH_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_K.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_K.setText(role_ratings_df['label']['kr2'])
+        self.spinBox_R2_ATH_K.setValue(role_ratings_df['ath']['kr2'])
+        self.spinBox_R2_SPD_K.setValue(role_ratings_df['spd']['kr2'])
+        self.spinBox_R2_DUR_K.setValue(role_ratings_df['dur']['kr2'])
+        self.spinBox_R2_WE_K.setValue(role_ratings_df['we']['kr2'])
+        self.spinBox_R2_STA_K.setValue(role_ratings_df['sta']['kr2'])
+        self.spinBox_R2_STR_K.setValue(role_ratings_df['str']['kr2'])
+        self.spinBox_R2_BLK_K.setValue(role_ratings_df['blk']['kr2'])
+        self.spinBox_R2_TKL_K.setValue(role_ratings_df['tkl']['kr2'])
+        self.spinBox_R2_HAN_K.setValue(role_ratings_df['han']['kr2'])
+        self.spinBox_R2_GI_K.setValue(role_ratings_df['gi']['kr2'])
+        self.spinBox_R2_ELU_K.setValue(role_ratings_df['elu']['kr2'])
+        self.spinBox_R2_TEC_K.setValue(role_ratings_df['tec']['kr2'])
+        self.lcdNumber_R2_K.display(role_ratings_df['total']['kr2'])
+        self.spinBox_R2_ATH_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_K.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_K.setText(role_ratings_df['label']['kr3'])
+        self.spinBox_R3_ATH_K.setValue(role_ratings_df['ath']['kr3'])
+        self.spinBox_R3_SPD_K.setValue(role_ratings_df['spd']['kr3'])
+        self.spinBox_R3_DUR_K.setValue(role_ratings_df['dur']['kr3'])
+        self.spinBox_R3_WE_K.setValue(role_ratings_df['we']['kr3'])
+        self.spinBox_R3_STA_K.setValue(role_ratings_df['sta']['kr3'])
+        self.spinBox_R3_STR_K.setValue(role_ratings_df['str']['kr3'])
+        self.spinBox_R3_BLK_K.setValue(role_ratings_df['blk']['kr3'])
+        self.spinBox_R3_TKL_K.setValue(role_ratings_df['tkl']['kr3'])
+        self.spinBox_R3_HAN_K.setValue(role_ratings_df['han']['kr3'])
+        self.spinBox_R3_GI_K.setValue(role_ratings_df['gi']['kr3'])
+        self.spinBox_R3_ELU_K.setValue(role_ratings_df['elu']['kr3'])
+        self.spinBox_R3_TEC_K.setValue(role_ratings_df['tec']['kr3'])
+        self.lcdNumber_R3_K.display(role_ratings_df['total']['kr3'])
+        self.spinBox_R3_ATH_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_K.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_K.setText(role_ratings_df['label']['kr4'])
+        self.spinBox_R4_ATH_K.setValue(role_ratings_df['ath']['kr4'])
+        self.spinBox_R4_SPD_K.setValue(role_ratings_df['spd']['kr4'])
+        self.spinBox_R4_DUR_K.setValue(role_ratings_df['dur']['kr4'])
+        self.spinBox_R4_WE_K.setValue(role_ratings_df['we']['kr4'])
+        self.spinBox_R4_STA_K.setValue(role_ratings_df['sta']['kr4'])
+        self.spinBox_R4_STR_K.setValue(role_ratings_df['str']['kr4'])
+        self.spinBox_R4_BLK_K.setValue(role_ratings_df['blk']['kr4'])
+        self.spinBox_R4_TKL_K.setValue(role_ratings_df['tkl']['kr4'])
+        self.spinBox_R4_HAN_K.setValue(role_ratings_df['han']['kr4'])
+        self.spinBox_R4_GI_K.setValue(role_ratings_df['gi']['kr4'])
+        self.spinBox_R4_ELU_K.setValue(role_ratings_df['elu']['kr4'])
+        self.spinBox_R4_TEC_K.setValue(role_ratings_df['tec']['kr4'])
+        self.lcdNumber_R4_K.display(role_ratings_df['total']['kr4'])
+        self.spinBox_R4_ATH_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_K.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_K.setText(role_ratings_df['label']['kr5'])
+        self.spinBox_R5_ATH_K.setValue(role_ratings_df['ath']['kr5'])
+        self.spinBox_R5_SPD_K.setValue(role_ratings_df['spd']['kr5'])
+        self.spinBox_R5_DUR_K.setValue(role_ratings_df['dur']['kr5'])
+        self.spinBox_R5_WE_K.setValue(role_ratings_df['we']['kr5'])
+        self.spinBox_R5_STA_K.setValue(role_ratings_df['sta']['kr5'])
+        self.spinBox_R5_STR_K.setValue(role_ratings_df['str']['kr5'])
+        self.spinBox_R5_BLK_K.setValue(role_ratings_df['blk']['kr5'])
+        self.spinBox_R5_TKL_K.setValue(role_ratings_df['tkl']['kr5'])
+        self.spinBox_R5_HAN_K.setValue(role_ratings_df['han']['kr5'])
+        self.spinBox_R5_GI_K.setValue(role_ratings_df['gi']['kr5'])
+        self.spinBox_R5_ELU_K.setValue(role_ratings_df['elu']['kr5'])
+        self.spinBox_R5_TEC_K.setValue(role_ratings_df['tec']['kr5'])
+        self.lcdNumber_R5_K.display(role_ratings_df['total']['kr5'])
+        self.spinBox_R5_ATH_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_K.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_K.setText(role_ratings_df['label']['kr6'])
+        self.spinBox_R6_ATH_K.setValue(role_ratings_df['ath']['kr6'])
+        self.spinBox_R6_SPD_K.setValue(role_ratings_df['spd']['kr6'])
+        self.spinBox_R6_DUR_K.setValue(role_ratings_df['dur']['kr6'])
+        self.spinBox_R6_WE_K.setValue(role_ratings_df['we']['kr6'])
+        self.spinBox_R6_STA_K.setValue(role_ratings_df['sta']['kr6'])
+        self.spinBox_R6_STR_K.setValue(role_ratings_df['str']['kr6'])
+        self.spinBox_R6_BLK_K.setValue(role_ratings_df['blk']['kr6'])
+        self.spinBox_R6_TKL_K.setValue(role_ratings_df['tkl']['kr6'])
+        self.spinBox_R6_HAN_K.setValue(role_ratings_df['han']['kr6'])
+        self.spinBox_R6_GI_K.setValue(role_ratings_df['gi']['kr6'])
+        self.spinBox_R6_ELU_K.setValue(role_ratings_df['elu']['kr6'])
+        self.spinBox_R6_TEC_K.setValue(role_ratings_df['tec']['kr6'])
+        self.lcdNumber_R6_K.display(role_ratings_df['total']['kr6'])
+        self.spinBox_R6_ATH_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_K.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_K.valueChanged.connect(self.update_row_total)
+
+        # P Section
+        self.lineEdit_R1_P.setText(role_ratings_df['label']['pr1'])
+        self.spinBox_R1_ATH_P.setValue(role_ratings_df['ath']['pr1'])
+        self.spinBox_R1_SPD_P.setValue(role_ratings_df['spd']['pr1'])
+        self.spinBox_R1_DUR_P.setValue(role_ratings_df['dur']['pr1'])
+        self.spinBox_R1_WE_P.setValue(role_ratings_df['we']['pr1'])
+        self.spinBox_R1_STA_P.setValue(role_ratings_df['sta']['pr1'])
+        self.spinBox_R1_STR_P.setValue(role_ratings_df['str']['pr1'])
+        self.spinBox_R1_BLK_P.setValue(role_ratings_df['blk']['pr1'])
+        self.spinBox_R1_TKL_P.setValue(role_ratings_df['tkl']['pr1'])
+        self.spinBox_R1_HAN_P.setValue(role_ratings_df['han']['pr1'])
+        self.spinBox_R1_GI_P.setValue(role_ratings_df['gi']['pr1'])
+        self.spinBox_R1_ELU_P.setValue(role_ratings_df['elu']['pr1'])
+        self.spinBox_R1_TEC_P.setValue(role_ratings_df['tec']['pr1'])
+        self.lcdNumber_R1_P.display(role_ratings_df['total']['pr1'])
+        self.spinBox_R1_ATH_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_SPD_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_DUR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_WE_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STA_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_STR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_BLK_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TKL_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_HAN_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_GI_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_ELU_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R1_TEC_P.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R2_P.setText(role_ratings_df['label']['pr2'])
+        self.spinBox_R2_ATH_P.setValue(role_ratings_df['ath']['pr2'])
+        self.spinBox_R2_SPD_P.setValue(role_ratings_df['spd']['pr2'])
+        self.spinBox_R2_DUR_P.setValue(role_ratings_df['dur']['pr2'])
+        self.spinBox_R2_WE_P.setValue(role_ratings_df['we']['pr2'])
+        self.spinBox_R2_STA_P.setValue(role_ratings_df['sta']['pr2'])
+        self.spinBox_R2_STR_P.setValue(role_ratings_df['str']['pr2'])
+        self.spinBox_R2_BLK_P.setValue(role_ratings_df['blk']['pr2'])
+        self.spinBox_R2_TKL_P.setValue(role_ratings_df['tkl']['pr2'])
+        self.spinBox_R2_HAN_P.setValue(role_ratings_df['han']['pr2'])
+        self.spinBox_R2_GI_P.setValue(role_ratings_df['gi']['pr2'])
+        self.spinBox_R2_ELU_P.setValue(role_ratings_df['elu']['pr2'])
+        self.spinBox_R2_TEC_P.setValue(role_ratings_df['tec']['pr2'])
+        self.lcdNumber_R2_P.display(role_ratings_df['total']['pr2'])
+        self.spinBox_R2_ATH_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_SPD_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_DUR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_WE_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STA_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_STR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_BLK_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TKL_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_HAN_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_GI_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_ELU_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R2_TEC_P.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R3_P.setText(role_ratings_df['label']['pr3'])
+        self.spinBox_R3_ATH_P.setValue(role_ratings_df['ath']['pr3'])
+        self.spinBox_R3_SPD_P.setValue(role_ratings_df['spd']['pr3'])
+        self.spinBox_R3_DUR_P.setValue(role_ratings_df['dur']['pr3'])
+        self.spinBox_R3_WE_P.setValue(role_ratings_df['we']['pr3'])
+        self.spinBox_R3_STA_P.setValue(role_ratings_df['sta']['pr3'])
+        self.spinBox_R3_STR_P.setValue(role_ratings_df['str']['pr3'])
+        self.spinBox_R3_BLK_P.setValue(role_ratings_df['blk']['pr3'])
+        self.spinBox_R3_TKL_P.setValue(role_ratings_df['tkl']['pr3'])
+        self.spinBox_R3_HAN_P.setValue(role_ratings_df['han']['pr3'])
+        self.spinBox_R3_GI_P.setValue(role_ratings_df['gi']['pr3'])
+        self.spinBox_R3_ELU_P.setValue(role_ratings_df['elu']['pr3'])
+        self.spinBox_R3_TEC_P.setValue(role_ratings_df['tec']['pr3'])
+        self.lcdNumber_R3_P.display(role_ratings_df['total']['pr3'])
+        self.spinBox_R3_ATH_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_SPD_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_DUR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_WE_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STA_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_STR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_BLK_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TKL_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_HAN_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_GI_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_ELU_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R3_TEC_P.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R4_P.setText(role_ratings_df['label']['pr4'])
+        self.spinBox_R4_ATH_P.setValue(role_ratings_df['ath']['pr4'])
+        self.spinBox_R4_SPD_P.setValue(role_ratings_df['spd']['pr4'])
+        self.spinBox_R4_DUR_P.setValue(role_ratings_df['dur']['pr4'])
+        self.spinBox_R4_WE_P.setValue(role_ratings_df['we']['pr4'])
+        self.spinBox_R4_STA_P.setValue(role_ratings_df['sta']['pr4'])
+        self.spinBox_R4_STR_P.setValue(role_ratings_df['str']['pr4'])
+        self.spinBox_R4_BLK_P.setValue(role_ratings_df['blk']['pr4'])
+        self.spinBox_R4_TKL_P.setValue(role_ratings_df['tkl']['pr4'])
+        self.spinBox_R4_HAN_P.setValue(role_ratings_df['han']['pr4'])
+        self.spinBox_R4_GI_P.setValue(role_ratings_df['gi']['pr4'])
+        self.spinBox_R4_ELU_P.setValue(role_ratings_df['elu']['pr4'])
+        self.spinBox_R4_TEC_P.setValue(role_ratings_df['tec']['pr4'])
+        self.lcdNumber_R4_P.display(role_ratings_df['total']['pr4'])
+        self.spinBox_R4_ATH_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_SPD_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_DUR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_WE_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STA_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_STR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_BLK_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TKL_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_HAN_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_GI_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_ELU_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R4_TEC_P.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R5_P.setText(role_ratings_df['label']['pr5'])
+        self.spinBox_R5_ATH_P.setValue(role_ratings_df['ath']['pr5'])
+        self.spinBox_R5_SPD_P.setValue(role_ratings_df['spd']['pr5'])
+        self.spinBox_R5_DUR_P.setValue(role_ratings_df['dur']['pr5'])
+        self.spinBox_R5_WE_P.setValue(role_ratings_df['we']['pr5'])
+        self.spinBox_R5_STA_P.setValue(role_ratings_df['sta']['pr5'])
+        self.spinBox_R5_STR_P.setValue(role_ratings_df['str']['pr5'])
+        self.spinBox_R5_BLK_P.setValue(role_ratings_df['blk']['pr5'])
+        self.spinBox_R5_TKL_P.setValue(role_ratings_df['tkl']['pr5'])
+        self.spinBox_R5_HAN_P.setValue(role_ratings_df['han']['pr5'])
+        self.spinBox_R5_GI_P.setValue(role_ratings_df['gi']['pr5'])
+        self.spinBox_R5_ELU_P.setValue(role_ratings_df['elu']['pr5'])
+        self.spinBox_R5_TEC_P.setValue(role_ratings_df['tec']['pr5'])
+        self.lcdNumber_R5_P.display(role_ratings_df['total']['pr5'])
+        self.spinBox_R5_ATH_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_SPD_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_DUR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_WE_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STA_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_STR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_BLK_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TKL_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_HAN_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_GI_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_ELU_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R5_TEC_P.valueChanged.connect(self.update_row_total)
+
+        self.lineEdit_R6_P.setText(role_ratings_df['label']['pr6'])
+        self.spinBox_R6_ATH_P.setValue(role_ratings_df['ath']['pr6'])
+        self.spinBox_R6_SPD_P.setValue(role_ratings_df['spd']['pr6'])
+        self.spinBox_R6_DUR_P.setValue(role_ratings_df['dur']['pr6'])
+        self.spinBox_R6_WE_P.setValue(role_ratings_df['we']['pr6'])
+        self.spinBox_R6_STA_P.setValue(role_ratings_df['sta']['pr6'])
+        self.spinBox_R6_STR_P.setValue(role_ratings_df['str']['pr6'])
+        self.spinBox_R6_BLK_P.setValue(role_ratings_df['blk']['pr6'])
+        self.spinBox_R6_TKL_P.setValue(role_ratings_df['tkl']['pr6'])
+        self.spinBox_R6_HAN_P.setValue(role_ratings_df['han']['pr6'])
+        self.spinBox_R6_GI_P.setValue(role_ratings_df['gi']['pr6'])
+        self.spinBox_R6_ELU_P.setValue(role_ratings_df['elu']['pr6'])
+        self.spinBox_R6_TEC_P.setValue(role_ratings_df['tec']['pr6'])
+        self.lcdNumber_R6_P.display(role_ratings_df['total']['pr6'])
+        self.spinBox_R6_ATH_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_SPD_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_DUR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_WE_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STA_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_STR_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_BLK_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TKL_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_HAN_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_GI_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_ELU_P.valueChanged.connect(self.update_row_total)
+        self.spinBox_R6_TEC_P.valueChanged.connect(self.update_row_total)
+
+
+    def update_row_total(self):
+        # QB Section
+        self.lcdNumber_R1_QB.display(
+            sum([
+                self.spinBox_R1_ATH_QB.value(),
+                self.spinBox_R1_SPD_QB.value(),
+                self.spinBox_R1_DUR_QB.value(),
+                self.spinBox_R1_WE_QB.value(),
+                self.spinBox_R1_STA_QB.value(),
+                self.spinBox_R1_STR_QB.value(),
+                self.spinBox_R1_BLK_QB.value(),
+                self.spinBox_R1_TKL_QB.value(),
+                self.spinBox_R1_HAN_QB.value(),
+                self.spinBox_R1_GI_QB.value(),
+                self.spinBox_R1_ELU_QB.value(),
+                self.spinBox_R1_TEC_QB.value()
+            ])
+        )
+
+        self.lcdNumber_R2_QB.display(
+            sum([
+                self.spinBox_R2_ATH_QB.value(),
+                self.spinBox_R2_SPD_QB.value(),
+                self.spinBox_R2_DUR_QB.value(),
+                self.spinBox_R2_WE_QB.value(),
+                self.spinBox_R2_STA_QB.value(),
+                self.spinBox_R2_STR_QB.value(),
+                self.spinBox_R2_BLK_QB.value(),
+                self.spinBox_R2_TKL_QB.value(),
+                self.spinBox_R2_HAN_QB.value(),
+                self.spinBox_R2_GI_QB.value(),
+                self.spinBox_R2_ELU_QB.value(),
+                self.spinBox_R2_TEC_QB.value()
+            ])
+        )
+
+        self.lcdNumber_R3_QB.display(
+            sum([
+                self.spinBox_R3_ATH_QB.value(),
+                self.spinBox_R3_SPD_QB.value(),
+                self.spinBox_R3_DUR_QB.value(),
+                self.spinBox_R3_WE_QB.value(),
+                self.spinBox_R3_STA_QB.value(),
+                self.spinBox_R3_STR_QB.value(),
+                self.spinBox_R3_BLK_QB.value(),
+                self.spinBox_R3_TKL_QB.value(),
+                self.spinBox_R3_HAN_QB.value(),
+                self.spinBox_R3_GI_QB.value(),
+                self.spinBox_R3_ELU_QB.value(),
+                self.spinBox_R3_TEC_QB.value()
+            ])
+        )
+
+        self.lcdNumber_R4_QB.display(
+            sum([
+                self.spinBox_R4_ATH_QB.value(),
+                self.spinBox_R4_SPD_QB.value(),
+                self.spinBox_R4_DUR_QB.value(),
+                self.spinBox_R4_WE_QB.value(),
+                self.spinBox_R4_STA_QB.value(),
+                self.spinBox_R4_STR_QB.value(),
+                self.spinBox_R4_BLK_QB.value(),
+                self.spinBox_R4_TKL_QB.value(),
+                self.spinBox_R4_HAN_QB.value(),
+                self.spinBox_R4_GI_QB.value(),
+                self.spinBox_R4_ELU_QB.value(),
+                self.spinBox_R4_TEC_QB.value()
+            ])
+        )
+
+        self.lcdNumber_R5_QB.display(
+            sum([
+                self.spinBox_R5_ATH_QB.value(),
+                self.spinBox_R5_SPD_QB.value(),
+                self.spinBox_R5_DUR_QB.value(),
+                self.spinBox_R5_WE_QB.value(),
+                self.spinBox_R5_STA_QB.value(),
+                self.spinBox_R5_STR_QB.value(),
+                self.spinBox_R5_BLK_QB.value(),
+                self.spinBox_R5_TKL_QB.value(),
+                self.spinBox_R5_HAN_QB.value(),
+                self.spinBox_R5_GI_QB.value(),
+                self.spinBox_R5_ELU_QB.value(),
+                self.spinBox_R5_TEC_QB.value()
+            ])
+        )
+
+        self.lcdNumber_R6_QB.display(
+            sum([
+                self.spinBox_R6_ATH_QB.value(),
+                self.spinBox_R6_SPD_QB.value(),
+                self.spinBox_R6_DUR_QB.value(),
+                self.spinBox_R6_WE_QB.value(),
+                self.spinBox_R6_STA_QB.value(),
+                self.spinBox_R6_STR_QB.value(),
+                self.spinBox_R6_BLK_QB.value(),
+                self.spinBox_R6_TKL_QB.value(),
+                self.spinBox_R6_HAN_QB.value(),
+                self.spinBox_R6_GI_QB.value(),
+                self.spinBox_R6_ELU_QB.value(),
+                self.spinBox_R6_TEC_QB.value()
+            ])
+        )
+
+        # RB Section
+        self.lcdNumber_R1_RB.display(
+            sum([
+                self.spinBox_R1_ATH_RB.value(),
+                self.spinBox_R1_SPD_RB.value(),
+                self.spinBox_R1_DUR_RB.value(),
+                self.spinBox_R1_WE_RB.value(),
+                self.spinBox_R1_STA_RB.value(),
+                self.spinBox_R1_STR_RB.value(),
+                self.spinBox_R1_BLK_RB.value(),
+                self.spinBox_R1_TKL_RB.value(),
+                self.spinBox_R1_HAN_RB.value(),
+                self.spinBox_R1_GI_RB.value(),
+                self.spinBox_R1_ELU_RB.value(),
+                self.spinBox_R1_TEC_RB.value()
+            ])
+        )
+
+        self.lcdNumber_R2_RB.display(
+            sum([
+                self.spinBox_R2_ATH_RB.value(),
+                self.spinBox_R2_SPD_RB.value(),
+                self.spinBox_R2_DUR_RB.value(),
+                self.spinBox_R2_WE_RB.value(),
+                self.spinBox_R2_STA_RB.value(),
+                self.spinBox_R2_STR_RB.value(),
+                self.spinBox_R2_BLK_RB.value(),
+                self.spinBox_R2_TKL_RB.value(),
+                self.spinBox_R2_HAN_RB.value(),
+                self.spinBox_R2_GI_RB.value(),
+                self.spinBox_R2_ELU_RB.value(),
+                self.spinBox_R2_TEC_RB.value()
+            ])
+        )
+
+        self.lcdNumber_R3_RB.display(
+            sum([
+                self.spinBox_R3_ATH_RB.value(),
+                self.spinBox_R3_SPD_RB.value(),
+                self.spinBox_R3_DUR_RB.value(),
+                self.spinBox_R3_WE_RB.value(),
+                self.spinBox_R3_STA_RB.value(),
+                self.spinBox_R3_STR_RB.value(),
+                self.spinBox_R3_BLK_RB.value(),
+                self.spinBox_R3_TKL_RB.value(),
+                self.spinBox_R3_HAN_RB.value(),
+                self.spinBox_R3_GI_RB.value(),
+                self.spinBox_R3_ELU_RB.value(),
+                self.spinBox_R3_TEC_RB.value()
+            ])
+        )
+
+        self.lcdNumber_R4_RB.display(
+            sum([
+                self.spinBox_R4_ATH_RB.value(),
+                self.spinBox_R4_SPD_RB.value(),
+                self.spinBox_R4_DUR_RB.value(),
+                self.spinBox_R4_WE_RB.value(),
+                self.spinBox_R4_STA_RB.value(),
+                self.spinBox_R4_STR_RB.value(),
+                self.spinBox_R4_BLK_RB.value(),
+                self.spinBox_R4_TKL_RB.value(),
+                self.spinBox_R4_HAN_RB.value(),
+                self.spinBox_R4_GI_RB.value(),
+                self.spinBox_R4_ELU_RB.value(),
+                self.spinBox_R4_TEC_RB.value()
+            ])
+        )
+
+        self.lcdNumber_R5_RB.display(
+            sum([
+                self.spinBox_R5_ATH_RB.value(),
+                self.spinBox_R5_SPD_RB.value(),
+                self.spinBox_R5_DUR_RB.value(),
+                self.spinBox_R5_WE_RB.value(),
+                self.spinBox_R5_STA_RB.value(),
+                self.spinBox_R5_STR_RB.value(),
+                self.spinBox_R5_BLK_RB.value(),
+                self.spinBox_R5_TKL_RB.value(),
+                self.spinBox_R5_HAN_RB.value(),
+                self.spinBox_R5_GI_RB.value(),
+                self.spinBox_R5_ELU_RB.value(),
+                self.spinBox_R5_TEC_RB.value()
+            ])
+        )
+
+        self.lcdNumber_R6_RB.display(
+            sum([
+                self.spinBox_R6_ATH_RB.value(),
+                self.spinBox_R6_SPD_RB.value(),
+                self.spinBox_R6_DUR_RB.value(),
+                self.spinBox_R6_WE_RB.value(),
+                self.spinBox_R6_STA_RB.value(),
+                self.spinBox_R6_STR_RB.value(),
+                self.spinBox_R6_BLK_RB.value(),
+                self.spinBox_R6_TKL_RB.value(),
+                self.spinBox_R6_HAN_RB.value(),
+                self.spinBox_R6_GI_RB.value(),
+                self.spinBox_R6_ELU_RB.value(),
+                self.spinBox_R6_TEC_RB.value()
+            ])
+        )
+        
+        # WR Section
+        self.lcdNumber_R1_WR.display(
+            sum([
+                self.spinBox_R1_ATH_WR.value(),
+                self.spinBox_R1_SPD_WR.value(),
+                self.spinBox_R1_DUR_WR.value(),
+                self.spinBox_R1_WE_WR.value(),
+                self.spinBox_R1_STA_WR.value(),
+                self.spinBox_R1_STR_WR.value(),
+                self.spinBox_R1_BLK_WR.value(),
+                self.spinBox_R1_TKL_WR.value(),
+                self.spinBox_R1_HAN_WR.value(),
+                self.spinBox_R1_GI_WR.value(),
+                self.spinBox_R1_ELU_WR.value(),
+                self.spinBox_R1_TEC_WR.value()
+            ])
+        )
+
+        self.lcdNumber_R2_WR.display(
+            sum([
+                self.spinBox_R2_ATH_WR.value(),
+                self.spinBox_R2_SPD_WR.value(),
+                self.spinBox_R2_DUR_WR.value(),
+                self.spinBox_R2_WE_WR.value(),
+                self.spinBox_R2_STA_WR.value(),
+                self.spinBox_R2_STR_WR.value(),
+                self.spinBox_R2_BLK_WR.value(),
+                self.spinBox_R2_TKL_WR.value(),
+                self.spinBox_R2_HAN_WR.value(),
+                self.spinBox_R2_GI_WR.value(),
+                self.spinBox_R2_ELU_WR.value(),
+                self.spinBox_R2_TEC_WR.value()
+            ])
+        )
+
+        self.lcdNumber_R3_WR.display(
+            sum([
+                self.spinBox_R3_ATH_WR.value(),
+                self.spinBox_R3_SPD_WR.value(),
+                self.spinBox_R3_DUR_WR.value(),
+                self.spinBox_R3_WE_WR.value(),
+                self.spinBox_R3_STA_WR.value(),
+                self.spinBox_R3_STR_WR.value(),
+                self.spinBox_R3_BLK_WR.value(),
+                self.spinBox_R3_TKL_WR.value(),
+                self.spinBox_R3_HAN_WR.value(),
+                self.spinBox_R3_GI_WR.value(),
+                self.spinBox_R3_ELU_WR.value(),
+                self.spinBox_R3_TEC_WR.value()
+            ])
+        )
+
+        self.lcdNumber_R4_WR.display(
+            sum([
+                self.spinBox_R4_ATH_WR.value(),
+                self.spinBox_R4_SPD_WR.value(),
+                self.spinBox_R4_DUR_WR.value(),
+                self.spinBox_R4_WE_WR.value(),
+                self.spinBox_R4_STA_WR.value(),
+                self.spinBox_R4_STR_WR.value(),
+                self.spinBox_R4_BLK_WR.value(),
+                self.spinBox_R4_TKL_WR.value(),
+                self.spinBox_R4_HAN_WR.value(),
+                self.spinBox_R4_GI_WR.value(),
+                self.spinBox_R4_ELU_WR.value(),
+                self.spinBox_R4_TEC_WR.value()
+            ])
+        )
+
+        self.lcdNumber_R5_WR.display(
+            sum([
+                self.spinBox_R5_ATH_WR.value(),
+                self.spinBox_R5_SPD_WR.value(),
+                self.spinBox_R5_DUR_WR.value(),
+                self.spinBox_R5_WE_WR.value(),
+                self.spinBox_R5_STA_WR.value(),
+                self.spinBox_R5_STR_WR.value(),
+                self.spinBox_R5_BLK_WR.value(),
+                self.spinBox_R5_TKL_WR.value(),
+                self.spinBox_R5_HAN_WR.value(),
+                self.spinBox_R5_GI_WR.value(),
+                self.spinBox_R5_ELU_WR.value(),
+                self.spinBox_R5_TEC_WR.value()
+            ])
+        )
+
+        self.lcdNumber_R6_WR.display(
+            sum([
+                self.spinBox_R6_ATH_WR.value(),
+                self.spinBox_R6_SPD_WR.value(),
+                self.spinBox_R6_DUR_WR.value(),
+                self.spinBox_R6_WE_WR.value(),
+                self.spinBox_R6_STA_WR.value(),
+                self.spinBox_R6_STR_WR.value(),
+                self.spinBox_R6_BLK_WR.value(),
+                self.spinBox_R6_TKL_WR.value(),
+                self.spinBox_R6_HAN_WR.value(),
+                self.spinBox_R6_GI_WR.value(),
+                self.spinBox_R6_ELU_WR.value(),
+                self.spinBox_R6_TEC_WR.value()
+            ])
+        )
+
+        # TE Section
+        self.lcdNumber_R1_TE.display(
+            sum([
+                self.spinBox_R1_ATH_TE.value(),
+                self.spinBox_R1_SPD_TE.value(),
+                self.spinBox_R1_DUR_TE.value(),
+                self.spinBox_R1_WE_TE.value(),
+                self.spinBox_R1_STA_TE.value(),
+                self.spinBox_R1_STR_TE.value(),
+                self.spinBox_R1_BLK_TE.value(),
+                self.spinBox_R1_TKL_TE.value(),
+                self.spinBox_R1_HAN_TE.value(),
+                self.spinBox_R1_GI_TE.value(),
+                self.spinBox_R1_ELU_TE.value(),
+                self.spinBox_R1_TEC_TE.value()
+            ])
+        )
+
+        self.lcdNumber_R2_TE.display(
+            sum([
+                self.spinBox_R2_ATH_TE.value(),
+                self.spinBox_R2_SPD_TE.value(),
+                self.spinBox_R2_DUR_TE.value(),
+                self.spinBox_R2_WE_TE.value(),
+                self.spinBox_R2_STA_TE.value(),
+                self.spinBox_R2_STR_TE.value(),
+                self.spinBox_R2_BLK_TE.value(),
+                self.spinBox_R2_TKL_TE.value(),
+                self.spinBox_R2_HAN_TE.value(),
+                self.spinBox_R2_GI_TE.value(),
+                self.spinBox_R2_ELU_TE.value(),
+                self.spinBox_R2_TEC_TE.value()
+            ])
+        )
+
+        self.lcdNumber_R3_TE.display(
+            sum([
+                self.spinBox_R3_ATH_TE.value(),
+                self.spinBox_R3_SPD_TE.value(),
+                self.spinBox_R3_DUR_TE.value(),
+                self.spinBox_R3_WE_TE.value(),
+                self.spinBox_R3_STA_TE.value(),
+                self.spinBox_R3_STR_TE.value(),
+                self.spinBox_R3_BLK_TE.value(),
+                self.spinBox_R3_TKL_TE.value(),
+                self.spinBox_R3_HAN_TE.value(),
+                self.spinBox_R3_GI_TE.value(),
+                self.spinBox_R3_ELU_TE.value(),
+                self.spinBox_R3_TEC_TE.value()
+            ])
+        )
+
+        self.lcdNumber_R4_TE.display(
+            sum([
+                self.spinBox_R4_ATH_TE.value(),
+                self.spinBox_R4_SPD_TE.value(),
+                self.spinBox_R4_DUR_TE.value(),
+                self.spinBox_R4_WE_TE.value(),
+                self.spinBox_R4_STA_TE.value(),
+                self.spinBox_R4_STR_TE.value(),
+                self.spinBox_R4_BLK_TE.value(),
+                self.spinBox_R4_TKL_TE.value(),
+                self.spinBox_R4_HAN_TE.value(),
+                self.spinBox_R4_GI_TE.value(),
+                self.spinBox_R4_ELU_TE.value(),
+                self.spinBox_R4_TEC_TE.value()
+            ])
+        )
+
+        self.lcdNumber_R5_TE.display(
+            sum([
+                self.spinBox_R5_ATH_TE.value(),
+                self.spinBox_R5_SPD_TE.value(),
+                self.spinBox_R5_DUR_TE.value(),
+                self.spinBox_R5_WE_TE.value(),
+                self.spinBox_R5_STA_TE.value(),
+                self.spinBox_R5_STR_TE.value(),
+                self.spinBox_R5_BLK_TE.value(),
+                self.spinBox_R5_TKL_TE.value(),
+                self.spinBox_R5_HAN_TE.value(),
+                self.spinBox_R5_GI_TE.value(),
+                self.spinBox_R5_ELU_TE.value(),
+                self.spinBox_R5_TEC_TE.value()
+            ])
+        )
+
+        self.lcdNumber_R6_TE.display(
+            sum([
+                self.spinBox_R6_ATH_TE.value(),
+                self.spinBox_R6_SPD_TE.value(),
+                self.spinBox_R6_DUR_TE.value(),
+                self.spinBox_R6_WE_TE.value(),
+                self.spinBox_R6_STA_TE.value(),
+                self.spinBox_R6_STR_TE.value(),
+                self.spinBox_R6_BLK_TE.value(),
+                self.spinBox_R6_TKL_TE.value(),
+                self.spinBox_R6_HAN_TE.value(),
+                self.spinBox_R6_GI_TE.value(),
+                self.spinBox_R6_ELU_TE.value(),
+                self.spinBox_R6_TEC_TE.value()
+            ])
+        )
+
+        # OL Section
+        self.lcdNumber_R1_OL.display(
+            sum([
+                self.spinBox_R1_ATH_OL.value(),
+                self.spinBox_R1_SPD_OL.value(),
+                self.spinBox_R1_DUR_OL.value(),
+                self.spinBox_R1_WE_OL.value(),
+                self.spinBox_R1_STA_OL.value(),
+                self.spinBox_R1_STR_OL.value(),
+                self.spinBox_R1_BLK_OL.value(),
+                self.spinBox_R1_TKL_OL.value(),
+                self.spinBox_R1_HAN_OL.value(),
+                self.spinBox_R1_GI_OL.value(),
+                self.spinBox_R1_ELU_OL.value(),
+                self.spinBox_R1_TEC_OL.value()
+            ])
+        )
+
+        self.lcdNumber_R2_OL.display(
+            sum([
+                self.spinBox_R2_ATH_OL.value(),
+                self.spinBox_R2_SPD_OL.value(),
+                self.spinBox_R2_DUR_OL.value(),
+                self.spinBox_R2_WE_OL.value(),
+                self.spinBox_R2_STA_OL.value(),
+                self.spinBox_R2_STR_OL.value(),
+                self.spinBox_R2_BLK_OL.value(),
+                self.spinBox_R2_TKL_OL.value(),
+                self.spinBox_R2_HAN_OL.value(),
+                self.spinBox_R2_GI_OL.value(),
+                self.spinBox_R2_ELU_OL.value(),
+                self.spinBox_R2_TEC_OL.value()
+            ])
+        )
+
+        self.lcdNumber_R3_OL.display(
+            sum([
+                self.spinBox_R3_ATH_OL.value(),
+                self.spinBox_R3_SPD_OL.value(),
+                self.spinBox_R3_DUR_OL.value(),
+                self.spinBox_R3_WE_OL.value(),
+                self.spinBox_R3_STA_OL.value(),
+                self.spinBox_R3_STR_OL.value(),
+                self.spinBox_R3_BLK_OL.value(),
+                self.spinBox_R3_TKL_OL.value(),
+                self.spinBox_R3_HAN_OL.value(),
+                self.spinBox_R3_GI_OL.value(),
+                self.spinBox_R3_ELU_OL.value(),
+                self.spinBox_R3_TEC_OL.value()
+            ])
+        )
+
+        self.lcdNumber_R4_OL.display(
+            sum([
+                self.spinBox_R4_ATH_OL.value(),
+                self.spinBox_R4_SPD_OL.value(),
+                self.spinBox_R4_DUR_OL.value(),
+                self.spinBox_R4_WE_OL.value(),
+                self.spinBox_R4_STA_OL.value(),
+                self.spinBox_R4_STR_OL.value(),
+                self.spinBox_R4_BLK_OL.value(),
+                self.spinBox_R4_TKL_OL.value(),
+                self.spinBox_R4_HAN_OL.value(),
+                self.spinBox_R4_GI_OL.value(),
+                self.spinBox_R4_ELU_OL.value(),
+                self.spinBox_R4_TEC_OL.value()
+            ])
+        )
+
+        self.lcdNumber_R5_OL.display(
+            sum([
+                self.spinBox_R5_ATH_OL.value(),
+                self.spinBox_R5_SPD_OL.value(),
+                self.spinBox_R5_DUR_OL.value(),
+                self.spinBox_R5_WE_OL.value(),
+                self.spinBox_R5_STA_OL.value(),
+                self.spinBox_R5_STR_OL.value(),
+                self.spinBox_R5_BLK_OL.value(),
+                self.spinBox_R5_TKL_OL.value(),
+                self.spinBox_R5_HAN_OL.value(),
+                self.spinBox_R5_GI_OL.value(),
+                self.spinBox_R5_ELU_OL.value(),
+                self.spinBox_R5_TEC_OL.value()
+            ])
+        )
+
+        self.lcdNumber_R6_OL.display(
+            sum([
+                self.spinBox_R6_ATH_OL.value(),
+                self.spinBox_R6_SPD_OL.value(),
+                self.spinBox_R6_DUR_OL.value(),
+                self.spinBox_R6_WE_OL.value(),
+                self.spinBox_R6_STA_OL.value(),
+                self.spinBox_R6_STR_OL.value(),
+                self.spinBox_R6_BLK_OL.value(),
+                self.spinBox_R6_TKL_OL.value(),
+                self.spinBox_R6_HAN_OL.value(),
+                self.spinBox_R6_GI_OL.value(),
+                self.spinBox_R6_ELU_OL.value(),
+                self.spinBox_R6_TEC_OL.value()
+            ])
+        )
+
+        # DL Section
+        self.lcdNumber_R1_DL.display(
+            sum([
+                self.spinBox_R1_ATH_DL.value(),
+                self.spinBox_R1_SPD_DL.value(),
+                self.spinBox_R1_DUR_DL.value(),
+                self.spinBox_R1_WE_DL.value(),
+                self.spinBox_R1_STA_DL.value(),
+                self.spinBox_R1_STR_DL.value(),
+                self.spinBox_R1_BLK_DL.value(),
+                self.spinBox_R1_TKL_DL.value(),
+                self.spinBox_R1_HAN_DL.value(),
+                self.spinBox_R1_GI_DL.value(),
+                self.spinBox_R1_ELU_DL.value(),
+                self.spinBox_R1_TEC_DL.value()
+            ])
+        )
+
+        self.lcdNumber_R2_DL.display(
+            sum([
+                self.spinBox_R2_ATH_DL.value(),
+                self.spinBox_R2_SPD_DL.value(),
+                self.spinBox_R2_DUR_DL.value(),
+                self.spinBox_R2_WE_DL.value(),
+                self.spinBox_R2_STA_DL.value(),
+                self.spinBox_R2_STR_DL.value(),
+                self.spinBox_R2_BLK_DL.value(),
+                self.spinBox_R2_TKL_DL.value(),
+                self.spinBox_R2_HAN_DL.value(),
+                self.spinBox_R2_GI_DL.value(),
+                self.spinBox_R2_ELU_DL.value(),
+                self.spinBox_R2_TEC_DL.value()
+            ])
+        )
+
+        self.lcdNumber_R3_DL.display(
+            sum([
+                self.spinBox_R3_ATH_DL.value(),
+                self.spinBox_R3_SPD_DL.value(),
+                self.spinBox_R3_DUR_DL.value(),
+                self.spinBox_R3_WE_DL.value(),
+                self.spinBox_R3_STA_DL.value(),
+                self.spinBox_R3_STR_DL.value(),
+                self.spinBox_R3_BLK_DL.value(),
+                self.spinBox_R3_TKL_DL.value(),
+                self.spinBox_R3_HAN_DL.value(),
+                self.spinBox_R3_GI_DL.value(),
+                self.spinBox_R3_ELU_DL.value(),
+                self.spinBox_R3_TEC_DL.value()
+            ])
+        )
+
+        self.lcdNumber_R4_DL.display(
+            sum([
+                self.spinBox_R4_ATH_DL.value(),
+                self.spinBox_R4_SPD_DL.value(),
+                self.spinBox_R4_DUR_DL.value(),
+                self.spinBox_R4_WE_DL.value(),
+                self.spinBox_R4_STA_DL.value(),
+                self.spinBox_R4_STR_DL.value(),
+                self.spinBox_R4_BLK_DL.value(),
+                self.spinBox_R4_TKL_DL.value(),
+                self.spinBox_R4_HAN_DL.value(),
+                self.spinBox_R4_GI_DL.value(),
+                self.spinBox_R4_ELU_DL.value(),
+                self.spinBox_R4_TEC_DL.value()
+            ])
+        )
+
+        self.lcdNumber_R5_DL.display(
+            sum([
+                self.spinBox_R5_ATH_DL.value(),
+                self.spinBox_R5_SPD_DL.value(),
+                self.spinBox_R5_DUR_DL.value(),
+                self.spinBox_R5_WE_DL.value(),
+                self.spinBox_R5_STA_DL.value(),
+                self.spinBox_R5_STR_DL.value(),
+                self.spinBox_R5_BLK_DL.value(),
+                self.spinBox_R5_TKL_DL.value(),
+                self.spinBox_R5_HAN_DL.value(),
+                self.spinBox_R5_GI_DL.value(),
+                self.spinBox_R5_ELU_DL.value(),
+                self.spinBox_R5_TEC_DL.value()
+            ])
+        )
+
+        self.lcdNumber_R6_DL.display(
+            sum([
+                self.spinBox_R6_ATH_DL.value(),
+                self.spinBox_R6_SPD_DL.value(),
+                self.spinBox_R6_DUR_DL.value(),
+                self.spinBox_R6_WE_DL.value(),
+                self.spinBox_R6_STA_DL.value(),
+                self.spinBox_R6_STR_DL.value(),
+                self.spinBox_R6_BLK_DL.value(),
+                self.spinBox_R6_TKL_DL.value(),
+                self.spinBox_R6_HAN_DL.value(),
+                self.spinBox_R6_GI_DL.value(),
+                self.spinBox_R6_ELU_DL.value(),
+                self.spinBox_R6_TEC_DL.value()
+            ])
+        )
+
+        # LB Section
+        self.lcdNumber_R1_LB.display(
+            sum([
+                self.spinBox_R1_ATH_LB.value(),
+                self.spinBox_R1_SPD_LB.value(),
+                self.spinBox_R1_DUR_LB.value(),
+                self.spinBox_R1_WE_LB.value(),
+                self.spinBox_R1_STA_LB.value(),
+                self.spinBox_R1_STR_LB.value(),
+                self.spinBox_R1_BLK_LB.value(),
+                self.spinBox_R1_TKL_LB.value(),
+                self.spinBox_R1_HAN_LB.value(),
+                self.spinBox_R1_GI_LB.value(),
+                self.spinBox_R1_ELU_LB.value(),
+                self.spinBox_R1_TEC_LB.value()
+            ])
+        )
+
+        self.lcdNumber_R2_LB.display(
+            sum([
+                self.spinBox_R2_ATH_LB.value(),
+                self.spinBox_R2_SPD_LB.value(),
+                self.spinBox_R2_DUR_LB.value(),
+                self.spinBox_R2_WE_LB.value(),
+                self.spinBox_R2_STA_LB.value(),
+                self.spinBox_R2_STR_LB.value(),
+                self.spinBox_R2_BLK_LB.value(),
+                self.spinBox_R2_TKL_LB.value(),
+                self.spinBox_R2_HAN_LB.value(),
+                self.spinBox_R2_GI_LB.value(),
+                self.spinBox_R2_ELU_LB.value(),
+                self.spinBox_R2_TEC_LB.value()
+            ])
+        )
+
+        self.lcdNumber_R3_LB.display(
+            sum([
+                self.spinBox_R3_ATH_LB.value(),
+                self.spinBox_R3_SPD_LB.value(),
+                self.spinBox_R3_DUR_LB.value(),
+                self.spinBox_R3_WE_LB.value(),
+                self.spinBox_R3_STA_LB.value(),
+                self.spinBox_R3_STR_LB.value(),
+                self.spinBox_R3_BLK_LB.value(),
+                self.spinBox_R3_TKL_LB.value(),
+                self.spinBox_R3_HAN_LB.value(),
+                self.spinBox_R3_GI_LB.value(),
+                self.spinBox_R3_ELU_LB.value(),
+                self.spinBox_R3_TEC_LB.value()
+            ])
+        )
+
+        self.lcdNumber_R4_LB.display(
+            sum([
+                self.spinBox_R4_ATH_LB.value(),
+                self.spinBox_R4_SPD_LB.value(),
+                self.spinBox_R4_DUR_LB.value(),
+                self.spinBox_R4_WE_LB.value(),
+                self.spinBox_R4_STA_LB.value(),
+                self.spinBox_R4_STR_LB.value(),
+                self.spinBox_R4_BLK_LB.value(),
+                self.spinBox_R4_TKL_LB.value(),
+                self.spinBox_R4_HAN_LB.value(),
+                self.spinBox_R4_GI_LB.value(),
+                self.spinBox_R4_ELU_LB.value(),
+                self.spinBox_R4_TEC_LB.value()
+            ])
+        )
+
+        self.lcdNumber_R5_LB.display(
+            sum([
+                self.spinBox_R5_ATH_LB.value(),
+                self.spinBox_R5_SPD_LB.value(),
+                self.spinBox_R5_DUR_LB.value(),
+                self.spinBox_R5_WE_LB.value(),
+                self.spinBox_R5_STA_LB.value(),
+                self.spinBox_R5_STR_LB.value(),
+                self.spinBox_R5_BLK_LB.value(),
+                self.spinBox_R5_TKL_LB.value(),
+                self.spinBox_R5_HAN_LB.value(),
+                self.spinBox_R5_GI_LB.value(),
+                self.spinBox_R5_ELU_LB.value(),
+                self.spinBox_R5_TEC_LB.value()
+            ])
+        )
+
+        self.lcdNumber_R6_LB.display(
+            sum([
+                self.spinBox_R6_ATH_LB.value(),
+                self.spinBox_R6_SPD_LB.value(),
+                self.spinBox_R6_DUR_LB.value(),
+                self.spinBox_R6_WE_LB.value(),
+                self.spinBox_R6_STA_LB.value(),
+                self.spinBox_R6_STR_LB.value(),
+                self.spinBox_R6_BLK_LB.value(),
+                self.spinBox_R6_TKL_LB.value(),
+                self.spinBox_R6_HAN_LB.value(),
+                self.spinBox_R6_GI_LB.value(),
+                self.spinBox_R6_ELU_LB.value(),
+                self.spinBox_R6_TEC_LB.value()
+            ])
+        )
+
+        # DB Section
+        self.lcdNumber_R1_DB.display(
+            sum([
+                self.spinBox_R1_ATH_DB.value(),
+                self.spinBox_R1_SPD_DB.value(),
+                self.spinBox_R1_DUR_DB.value(),
+                self.spinBox_R1_WE_DB.value(),
+                self.spinBox_R1_STA_DB.value(),
+                self.spinBox_R1_STR_DB.value(),
+                self.spinBox_R1_BLK_DB.value(),
+                self.spinBox_R1_TKL_DB.value(),
+                self.spinBox_R1_HAN_DB.value(),
+                self.spinBox_R1_GI_DB.value(),
+                self.spinBox_R1_ELU_DB.value(),
+                self.spinBox_R1_TEC_DB.value()
+            ])
+        )
+
+        self.lcdNumber_R2_DB.display(
+            sum([
+                self.spinBox_R2_ATH_DB.value(),
+                self.spinBox_R2_SPD_DB.value(),
+                self.spinBox_R2_DUR_DB.value(),
+                self.spinBox_R2_WE_DB.value(),
+                self.spinBox_R2_STA_DB.value(),
+                self.spinBox_R2_STR_DB.value(),
+                self.spinBox_R2_BLK_DB.value(),
+                self.spinBox_R2_TKL_DB.value(),
+                self.spinBox_R2_HAN_DB.value(),
+                self.spinBox_R2_GI_DB.value(),
+                self.spinBox_R2_ELU_DB.value(),
+                self.spinBox_R2_TEC_DB.value()
+            ])
+        )
+
+        self.lcdNumber_R3_DB.display(
+            sum([
+                self.spinBox_R3_ATH_DB.value(),
+                self.spinBox_R3_SPD_DB.value(),
+                self.spinBox_R3_DUR_DB.value(),
+                self.spinBox_R3_WE_DB.value(),
+                self.spinBox_R3_STA_DB.value(),
+                self.spinBox_R3_STR_DB.value(),
+                self.spinBox_R3_BLK_DB.value(),
+                self.spinBox_R3_TKL_DB.value(),
+                self.spinBox_R3_HAN_DB.value(),
+                self.spinBox_R3_GI_DB.value(),
+                self.spinBox_R3_ELU_DB.value(),
+                self.spinBox_R3_TEC_DB.value()
+            ])
+        )
+
+        self.lcdNumber_R4_DB.display(
+            sum([
+                self.spinBox_R4_ATH_DB.value(),
+                self.spinBox_R4_SPD_DB.value(),
+                self.spinBox_R4_DUR_DB.value(),
+                self.spinBox_R4_WE_DB.value(),
+                self.spinBox_R4_STA_DB.value(),
+                self.spinBox_R4_STR_DB.value(),
+                self.spinBox_R4_BLK_DB.value(),
+                self.spinBox_R4_TKL_DB.value(),
+                self.spinBox_R4_HAN_DB.value(),
+                self.spinBox_R4_GI_DB.value(),
+                self.spinBox_R4_ELU_DB.value(),
+                self.spinBox_R4_TEC_DB.value()
+            ])
+        )
+
+        self.lcdNumber_R5_DB.display(
+            sum([
+                self.spinBox_R5_ATH_DB.value(),
+                self.spinBox_R5_SPD_DB.value(),
+                self.spinBox_R5_DUR_DB.value(),
+                self.spinBox_R5_WE_DB.value(),
+                self.spinBox_R5_STA_DB.value(),
+                self.spinBox_R5_STR_DB.value(),
+                self.spinBox_R5_BLK_DB.value(),
+                self.spinBox_R5_TKL_DB.value(),
+                self.spinBox_R5_HAN_DB.value(),
+                self.spinBox_R5_GI_DB.value(),
+                self.spinBox_R5_ELU_DB.value(),
+                self.spinBox_R5_TEC_DB.value()
+            ])
+        )
+
+        self.lcdNumber_R6_DB.display(
+            sum([
+                self.spinBox_R6_ATH_DB.value(),
+                self.spinBox_R6_SPD_DB.value(),
+                self.spinBox_R6_DUR_DB.value(),
+                self.spinBox_R6_WE_DB.value(),
+                self.spinBox_R6_STA_DB.value(),
+                self.spinBox_R6_STR_DB.value(),
+                self.spinBox_R6_BLK_DB.value(),
+                self.spinBox_R6_TKL_DB.value(),
+                self.spinBox_R6_HAN_DB.value(),
+                self.spinBox_R6_GI_DB.value(),
+                self.spinBox_R6_ELU_DB.value(),
+                self.spinBox_R6_TEC_DB.value()
+            ])
+        )
+
+        # K Section
+        self.lcdNumber_R1_K.display(
+            sum([
+                self.spinBox_R1_ATH_K.value(),
+                self.spinBox_R1_SPD_K.value(),
+                self.spinBox_R1_DUR_K.value(),
+                self.spinBox_R1_WE_K.value(),
+                self.spinBox_R1_STA_K.value(),
+                self.spinBox_R1_STR_K.value(),
+                self.spinBox_R1_BLK_K.value(),
+                self.spinBox_R1_TKL_K.value(),
+                self.spinBox_R1_HAN_K.value(),
+                self.spinBox_R1_GI_K.value(),
+                self.spinBox_R1_ELU_K.value(),
+                self.spinBox_R1_TEC_K.value()
+            ])
+        )
+
+        self.lcdNumber_R2_K.display(
+            sum([
+                self.spinBox_R2_ATH_K.value(),
+                self.spinBox_R2_SPD_K.value(),
+                self.spinBox_R2_DUR_K.value(),
+                self.spinBox_R2_WE_K.value(),
+                self.spinBox_R2_STA_K.value(),
+                self.spinBox_R2_STR_K.value(),
+                self.spinBox_R2_BLK_K.value(),
+                self.spinBox_R2_TKL_K.value(),
+                self.spinBox_R2_HAN_K.value(),
+                self.spinBox_R2_GI_K.value(),
+                self.spinBox_R2_ELU_K.value(),
+                self.spinBox_R2_TEC_K.value()
+            ])
+        )
+
+        self.lcdNumber_R3_K.display(
+            sum([
+                self.spinBox_R3_ATH_K.value(),
+                self.spinBox_R3_SPD_K.value(),
+                self.spinBox_R3_DUR_K.value(),
+                self.spinBox_R3_WE_K.value(),
+                self.spinBox_R3_STA_K.value(),
+                self.spinBox_R3_STR_K.value(),
+                self.spinBox_R3_BLK_K.value(),
+                self.spinBox_R3_TKL_K.value(),
+                self.spinBox_R3_HAN_K.value(),
+                self.spinBox_R3_GI_K.value(),
+                self.spinBox_R3_ELU_K.value(),
+                self.spinBox_R3_TEC_K.value()
+            ])
+        )
+
+        self.lcdNumber_R4_K.display(
+            sum([
+                self.spinBox_R4_ATH_K.value(),
+                self.spinBox_R4_SPD_K.value(),
+                self.spinBox_R4_DUR_K.value(),
+                self.spinBox_R4_WE_K.value(),
+                self.spinBox_R4_STA_K.value(),
+                self.spinBox_R4_STR_K.value(),
+                self.spinBox_R4_BLK_K.value(),
+                self.spinBox_R4_TKL_K.value(),
+                self.spinBox_R4_HAN_K.value(),
+                self.spinBox_R4_GI_K.value(),
+                self.spinBox_R4_ELU_K.value(),
+                self.spinBox_R4_TEC_K.value()
+            ])
+        )
+
+        self.lcdNumber_R5_K.display(
+            sum([
+                self.spinBox_R5_ATH_K.value(),
+                self.spinBox_R5_SPD_K.value(),
+                self.spinBox_R5_DUR_K.value(),
+                self.spinBox_R5_WE_K.value(),
+                self.spinBox_R5_STA_K.value(),
+                self.spinBox_R5_STR_K.value(),
+                self.spinBox_R5_BLK_K.value(),
+                self.spinBox_R5_TKL_K.value(),
+                self.spinBox_R5_HAN_K.value(),
+                self.spinBox_R5_GI_K.value(),
+                self.spinBox_R5_ELU_K.value(),
+                self.spinBox_R5_TEC_K.value()
+            ])
+        )
+
+        self.lcdNumber_R6_K.display(
+            sum([
+                self.spinBox_R6_ATH_K.value(),
+                self.spinBox_R6_SPD_K.value(),
+                self.spinBox_R6_DUR_K.value(),
+                self.spinBox_R6_WE_K.value(),
+                self.spinBox_R6_STA_K.value(),
+                self.spinBox_R6_STR_K.value(),
+                self.spinBox_R6_BLK_K.value(),
+                self.spinBox_R6_TKL_K.value(),
+                self.spinBox_R6_HAN_K.value(),
+                self.spinBox_R6_GI_K.value(),
+                self.spinBox_R6_ELU_K.value(),
+                self.spinBox_R6_TEC_K.value()
+            ])
+        )
+
+        # P Section
+        self.lcdNumber_R1_P.display(
+            sum([
+                self.spinBox_R1_ATH_P.value(),
+                self.spinBox_R1_SPD_P.value(),
+                self.spinBox_R1_DUR_P.value(),
+                self.spinBox_R1_WE_P.value(),
+                self.spinBox_R1_STA_P.value(),
+                self.spinBox_R1_STR_P.value(),
+                self.spinBox_R1_BLK_P.value(),
+                self.spinBox_R1_TKL_P.value(),
+                self.spinBox_R1_HAN_P.value(),
+                self.spinBox_R1_GI_P.value(),
+                self.spinBox_R1_ELU_P.value(),
+                self.spinBox_R1_TEC_P.value()
+            ])
+        )
+
+        self.lcdNumber_R2_P.display(
+            sum([
+                self.spinBox_R2_ATH_P.value(),
+                self.spinBox_R2_SPD_P.value(),
+                self.spinBox_R2_DUR_P.value(),
+                self.spinBox_R2_WE_P.value(),
+                self.spinBox_R2_STA_P.value(),
+                self.spinBox_R2_STR_P.value(),
+                self.spinBox_R2_BLK_P.value(),
+                self.spinBox_R2_TKL_P.value(),
+                self.spinBox_R2_HAN_P.value(),
+                self.spinBox_R2_GI_P.value(),
+                self.spinBox_R2_ELU_P.value(),
+                self.spinBox_R2_TEC_P.value()
+            ])
+        )
+
+        self.lcdNumber_R3_P.display(
+            sum([
+                self.spinBox_R3_ATH_P.value(),
+                self.spinBox_R3_SPD_P.value(),
+                self.spinBox_R3_DUR_P.value(),
+                self.spinBox_R3_WE_P.value(),
+                self.spinBox_R3_STA_P.value(),
+                self.spinBox_R3_STR_P.value(),
+                self.spinBox_R3_BLK_P.value(),
+                self.spinBox_R3_TKL_P.value(),
+                self.spinBox_R3_HAN_P.value(),
+                self.spinBox_R3_GI_P.value(),
+                self.spinBox_R3_ELU_P.value(),
+                self.spinBox_R3_TEC_P.value()
+            ])
+        )
+
+        self.lcdNumber_R4_P.display(
+            sum([
+                self.spinBox_R4_ATH_P.value(),
+                self.spinBox_R4_SPD_P.value(),
+                self.spinBox_R4_DUR_P.value(),
+                self.spinBox_R4_WE_P.value(),
+                self.spinBox_R4_STA_P.value(),
+                self.spinBox_R4_STR_P.value(),
+                self.spinBox_R4_BLK_P.value(),
+                self.spinBox_R4_TKL_P.value(),
+                self.spinBox_R4_HAN_P.value(),
+                self.spinBox_R4_GI_P.value(),
+                self.spinBox_R4_ELU_P.value(),
+                self.spinBox_R4_TEC_P.value()
+            ])
+        )
+
+        self.lcdNumber_R5_P.display(
+            sum([
+                self.spinBox_R5_ATH_P.value(),
+                self.spinBox_R5_SPD_P.value(),
+                self.spinBox_R5_DUR_P.value(),
+                self.spinBox_R5_WE_P.value(),
+                self.spinBox_R5_STA_P.value(),
+                self.spinBox_R5_STR_P.value(),
+                self.spinBox_R5_BLK_P.value(),
+                self.spinBox_R5_TKL_P.value(),
+                self.spinBox_R5_HAN_P.value(),
+                self.spinBox_R5_GI_P.value(),
+                self.spinBox_R5_ELU_P.value(),
+                self.spinBox_R5_TEC_P.value()
+            ])
+        )
+
+        self.lcdNumber_R6_P.display(
+            sum([
+                self.spinBox_R6_ATH_P.value(),
+                self.spinBox_R6_SPD_P.value(),
+                self.spinBox_R6_DUR_P.value(),
+                self.spinBox_R6_WE_P.value(),
+                self.spinBox_R6_STA_P.value(),
+                self.spinBox_R6_STR_P.value(),
+                self.spinBox_R6_BLK_P.value(),
+                self.spinBox_R6_TKL_P.value(),
+                self.spinBox_R6_HAN_P.value(),
+                self.spinBox_R6_GI_P.value(),
+                self.spinBox_R6_ELU_P.value(),
+                self.spinBox_R6_TEC_P.value()
+            ])
+        )
+
+
+    def accept(self):
+
+        # QB Section
+        role_ratings_df.loc['qbr1', 'label'] = self.lineEdit_R1_QB.text()
+        role_ratings_df.loc['qbr1', 'ath'] = self.spinBox_R1_ATH_QB.value()
+        role_ratings_df.loc['qbr1', 'spd'] = self.spinBox_R1_SPD_QB.value()
+        role_ratings_df.loc['qbr1', 'dur'] = self.spinBox_R1_DUR_QB.value()
+        role_ratings_df.loc['qbr1', 'we'] = self.spinBox_R1_WE_QB.value()
+        role_ratings_df.loc['qbr1', 'sta'] = self.spinBox_R1_STA_QB.value()
+        role_ratings_df.loc['qbr1', 'str'] = self.spinBox_R1_STR_QB.value()
+        role_ratings_df.loc['qbr1', 'blk'] = self.spinBox_R1_BLK_QB.value()
+        role_ratings_df.loc['qbr1', 'tkl'] = self.spinBox_R1_TKL_QB.value()
+        role_ratings_df.loc['qbr1', 'han'] = self.spinBox_R1_HAN_QB.value()
+        role_ratings_df.loc['qbr1', 'gi'] = self.spinBox_R1_GI_QB.value()
+        role_ratings_df.loc['qbr1', 'elu'] = self.spinBox_R1_ELU_QB.value()
+        role_ratings_df.loc['qbr1', 'tec'] = self.spinBox_R1_TEC_QB.value()
+
+        role_ratings_df.loc['qbr2', 'label'] = self.lineEdit_R2_QB.text()
+        role_ratings_df.loc['qbr2', 'ath'] = self.spinBox_R2_ATH_QB.value()
+        role_ratings_df.loc['qbr2', 'spd'] = self.spinBox_R2_SPD_QB.value()
+        role_ratings_df.loc['qbr2', 'dur'] = self.spinBox_R2_DUR_QB.value()
+        role_ratings_df.loc['qbr2', 'we'] = self.spinBox_R2_WE_QB.value()
+        role_ratings_df.loc['qbr2', 'sta'] = self.spinBox_R2_STA_QB.value()
+        role_ratings_df.loc['qbr2', 'str'] = self.spinBox_R2_STR_QB.value()
+        role_ratings_df.loc['qbr2', 'blk'] = self.spinBox_R2_BLK_QB.value()
+        role_ratings_df.loc['qbr2', 'tkl'] = self.spinBox_R2_TKL_QB.value()
+        role_ratings_df.loc['qbr2', 'han'] = self.spinBox_R2_HAN_QB.value()
+        role_ratings_df.loc['qbr2', 'gi'] = self.spinBox_R2_GI_QB.value()
+        role_ratings_df.loc['qbr2', 'elu'] = self.spinBox_R2_ELU_QB.value()
+        role_ratings_df.loc['qbr2', 'tec'] = self.spinBox_R2_TEC_QB.value()
+
+        role_ratings_df.loc['qbr3', 'label'] = self.lineEdit_R3_QB.text()
+        role_ratings_df.loc['qbr3', 'ath'] = self.spinBox_R3_ATH_QB.value()
+        role_ratings_df.loc['qbr3', 'spd'] = self.spinBox_R3_SPD_QB.value()
+        role_ratings_df.loc['qbr3', 'dur'] = self.spinBox_R3_DUR_QB.value()
+        role_ratings_df.loc['qbr3', 'we'] = self.spinBox_R3_WE_QB.value()
+        role_ratings_df.loc['qbr3', 'sta'] = self.spinBox_R3_STA_QB.value()
+        role_ratings_df.loc['qbr3', 'str'] = self.spinBox_R3_STR_QB.value()
+        role_ratings_df.loc['qbr3', 'blk'] = self.spinBox_R3_BLK_QB.value()
+        role_ratings_df.loc['qbr3', 'tkl'] = self.spinBox_R3_TKL_QB.value()
+        role_ratings_df.loc['qbr3', 'han'] = self.spinBox_R3_HAN_QB.value()
+        role_ratings_df.loc['qbr3', 'gi'] = self.spinBox_R3_GI_QB.value()
+        role_ratings_df.loc['qbr3', 'elu'] = self.spinBox_R3_ELU_QB.value()
+        role_ratings_df.loc['qbr3', 'tec'] = self.spinBox_R3_TEC_QB.value()
+
+        role_ratings_df.loc['qbr4', 'label'] = self.lineEdit_R4_QB.text()
+        role_ratings_df.loc['qbr4', 'ath'] = self.spinBox_R4_ATH_QB.value()
+        role_ratings_df.loc['qbr4', 'spd'] = self.spinBox_R4_SPD_QB.value()
+        role_ratings_df.loc['qbr4', 'dur'] = self.spinBox_R4_DUR_QB.value()
+        role_ratings_df.loc['qbr4', 'we'] = self.spinBox_R4_WE_QB.value()
+        role_ratings_df.loc['qbr4', 'sta'] = self.spinBox_R4_STA_QB.value()
+        role_ratings_df.loc['qbr4', 'str'] = self.spinBox_R4_STR_QB.value()
+        role_ratings_df.loc['qbr4', 'blk'] = self.spinBox_R4_BLK_QB.value()
+        role_ratings_df.loc['qbr4', 'tkl'] = self.spinBox_R4_TKL_QB.value()
+        role_ratings_df.loc['qbr4', 'han'] = self.spinBox_R4_HAN_QB.value()
+        role_ratings_df.loc['qbr4', 'gi'] = self.spinBox_R4_GI_QB.value()
+        role_ratings_df.loc['qbr4', 'elu'] = self.spinBox_R4_ELU_QB.value()
+        role_ratings_df.loc['qbr4', 'tec'] = self.spinBox_R4_TEC_QB.value()
+
+        role_ratings_df.loc['qbr5', 'label'] = self.lineEdit_R5_QB.text()
+        role_ratings_df.loc['qbr5', 'ath'] = self.spinBox_R5_ATH_QB.value()
+        role_ratings_df.loc['qbr5', 'spd'] = self.spinBox_R5_SPD_QB.value()
+        role_ratings_df.loc['qbr5', 'dur'] = self.spinBox_R5_DUR_QB.value()
+        role_ratings_df.loc['qbr5', 'we'] = self.spinBox_R5_WE_QB.value()
+        role_ratings_df.loc['qbr5', 'sta'] = self.spinBox_R5_STA_QB.value()
+        role_ratings_df.loc['qbr5', 'str'] = self.spinBox_R5_STR_QB.value()
+        role_ratings_df.loc['qbr5', 'blk'] = self.spinBox_R5_BLK_QB.value()
+        role_ratings_df.loc['qbr5', 'tkl'] = self.spinBox_R5_TKL_QB.value()
+        role_ratings_df.loc['qbr5', 'han'] = self.spinBox_R5_HAN_QB.value()
+        role_ratings_df.loc['qbr5', 'gi'] = self.spinBox_R5_GI_QB.value()
+        role_ratings_df.loc['qbr5', 'elu'] = self.spinBox_R5_ELU_QB.value()
+        role_ratings_df.loc['qbr5', 'tec'] = self.spinBox_R5_TEC_QB.value()
+
+        role_ratings_df.loc['qbr6', 'label'] = self.lineEdit_R6_QB.text()
+        role_ratings_df.loc['qbr6', 'ath'] = self.spinBox_R6_ATH_QB.value()
+        role_ratings_df.loc['qbr6', 'spd'] = self.spinBox_R6_SPD_QB.value()
+        role_ratings_df.loc['qbr6', 'dur'] = self.spinBox_R6_DUR_QB.value()
+        role_ratings_df.loc['qbr6', 'we'] = self.spinBox_R6_WE_QB.value()
+        role_ratings_df.loc['qbr6', 'sta'] = self.spinBox_R6_STA_QB.value()
+        role_ratings_df.loc['qbr6', 'str'] = self.spinBox_R6_STR_QB.value()
+        role_ratings_df.loc['qbr6', 'blk'] = self.spinBox_R6_BLK_QB.value()
+        role_ratings_df.loc['qbr6', 'tkl'] = self.spinBox_R6_TKL_QB.value()
+        role_ratings_df.loc['qbr6', 'han'] = self.spinBox_R6_HAN_QB.value()
+        role_ratings_df.loc['qbr6', 'gi'] = self.spinBox_R6_GI_QB.value()
+        role_ratings_df.loc['qbr6', 'elu'] = self.spinBox_R6_ELU_QB.value()
+        role_ratings_df.loc['qbr6', 'tec'] = self.spinBox_R6_TEC_QB.value()
+        
+        # RB Section
+        role_ratings_df.loc['rbr1', 'label'] = self.lineEdit_R1_RB.text()
+        role_ratings_df.loc['rbr1', 'ath'] = self.spinBox_R1_ATH_RB.value()
+        role_ratings_df.loc['rbr1', 'spd'] = self.spinBox_R1_SPD_RB.value()
+        role_ratings_df.loc['rbr1', 'dur'] = self.spinBox_R1_DUR_RB.value()
+        role_ratings_df.loc['rbr1', 'we'] = self.spinBox_R1_WE_RB.value()
+        role_ratings_df.loc['rbr1', 'sta'] = self.spinBox_R1_STA_RB.value()
+        role_ratings_df.loc['rbr1', 'str'] = self.spinBox_R1_STR_RB.value()
+        role_ratings_df.loc['rbr1', 'blk'] = self.spinBox_R1_BLK_RB.value()
+        role_ratings_df.loc['rbr1', 'tkl'] = self.spinBox_R1_TKL_RB.value()
+        role_ratings_df.loc['rbr1', 'han'] = self.spinBox_R1_HAN_RB.value()
+        role_ratings_df.loc['rbr1', 'gi'] = self.spinBox_R1_GI_RB.value()
+        role_ratings_df.loc['rbr1', 'elu'] = self.spinBox_R1_ELU_RB.value()
+        role_ratings_df.loc['rbr1', 'tec'] = self.spinBox_R1_TEC_RB.value()
+
+        role_ratings_df.loc['rbr2', 'label'] = self.lineEdit_R2_RB.text()
+        role_ratings_df.loc['rbr2', 'ath'] = self.spinBox_R2_ATH_RB.value()
+        role_ratings_df.loc['rbr2', 'spd'] = self.spinBox_R2_SPD_RB.value()
+        role_ratings_df.loc['rbr2', 'dur'] = self.spinBox_R2_DUR_RB.value()
+        role_ratings_df.loc['rbr2', 'we'] = self.spinBox_R2_WE_RB.value()
+        role_ratings_df.loc['rbr2', 'sta'] = self.spinBox_R2_STA_RB.value()
+        role_ratings_df.loc['rbr2', 'str'] = self.spinBox_R2_STR_RB.value()
+        role_ratings_df.loc['rbr2', 'blk'] = self.spinBox_R2_BLK_RB.value()
+        role_ratings_df.loc['rbr2', 'tkl'] = self.spinBox_R2_TKL_RB.value()
+        role_ratings_df.loc['rbr2', 'han'] = self.spinBox_R2_HAN_RB.value()
+        role_ratings_df.loc['rbr2', 'gi'] = self.spinBox_R2_GI_RB.value()
+        role_ratings_df.loc['rbr2', 'elu'] = self.spinBox_R2_ELU_RB.value()
+        role_ratings_df.loc['rbr2', 'tec'] = self.spinBox_R2_TEC_RB.value()
+
+        role_ratings_df.loc['rbr3', 'label'] = self.lineEdit_R3_RB.text()
+        role_ratings_df.loc['rbr3', 'ath'] = self.spinBox_R3_ATH_RB.value()
+        role_ratings_df.loc['rbr3', 'spd'] = self.spinBox_R3_SPD_RB.value()
+        role_ratings_df.loc['rbr3', 'dur'] = self.spinBox_R3_DUR_RB.value()
+        role_ratings_df.loc['rbr3', 'we'] = self.spinBox_R3_WE_RB.value()
+        role_ratings_df.loc['rbr3', 'sta'] = self.spinBox_R3_STA_RB.value()
+        role_ratings_df.loc['rbr3', 'str'] = self.spinBox_R3_STR_RB.value()
+        role_ratings_df.loc['rbr3', 'blk'] = self.spinBox_R3_BLK_RB.value()
+        role_ratings_df.loc['rbr3', 'tkl'] = self.spinBox_R3_TKL_RB.value()
+        role_ratings_df.loc['rbr3', 'han'] = self.spinBox_R3_HAN_RB.value()
+        role_ratings_df.loc['rbr3', 'gi'] = self.spinBox_R3_GI_RB.value()
+        role_ratings_df.loc['rbr3', 'elu'] = self.spinBox_R3_ELU_RB.value()
+        role_ratings_df.loc['rbr3', 'tec'] = self.spinBox_R3_TEC_RB.value()
+
+        role_ratings_df.loc['rbr4', 'label'] = self.lineEdit_R4_RB.text()
+        role_ratings_df.loc['rbr4', 'ath'] = self.spinBox_R4_ATH_RB.value()
+        role_ratings_df.loc['rbr4', 'spd'] = self.spinBox_R4_SPD_RB.value()
+        role_ratings_df.loc['rbr4', 'dur'] = self.spinBox_R4_DUR_RB.value()
+        role_ratings_df.loc['rbr4', 'we'] = self.spinBox_R4_WE_RB.value()
+        role_ratings_df.loc['rbr4', 'sta'] = self.spinBox_R4_STA_RB.value()
+        role_ratings_df.loc['rbr4', 'str'] = self.spinBox_R4_STR_RB.value()
+        role_ratings_df.loc['rbr4', 'blk'] = self.spinBox_R4_BLK_RB.value()
+        role_ratings_df.loc['rbr4', 'tkl'] = self.spinBox_R4_TKL_RB.value()
+        role_ratings_df.loc['rbr4', 'han'] = self.spinBox_R4_HAN_RB.value()
+        role_ratings_df.loc['rbr4', 'gi'] = self.spinBox_R4_GI_RB.value()
+        role_ratings_df.loc['rbr4', 'elu'] = self.spinBox_R4_ELU_RB.value()
+        role_ratings_df.loc['rbr4', 'tec'] = self.spinBox_R4_TEC_RB.value()
+
+        role_ratings_df.loc['rbr5', 'label'] = self.lineEdit_R5_RB.text()
+        role_ratings_df.loc['rbr5', 'ath'] = self.spinBox_R5_ATH_RB.value()
+        role_ratings_df.loc['rbr5', 'spd'] = self.spinBox_R5_SPD_RB.value()
+        role_ratings_df.loc['rbr5', 'dur'] = self.spinBox_R5_DUR_RB.value()
+        role_ratings_df.loc['rbr5', 'we'] = self.spinBox_R5_WE_RB.value()
+        role_ratings_df.loc['rbr5', 'sta'] = self.spinBox_R5_STA_RB.value()
+        role_ratings_df.loc['rbr5', 'str'] = self.spinBox_R5_STR_RB.value()
+        role_ratings_df.loc['rbr5', 'blk'] = self.spinBox_R5_BLK_RB.value()
+        role_ratings_df.loc['rbr5', 'tkl'] = self.spinBox_R5_TKL_RB.value()
+        role_ratings_df.loc['rbr5', 'han'] = self.spinBox_R5_HAN_RB.value()
+        role_ratings_df.loc['rbr5', 'gi'] = self.spinBox_R5_GI_RB.value()
+        role_ratings_df.loc['rbr5', 'elu'] = self.spinBox_R5_ELU_RB.value()
+        role_ratings_df.loc['rbr5', 'tec'] = self.spinBox_R5_TEC_RB.value()
+
+        role_ratings_df.loc['rbr6', 'label'] = self.lineEdit_R6_RB.text()
+        role_ratings_df.loc['rbr6', 'ath'] = self.spinBox_R6_ATH_RB.value()
+        role_ratings_df.loc['rbr6', 'spd'] = self.spinBox_R6_SPD_RB.value()
+        role_ratings_df.loc['rbr6', 'dur'] = self.spinBox_R6_DUR_RB.value()
+        role_ratings_df.loc['rbr6', 'we'] = self.spinBox_R6_WE_RB.value()
+        role_ratings_df.loc['rbr6', 'sta'] = self.spinBox_R6_STA_RB.value()
+        role_ratings_df.loc['rbr6', 'str'] = self.spinBox_R6_STR_RB.value()
+        role_ratings_df.loc['rbr6', 'blk'] = self.spinBox_R6_BLK_RB.value()
+        role_ratings_df.loc['rbr6', 'tkl'] = self.spinBox_R6_TKL_RB.value()
+        role_ratings_df.loc['rbr6', 'han'] = self.spinBox_R6_HAN_RB.value()
+        role_ratings_df.loc['rbr6', 'gi'] = self.spinBox_R6_GI_RB.value()
+        role_ratings_df.loc['rbr6', 'elu'] = self.spinBox_R6_ELU_RB.value()
+        role_ratings_df.loc['rbr6', 'tec'] = self.spinBox_R6_TEC_RB.value()
+
+        # WR Section
+        role_ratings_df.loc['wrr1', 'label'] = self.lineEdit_R1_WR.text()
+        role_ratings_df.loc['wrr1', 'ath'] = self.spinBox_R1_ATH_WR.value()
+        role_ratings_df.loc['wrr1', 'spd'] = self.spinBox_R1_SPD_WR.value()
+        role_ratings_df.loc['wrr1', 'dur'] = self.spinBox_R1_DUR_WR.value()
+        role_ratings_df.loc['wrr1', 'we'] = self.spinBox_R1_WE_WR.value()
+        role_ratings_df.loc['wrr1', 'sta'] = self.spinBox_R1_STA_WR.value()
+        role_ratings_df.loc['wrr1', 'str'] = self.spinBox_R1_STR_WR.value()
+        role_ratings_df.loc['wrr1', 'blk'] = self.spinBox_R1_BLK_WR.value()
+        role_ratings_df.loc['wrr1', 'tkl'] = self.spinBox_R1_TKL_WR.value()
+        role_ratings_df.loc['wrr1', 'han'] = self.spinBox_R1_HAN_WR.value()
+        role_ratings_df.loc['wrr1', 'gi'] = self.spinBox_R1_GI_WR.value()
+        role_ratings_df.loc['wrr1', 'elu'] = self.spinBox_R1_ELU_WR.value()
+        role_ratings_df.loc['wrr1', 'tec'] = self.spinBox_R1_TEC_WR.value()
+
+        role_ratings_df.loc['wrr2', 'label'] = self.lineEdit_R2_WR.text()
+        role_ratings_df.loc['wrr2', 'ath'] = self.spinBox_R2_ATH_WR.value()
+        role_ratings_df.loc['wrr2', 'spd'] = self.spinBox_R2_SPD_WR.value()
+        role_ratings_df.loc['wrr2', 'dur'] = self.spinBox_R2_DUR_WR.value()
+        role_ratings_df.loc['wrr2', 'we'] = self.spinBox_R2_WE_WR.value()
+        role_ratings_df.loc['wrr2', 'sta'] = self.spinBox_R2_STA_WR.value()
+        role_ratings_df.loc['wrr2', 'str'] = self.spinBox_R2_STR_WR.value()
+        role_ratings_df.loc['wrr2', 'blk'] = self.spinBox_R2_BLK_WR.value()
+        role_ratings_df.loc['wrr2', 'tkl'] = self.spinBox_R2_TKL_WR.value()
+        role_ratings_df.loc['wrr2', 'han'] = self.spinBox_R2_HAN_WR.value()
+        role_ratings_df.loc['wrr2', 'gi'] = self.spinBox_R2_GI_WR.value()
+        role_ratings_df.loc['wrr2', 'elu'] = self.spinBox_R2_ELU_WR.value()
+        role_ratings_df.loc['wrr2', 'tec'] = self.spinBox_R2_TEC_WR.value()
+
+        role_ratings_df.loc['wrr3', 'label'] = self.lineEdit_R3_WR.text()
+        role_ratings_df.loc['wrr3', 'ath'] = self.spinBox_R3_ATH_WR.value()
+        role_ratings_df.loc['wrr3', 'spd'] = self.spinBox_R3_SPD_WR.value()
+        role_ratings_df.loc['wrr3', 'dur'] = self.spinBox_R3_DUR_WR.value()
+        role_ratings_df.loc['wrr3', 'we'] = self.spinBox_R3_WE_WR.value()
+        role_ratings_df.loc['wrr3', 'sta'] = self.spinBox_R3_STA_WR.value()
+        role_ratings_df.loc['wrr3', 'str'] = self.spinBox_R3_STR_WR.value()
+        role_ratings_df.loc['wrr3', 'blk'] = self.spinBox_R3_BLK_WR.value()
+        role_ratings_df.loc['wrr3', 'tkl'] = self.spinBox_R3_TKL_WR.value()
+        role_ratings_df.loc['wrr3', 'han'] = self.spinBox_R3_HAN_WR.value()
+        role_ratings_df.loc['wrr3', 'gi'] = self.spinBox_R3_GI_WR.value()
+        role_ratings_df.loc['wrr3', 'elu'] = self.spinBox_R3_ELU_WR.value()
+        role_ratings_df.loc['wrr3', 'tec'] = self.spinBox_R3_TEC_WR.value()
+
+        role_ratings_df.loc['wrr4', 'label'] = self.lineEdit_R4_WR.text()
+        role_ratings_df.loc['wrr4', 'ath'] = self.spinBox_R4_ATH_WR.value()
+        role_ratings_df.loc['wrr4', 'spd'] = self.spinBox_R4_SPD_WR.value()
+        role_ratings_df.loc['wrr4', 'dur'] = self.spinBox_R4_DUR_WR.value()
+        role_ratings_df.loc['wrr4', 'we'] = self.spinBox_R4_WE_WR.value()
+        role_ratings_df.loc['wrr4', 'sta'] = self.spinBox_R4_STA_WR.value()
+        role_ratings_df.loc['wrr4', 'str'] = self.spinBox_R4_STR_WR.value()
+        role_ratings_df.loc['wrr4', 'blk'] = self.spinBox_R4_BLK_WR.value()
+        role_ratings_df.loc['wrr4', 'tkl'] = self.spinBox_R4_TKL_WR.value()
+        role_ratings_df.loc['wrr4', 'han'] = self.spinBox_R4_HAN_WR.value()
+        role_ratings_df.loc['wrr4', 'gi'] = self.spinBox_R4_GI_WR.value()
+        role_ratings_df.loc['wrr4', 'elu'] = self.spinBox_R4_ELU_WR.value()
+        role_ratings_df.loc['wrr4', 'tec'] = self.spinBox_R4_TEC_WR.value()
+
+        role_ratings_df.loc['wrr5', 'label'] = self.lineEdit_R5_WR.text()
+        role_ratings_df.loc['wrr5', 'ath'] = self.spinBox_R5_ATH_WR.value()
+        role_ratings_df.loc['wrr5', 'spd'] = self.spinBox_R5_SPD_WR.value()
+        role_ratings_df.loc['wrr5', 'dur'] = self.spinBox_R5_DUR_WR.value()
+        role_ratings_df.loc['wrr5', 'we'] = self.spinBox_R5_WE_WR.value()
+        role_ratings_df.loc['wrr5', 'sta'] = self.spinBox_R5_STA_WR.value()
+        role_ratings_df.loc['wrr5', 'str'] = self.spinBox_R5_STR_WR.value()
+        role_ratings_df.loc['wrr5', 'blk'] = self.spinBox_R5_BLK_WR.value()
+        role_ratings_df.loc['wrr5', 'tkl'] = self.spinBox_R5_TKL_WR.value()
+        role_ratings_df.loc['wrr5', 'han'] = self.spinBox_R5_HAN_WR.value()
+        role_ratings_df.loc['wrr5', 'gi'] = self.spinBox_R5_GI_WR.value()
+        role_ratings_df.loc['wrr5', 'elu'] = self.spinBox_R5_ELU_WR.value()
+        role_ratings_df.loc['wrr5', 'tec'] = self.spinBox_R5_TEC_WR.value()
+
+        role_ratings_df.loc['wrr6', 'label'] = self.lineEdit_R6_WR.text()
+        role_ratings_df.loc['wrr6', 'ath'] = self.spinBox_R6_ATH_WR.value()
+        role_ratings_df.loc['wrr6', 'spd'] = self.spinBox_R6_SPD_WR.value()
+        role_ratings_df.loc['wrr6', 'dur'] = self.spinBox_R6_DUR_WR.value()
+        role_ratings_df.loc['wrr6', 'we'] = self.spinBox_R6_WE_WR.value()
+        role_ratings_df.loc['wrr6', 'sta'] = self.spinBox_R6_STA_WR.value()
+        role_ratings_df.loc['wrr6', 'str'] = self.spinBox_R6_STR_WR.value()
+        role_ratings_df.loc['wrr6', 'blk'] = self.spinBox_R6_BLK_WR.value()
+        role_ratings_df.loc['wrr6', 'tkl'] = self.spinBox_R6_TKL_WR.value()
+        role_ratings_df.loc['wrr6', 'han'] = self.spinBox_R6_HAN_WR.value()
+        role_ratings_df.loc['wrr6', 'gi'] = self.spinBox_R6_GI_WR.value()
+        role_ratings_df.loc['wrr6', 'elu'] = self.spinBox_R6_ELU_WR.value()
+        role_ratings_df.loc['wrr6', 'tec'] = self.spinBox_R6_TEC_WR.value()
+
+        # TE Section
+        role_ratings_df.loc['ter1', 'label'] = self.lineEdit_R1_TE.text()
+        role_ratings_df.loc['ter1', 'ath'] = self.spinBox_R1_ATH_TE.value()
+        role_ratings_df.loc['ter1', 'spd'] = self.spinBox_R1_SPD_TE.value()
+        role_ratings_df.loc['ter1', 'dur'] = self.spinBox_R1_DUR_TE.value()
+        role_ratings_df.loc['ter1', 'we'] = self.spinBox_R1_WE_TE.value()
+        role_ratings_df.loc['ter1', 'sta'] = self.spinBox_R1_STA_TE.value()
+        role_ratings_df.loc['ter1', 'str'] = self.spinBox_R1_STR_TE.value()
+        role_ratings_df.loc['ter1', 'blk'] = self.spinBox_R1_BLK_TE.value()
+        role_ratings_df.loc['ter1', 'tkl'] = self.spinBox_R1_TKL_TE.value()
+        role_ratings_df.loc['ter1', 'han'] = self.spinBox_R1_HAN_TE.value()
+        role_ratings_df.loc['ter1', 'gi'] = self.spinBox_R1_GI_TE.value()
+        role_ratings_df.loc['ter1', 'elu'] = self.spinBox_R1_ELU_TE.value()
+        role_ratings_df.loc['ter1', 'tec'] = self.spinBox_R1_TEC_TE.value()
+
+        role_ratings_df.loc['ter2', 'label'] = self.lineEdit_R2_TE.text()
+        role_ratings_df.loc['ter2', 'ath'] = self.spinBox_R2_ATH_TE.value()
+        role_ratings_df.loc['ter2', 'spd'] = self.spinBox_R2_SPD_TE.value()
+        role_ratings_df.loc['ter2', 'dur'] = self.spinBox_R2_DUR_TE.value()
+        role_ratings_df.loc['ter2', 'we'] = self.spinBox_R2_WE_TE.value()
+        role_ratings_df.loc['ter2', 'sta'] = self.spinBox_R2_STA_TE.value()
+        role_ratings_df.loc['ter2', 'str'] = self.spinBox_R2_STR_TE.value()
+        role_ratings_df.loc['ter2', 'blk'] = self.spinBox_R2_BLK_TE.value()
+        role_ratings_df.loc['ter2', 'tkl'] = self.spinBox_R2_TKL_TE.value()
+        role_ratings_df.loc['ter2', 'han'] = self.spinBox_R2_HAN_TE.value()
+        role_ratings_df.loc['ter2', 'gi'] = self.spinBox_R2_GI_TE.value()
+        role_ratings_df.loc['ter2', 'elu'] = self.spinBox_R2_ELU_TE.value()
+        role_ratings_df.loc['ter2', 'tec'] = self.spinBox_R2_TEC_TE.value()
+
+        role_ratings_df.loc['ter3', 'label'] = self.lineEdit_R3_TE.text()
+        role_ratings_df.loc['ter3', 'ath'] = self.spinBox_R3_ATH_TE.value()
+        role_ratings_df.loc['ter3', 'spd'] = self.spinBox_R3_SPD_TE.value()
+        role_ratings_df.loc['ter3', 'dur'] = self.spinBox_R3_DUR_TE.value()
+        role_ratings_df.loc['ter3', 'we'] = self.spinBox_R3_WE_TE.value()
+        role_ratings_df.loc['ter3', 'sta'] = self.spinBox_R3_STA_TE.value()
+        role_ratings_df.loc['ter3', 'str'] = self.spinBox_R3_STR_TE.value()
+        role_ratings_df.loc['ter3', 'blk'] = self.spinBox_R3_BLK_TE.value()
+        role_ratings_df.loc['ter3', 'tkl'] = self.spinBox_R3_TKL_TE.value()
+        role_ratings_df.loc['ter3', 'han'] = self.spinBox_R3_HAN_TE.value()
+        role_ratings_df.loc['ter3', 'gi'] = self.spinBox_R3_GI_TE.value()
+        role_ratings_df.loc['ter3', 'elu'] = self.spinBox_R3_ELU_TE.value()
+        role_ratings_df.loc['ter3', 'tec'] = self.spinBox_R3_TEC_TE.value()
+
+        role_ratings_df.loc['ter4', 'label'] = self.lineEdit_R4_TE.text()
+        role_ratings_df.loc['ter4', 'ath'] = self.spinBox_R4_ATH_TE.value()
+        role_ratings_df.loc['ter4', 'spd'] = self.spinBox_R4_SPD_TE.value()
+        role_ratings_df.loc['ter4', 'dur'] = self.spinBox_R4_DUR_TE.value()
+        role_ratings_df.loc['ter4', 'we'] = self.spinBox_R4_WE_TE.value()
+        role_ratings_df.loc['ter4', 'sta'] = self.spinBox_R4_STA_TE.value()
+        role_ratings_df.loc['ter4', 'str'] = self.spinBox_R4_STR_TE.value()
+        role_ratings_df.loc['ter4', 'blk'] = self.spinBox_R4_BLK_TE.value()
+        role_ratings_df.loc['ter4', 'tkl'] = self.spinBox_R4_TKL_TE.value()
+        role_ratings_df.loc['ter4', 'han'] = self.spinBox_R4_HAN_TE.value()
+        role_ratings_df.loc['ter4', 'gi'] = self.spinBox_R4_GI_TE.value()
+        role_ratings_df.loc['ter4', 'elu'] = self.spinBox_R4_ELU_TE.value()
+        role_ratings_df.loc['ter4', 'tec'] = self.spinBox_R4_TEC_TE.value()
+
+        role_ratings_df.loc['ter5', 'label'] = self.lineEdit_R5_TE.text()
+        role_ratings_df.loc['ter5', 'ath'] = self.spinBox_R5_ATH_TE.value()
+        role_ratings_df.loc['ter5', 'spd'] = self.spinBox_R5_SPD_TE.value()
+        role_ratings_df.loc['ter5', 'dur'] = self.spinBox_R5_DUR_TE.value()
+        role_ratings_df.loc['ter5', 'we'] = self.spinBox_R5_WE_TE.value()
+        role_ratings_df.loc['ter5', 'sta'] = self.spinBox_R5_STA_TE.value()
+        role_ratings_df.loc['ter5', 'str'] = self.spinBox_R5_STR_TE.value()
+        role_ratings_df.loc['ter5', 'blk'] = self.spinBox_R5_BLK_TE.value()
+        role_ratings_df.loc['ter5', 'tkl'] = self.spinBox_R5_TKL_TE.value()
+        role_ratings_df.loc['ter5', 'han'] = self.spinBox_R5_HAN_TE.value()
+        role_ratings_df.loc['ter5', 'gi'] = self.spinBox_R5_GI_TE.value()
+        role_ratings_df.loc['ter5', 'elu'] = self.spinBox_R5_ELU_TE.value()
+        role_ratings_df.loc['ter5', 'tec'] = self.spinBox_R5_TEC_TE.value()
+
+        role_ratings_df.loc['ter6', 'label'] = self.lineEdit_R6_TE.text()
+        role_ratings_df.loc['ter6', 'ath'] = self.spinBox_R6_ATH_TE.value()
+        role_ratings_df.loc['ter6', 'spd'] = self.spinBox_R6_SPD_TE.value()
+        role_ratings_df.loc['ter6', 'dur'] = self.spinBox_R6_DUR_TE.value()
+        role_ratings_df.loc['ter6', 'we'] = self.spinBox_R6_WE_TE.value()
+        role_ratings_df.loc['ter6', 'sta'] = self.spinBox_R6_STA_TE.value()
+        role_ratings_df.loc['ter6', 'str'] = self.spinBox_R6_STR_TE.value()
+        role_ratings_df.loc['ter6', 'blk'] = self.spinBox_R6_BLK_TE.value()
+        role_ratings_df.loc['ter6', 'tkl'] = self.spinBox_R6_TKL_TE.value()
+        role_ratings_df.loc['ter6', 'han'] = self.spinBox_R6_HAN_TE.value()
+        role_ratings_df.loc['ter6', 'gi'] = self.spinBox_R6_GI_TE.value()
+        role_ratings_df.loc['ter6', 'elu'] = self.spinBox_R6_ELU_TE.value()
+        role_ratings_df.loc['ter6', 'tec'] = self.spinBox_R6_TEC_TE.value()
+
+        # OL Section
+        role_ratings_df.loc['olr1', 'label'] = self.lineEdit_R1_OL.text()
+        role_ratings_df.loc['olr1', 'ath'] = self.spinBox_R1_ATH_OL.value()
+        role_ratings_df.loc['olr1', 'spd'] = self.spinBox_R1_SPD_OL.value()
+        role_ratings_df.loc['olr1', 'dur'] = self.spinBox_R1_DUR_OL.value()
+        role_ratings_df.loc['olr1', 'we'] = self.spinBox_R1_WE_OL.value()
+        role_ratings_df.loc['olr1', 'sta'] = self.spinBox_R1_STA_OL.value()
+        role_ratings_df.loc['olr1', 'str'] = self.spinBox_R1_STR_OL.value()
+        role_ratings_df.loc['olr1', 'blk'] = self.spinBox_R1_BLK_OL.value()
+        role_ratings_df.loc['olr1', 'tkl'] = self.spinBox_R1_TKL_OL.value()
+        role_ratings_df.loc['olr1', 'han'] = self.spinBox_R1_HAN_OL.value()
+        role_ratings_df.loc['olr1', 'gi'] = self.spinBox_R1_GI_OL.value()
+        role_ratings_df.loc['olr1', 'elu'] = self.spinBox_R1_ELU_OL.value()
+        role_ratings_df.loc['olr1', 'tec'] = self.spinBox_R1_TEC_OL.value()
+
+        role_ratings_df.loc['olr2', 'label'] = self.lineEdit_R2_OL.text()
+        role_ratings_df.loc['olr2', 'ath'] = self.spinBox_R2_ATH_OL.value()
+        role_ratings_df.loc['olr2', 'spd'] = self.spinBox_R2_SPD_OL.value()
+        role_ratings_df.loc['olr2', 'dur'] = self.spinBox_R2_DUR_OL.value()
+        role_ratings_df.loc['olr2', 'we'] = self.spinBox_R2_WE_OL.value()
+        role_ratings_df.loc['olr2', 'sta'] = self.spinBox_R2_STA_OL.value()
+        role_ratings_df.loc['olr2', 'str'] = self.spinBox_R2_STR_OL.value()
+        role_ratings_df.loc['olr2', 'blk'] = self.spinBox_R2_BLK_OL.value()
+        role_ratings_df.loc['olr2', 'tkl'] = self.spinBox_R2_TKL_OL.value()
+        role_ratings_df.loc['olr2', 'han'] = self.spinBox_R2_HAN_OL.value()
+        role_ratings_df.loc['olr2', 'gi'] = self.spinBox_R2_GI_OL.value()
+        role_ratings_df.loc['olr2', 'elu'] = self.spinBox_R2_ELU_OL.value()
+        role_ratings_df.loc['olr2', 'tec'] = self.spinBox_R2_TEC_OL.value()
+
+        role_ratings_df.loc['olr3', 'label'] = self.lineEdit_R3_OL.text()
+        role_ratings_df.loc['olr3', 'ath'] = self.spinBox_R3_ATH_OL.value()
+        role_ratings_df.loc['olr3', 'spd'] = self.spinBox_R3_SPD_OL.value()
+        role_ratings_df.loc['olr3', 'dur'] = self.spinBox_R3_DUR_OL.value()
+        role_ratings_df.loc['olr3', 'we'] = self.spinBox_R3_WE_OL.value()
+        role_ratings_df.loc['olr3', 'sta'] = self.spinBox_R3_STA_OL.value()
+        role_ratings_df.loc['olr3', 'str'] = self.spinBox_R3_STR_OL.value()
+        role_ratings_df.loc['olr3', 'blk'] = self.spinBox_R3_BLK_OL.value()
+        role_ratings_df.loc['olr3', 'tkl'] = self.spinBox_R3_TKL_OL.value()
+        role_ratings_df.loc['olr3', 'han'] = self.spinBox_R3_HAN_OL.value()
+        role_ratings_df.loc['olr3', 'gi'] = self.spinBox_R3_GI_OL.value()
+        role_ratings_df.loc['olr3', 'elu'] = self.spinBox_R3_ELU_OL.value()
+        role_ratings_df.loc['olr3', 'tec'] = self.spinBox_R3_TEC_OL.value()
+
+        role_ratings_df.loc['olr4', 'label'] = self.lineEdit_R4_OL.text()
+        role_ratings_df.loc['olr4', 'ath'] = self.spinBox_R4_ATH_OL.value()
+        role_ratings_df.loc['olr4', 'spd'] = self.spinBox_R4_SPD_OL.value()
+        role_ratings_df.loc['olr4', 'dur'] = self.spinBox_R4_DUR_OL.value()
+        role_ratings_df.loc['olr4', 'we'] = self.spinBox_R4_WE_OL.value()
+        role_ratings_df.loc['olr4', 'sta'] = self.spinBox_R4_STA_OL.value()
+        role_ratings_df.loc['olr4', 'str'] = self.spinBox_R4_STR_OL.value()
+        role_ratings_df.loc['olr4', 'blk'] = self.spinBox_R4_BLK_OL.value()
+        role_ratings_df.loc['olr4', 'tkl'] = self.spinBox_R4_TKL_OL.value()
+        role_ratings_df.loc['olr4', 'han'] = self.spinBox_R4_HAN_OL.value()
+        role_ratings_df.loc['olr4', 'gi'] = self.spinBox_R4_GI_OL.value()
+        role_ratings_df.loc['olr4', 'elu'] = self.spinBox_R4_ELU_OL.value()
+        role_ratings_df.loc['olr4', 'tec'] = self.spinBox_R4_TEC_OL.value()
+
+        role_ratings_df.loc['olr5', 'label'] = self.lineEdit_R5_OL.text()
+        role_ratings_df.loc['olr5', 'ath'] = self.spinBox_R5_ATH_OL.value()
+        role_ratings_df.loc['olr5', 'spd'] = self.spinBox_R5_SPD_OL.value()
+        role_ratings_df.loc['olr5', 'dur'] = self.spinBox_R5_DUR_OL.value()
+        role_ratings_df.loc['olr5', 'we'] = self.spinBox_R5_WE_OL.value()
+        role_ratings_df.loc['olr5', 'sta'] = self.spinBox_R5_STA_OL.value()
+        role_ratings_df.loc['olr5', 'str'] = self.spinBox_R5_STR_OL.value()
+        role_ratings_df.loc['olr5', 'blk'] = self.spinBox_R5_BLK_OL.value()
+        role_ratings_df.loc['olr5', 'tkl'] = self.spinBox_R5_TKL_OL.value()
+        role_ratings_df.loc['olr5', 'han'] = self.spinBox_R5_HAN_OL.value()
+        role_ratings_df.loc['olr5', 'gi'] = self.spinBox_R5_GI_OL.value()
+        role_ratings_df.loc['olr5', 'elu'] = self.spinBox_R5_ELU_OL.value()
+        role_ratings_df.loc['olr5', 'tec'] = self.spinBox_R5_TEC_OL.value()
+
+        role_ratings_df.loc['olr6', 'label'] = self.lineEdit_R6_OL.text()
+        role_ratings_df.loc['olr6', 'ath'] = self.spinBox_R6_ATH_OL.value()
+        role_ratings_df.loc['olr6', 'spd'] = self.spinBox_R6_SPD_OL.value()
+        role_ratings_df.loc['olr6', 'dur'] = self.spinBox_R6_DUR_OL.value()
+        role_ratings_df.loc['olr6', 'we'] = self.spinBox_R6_WE_OL.value()
+        role_ratings_df.loc['olr6', 'sta'] = self.spinBox_R6_STA_OL.value()
+        role_ratings_df.loc['olr6', 'str'] = self.spinBox_R6_STR_OL.value()
+        role_ratings_df.loc['olr6', 'blk'] = self.spinBox_R6_BLK_OL.value()
+        role_ratings_df.loc['olr6', 'tkl'] = self.spinBox_R6_TKL_OL.value()
+        role_ratings_df.loc['olr6', 'han'] = self.spinBox_R6_HAN_OL.value()
+        role_ratings_df.loc['olr6', 'gi'] = self.spinBox_R6_GI_OL.value()
+        role_ratings_df.loc['olr6', 'elu'] = self.spinBox_R6_ELU_OL.value()
+        role_ratings_df.loc['olr6', 'tec'] = self.spinBox_R6_TEC_OL.value()
+
+        # DL Section
+        role_ratings_df.loc['dlr1', 'label'] = self.lineEdit_R1_DL.text()
+        role_ratings_df.loc['dlr1', 'ath'] = self.spinBox_R1_ATH_DL.value()
+        role_ratings_df.loc['dlr1', 'spd'] = self.spinBox_R1_SPD_DL.value()
+        role_ratings_df.loc['dlr1', 'dur'] = self.spinBox_R1_DUR_DL.value()
+        role_ratings_df.loc['dlr1', 'we'] = self.spinBox_R1_WE_DL.value()
+        role_ratings_df.loc['dlr1', 'sta'] = self.spinBox_R1_STA_DL.value()
+        role_ratings_df.loc['dlr1', 'str'] = self.spinBox_R1_STR_DL.value()
+        role_ratings_df.loc['dlr1', 'blk'] = self.spinBox_R1_BLK_DL.value()
+        role_ratings_df.loc['dlr1', 'tkl'] = self.spinBox_R1_TKL_DL.value()
+        role_ratings_df.loc['dlr1', 'han'] = self.spinBox_R1_HAN_DL.value()
+        role_ratings_df.loc['dlr1', 'gi'] = self.spinBox_R1_GI_DL.value()
+        role_ratings_df.loc['dlr1', 'elu'] = self.spinBox_R1_ELU_DL.value()
+        role_ratings_df.loc['dlr1', 'tec'] = self.spinBox_R1_TEC_DL.value()
+
+        role_ratings_df.loc['dlr2', 'label'] = self.lineEdit_R2_DL.text()
+        role_ratings_df.loc['dlr2', 'ath'] = self.spinBox_R2_ATH_DL.value()
+        role_ratings_df.loc['dlr2', 'spd'] = self.spinBox_R2_SPD_DL.value()
+        role_ratings_df.loc['dlr2', 'dur'] = self.spinBox_R2_DUR_DL.value()
+        role_ratings_df.loc['dlr2', 'we'] = self.spinBox_R2_WE_DL.value()
+        role_ratings_df.loc['dlr2', 'sta'] = self.spinBox_R2_STA_DL.value()
+        role_ratings_df.loc['dlr2', 'str'] = self.spinBox_R2_STR_DL.value()
+        role_ratings_df.loc['dlr2', 'blk'] = self.spinBox_R2_BLK_DL.value()
+        role_ratings_df.loc['dlr2', 'tkl'] = self.spinBox_R2_TKL_DL.value()
+        role_ratings_df.loc['dlr2', 'han'] = self.spinBox_R2_HAN_DL.value()
+        role_ratings_df.loc['dlr2', 'gi'] = self.spinBox_R2_GI_DL.value()
+        role_ratings_df.loc['dlr2', 'elu'] = self.spinBox_R2_ELU_DL.value()
+        role_ratings_df.loc['dlr2', 'tec'] = self.spinBox_R2_TEC_DL.value()
+
+        role_ratings_df.loc['dlr3', 'label'] = self.lineEdit_R3_DL.text()
+        role_ratings_df.loc['dlr3', 'ath'] = self.spinBox_R3_ATH_DL.value()
+        role_ratings_df.loc['dlr3', 'spd'] = self.spinBox_R3_SPD_DL.value()
+        role_ratings_df.loc['dlr3', 'dur'] = self.spinBox_R3_DUR_DL.value()
+        role_ratings_df.loc['dlr3', 'we'] = self.spinBox_R3_WE_DL.value()
+        role_ratings_df.loc['dlr3', 'sta'] = self.spinBox_R3_STA_DL.value()
+        role_ratings_df.loc['dlr3', 'str'] = self.spinBox_R3_STR_DL.value()
+        role_ratings_df.loc['dlr3', 'blk'] = self.spinBox_R3_BLK_DL.value()
+        role_ratings_df.loc['dlr3', 'tkl'] = self.spinBox_R3_TKL_DL.value()
+        role_ratings_df.loc['dlr3', 'han'] = self.spinBox_R3_HAN_DL.value()
+        role_ratings_df.loc['dlr3', 'gi'] = self.spinBox_R3_GI_DL.value()
+        role_ratings_df.loc['dlr3', 'elu'] = self.spinBox_R3_ELU_DL.value()
+        role_ratings_df.loc['dlr3', 'tec'] = self.spinBox_R3_TEC_DL.value()
+
+        role_ratings_df.loc['dlr4', 'label'] = self.lineEdit_R4_DL.text()
+        role_ratings_df.loc['dlr4', 'ath'] = self.spinBox_R4_ATH_DL.value()
+        role_ratings_df.loc['dlr4', 'spd'] = self.spinBox_R4_SPD_DL.value()
+        role_ratings_df.loc['dlr4', 'dur'] = self.spinBox_R4_DUR_DL.value()
+        role_ratings_df.loc['dlr4', 'we'] = self.spinBox_R4_WE_DL.value()
+        role_ratings_df.loc['dlr4', 'sta'] = self.spinBox_R4_STA_DL.value()
+        role_ratings_df.loc['dlr4', 'str'] = self.spinBox_R4_STR_DL.value()
+        role_ratings_df.loc['dlr4', 'blk'] = self.spinBox_R4_BLK_DL.value()
+        role_ratings_df.loc['dlr4', 'tkl'] = self.spinBox_R4_TKL_DL.value()
+        role_ratings_df.loc['dlr4', 'han'] = self.spinBox_R4_HAN_DL.value()
+        role_ratings_df.loc['dlr4', 'gi'] = self.spinBox_R4_GI_DL.value()
+        role_ratings_df.loc['dlr4', 'elu'] = self.spinBox_R4_ELU_DL.value()
+        role_ratings_df.loc['dlr4', 'tec'] = self.spinBox_R4_TEC_DL.value()
+
+        role_ratings_df.loc['dlr5', 'label'] = self.lineEdit_R5_DL.text()
+        role_ratings_df.loc['dlr5', 'ath'] = self.spinBox_R5_ATH_DL.value()
+        role_ratings_df.loc['dlr5', 'spd'] = self.spinBox_R5_SPD_DL.value()
+        role_ratings_df.loc['dlr5', 'dur'] = self.spinBox_R5_DUR_DL.value()
+        role_ratings_df.loc['dlr5', 'we'] = self.spinBox_R5_WE_DL.value()
+        role_ratings_df.loc['dlr5', 'sta'] = self.spinBox_R5_STA_DL.value()
+        role_ratings_df.loc['dlr5', 'str'] = self.spinBox_R5_STR_DL.value()
+        role_ratings_df.loc['dlr5', 'blk'] = self.spinBox_R5_BLK_DL.value()
+        role_ratings_df.loc['dlr5', 'tkl'] = self.spinBox_R5_TKL_DL.value()
+        role_ratings_df.loc['dlr5', 'han'] = self.spinBox_R5_HAN_DL.value()
+        role_ratings_df.loc['dlr5', 'gi'] = self.spinBox_R5_GI_DL.value()
+        role_ratings_df.loc['dlr5', 'elu'] = self.spinBox_R5_ELU_DL.value()
+        role_ratings_df.loc['dlr5', 'tec'] = self.spinBox_R5_TEC_DL.value()
+
+        role_ratings_df.loc['dlr6', 'label'] = self.lineEdit_R6_DL.text()
+        role_ratings_df.loc['dlr6', 'ath'] = self.spinBox_R6_ATH_DL.value()
+        role_ratings_df.loc['dlr6', 'spd'] = self.spinBox_R6_SPD_DL.value()
+        role_ratings_df.loc['dlr6', 'dur'] = self.spinBox_R6_DUR_DL.value()
+        role_ratings_df.loc['dlr6', 'we'] = self.spinBox_R6_WE_DL.value()
+        role_ratings_df.loc['dlr6', 'sta'] = self.spinBox_R6_STA_DL.value()
+        role_ratings_df.loc['dlr6', 'str'] = self.spinBox_R6_STR_DL.value()
+        role_ratings_df.loc['dlr6', 'blk'] = self.spinBox_R6_BLK_DL.value()
+        role_ratings_df.loc['dlr6', 'tkl'] = self.spinBox_R6_TKL_DL.value()
+        role_ratings_df.loc['dlr6', 'han'] = self.spinBox_R6_HAN_DL.value()
+        role_ratings_df.loc['dlr6', 'gi'] = self.spinBox_R6_GI_DL.value()
+        role_ratings_df.loc['dlr6', 'elu'] = self.spinBox_R6_ELU_DL.value()
+        role_ratings_df.loc['dlr6', 'tec'] = self.spinBox_R6_TEC_DL.value()
+
+        # LB Section
+        role_ratings_df.loc['lbr1', 'label'] = self.lineEdit_R1_LB.text()
+        role_ratings_df.loc['lbr1', 'ath'] = self.spinBox_R1_ATH_LB.value()
+        role_ratings_df.loc['lbr1', 'spd'] = self.spinBox_R1_SPD_LB.value()
+        role_ratings_df.loc['lbr1', 'dur'] = self.spinBox_R1_DUR_LB.value()
+        role_ratings_df.loc['lbr1', 'we'] = self.spinBox_R1_WE_LB.value()
+        role_ratings_df.loc['lbr1', 'sta'] = self.spinBox_R1_STA_LB.value()
+        role_ratings_df.loc['lbr1', 'str'] = self.spinBox_R1_STR_LB.value()
+        role_ratings_df.loc['lbr1', 'blk'] = self.spinBox_R1_BLK_LB.value()
+        role_ratings_df.loc['lbr1', 'tkl'] = self.spinBox_R1_TKL_LB.value()
+        role_ratings_df.loc['lbr1', 'han'] = self.spinBox_R1_HAN_LB.value()
+        role_ratings_df.loc['lbr1', 'gi'] = self.spinBox_R1_GI_LB.value()
+        role_ratings_df.loc['lbr1', 'elu'] = self.spinBox_R1_ELU_LB.value()
+        role_ratings_df.loc['lbr1', 'tec'] = self.spinBox_R1_TEC_LB.value()
+
+        role_ratings_df.loc['lbr2', 'label'] = self.lineEdit_R2_LB.text()
+        role_ratings_df.loc['lbr2', 'ath'] = self.spinBox_R2_ATH_LB.value()
+        role_ratings_df.loc['lbr2', 'spd'] = self.spinBox_R2_SPD_LB.value()
+        role_ratings_df.loc['lbr2', 'dur'] = self.spinBox_R2_DUR_LB.value()
+        role_ratings_df.loc['lbr2', 'we'] = self.spinBox_R2_WE_LB.value()
+        role_ratings_df.loc['lbr2', 'sta'] = self.spinBox_R2_STA_LB.value()
+        role_ratings_df.loc['lbr2', 'str'] = self.spinBox_R2_STR_LB.value()
+        role_ratings_df.loc['lbr2', 'blk'] = self.spinBox_R2_BLK_LB.value()
+        role_ratings_df.loc['lbr2', 'tkl'] = self.spinBox_R2_TKL_LB.value()
+        role_ratings_df.loc['lbr2', 'han'] = self.spinBox_R2_HAN_LB.value()
+        role_ratings_df.loc['lbr2', 'gi'] = self.spinBox_R2_GI_LB.value()
+        role_ratings_df.loc['lbr2', 'elu'] = self.spinBox_R2_ELU_LB.value()
+        role_ratings_df.loc['lbr2', 'tec'] = self.spinBox_R2_TEC_LB.value()
+
+        role_ratings_df.loc['lbr3', 'label'] = self.lineEdit_R3_LB.text()
+        role_ratings_df.loc['lbr3', 'ath'] = self.spinBox_R3_ATH_LB.value()
+        role_ratings_df.loc['lbr3', 'spd'] = self.spinBox_R3_SPD_LB.value()
+        role_ratings_df.loc['lbr3', 'dur'] = self.spinBox_R3_DUR_LB.value()
+        role_ratings_df.loc['lbr3', 'we'] = self.spinBox_R3_WE_LB.value()
+        role_ratings_df.loc['lbr3', 'sta'] = self.spinBox_R3_STA_LB.value()
+        role_ratings_df.loc['lbr3', 'str'] = self.spinBox_R3_STR_LB.value()
+        role_ratings_df.loc['lbr3', 'blk'] = self.spinBox_R3_BLK_LB.value()
+        role_ratings_df.loc['lbr3', 'tkl'] = self.spinBox_R3_TKL_LB.value()
+        role_ratings_df.loc['lbr3', 'han'] = self.spinBox_R3_HAN_LB.value()
+        role_ratings_df.loc['lbr3', 'gi'] = self.spinBox_R3_GI_LB.value()
+        role_ratings_df.loc['lbr3', 'elu'] = self.spinBox_R3_ELU_LB.value()
+        role_ratings_df.loc['lbr3', 'tec'] = self.spinBox_R3_TEC_LB.value()
+
+        role_ratings_df.loc['lbr4', 'label'] = self.lineEdit_R4_LB.text()
+        role_ratings_df.loc['lbr4', 'ath'] = self.spinBox_R4_ATH_LB.value()
+        role_ratings_df.loc['lbr4', 'spd'] = self.spinBox_R4_SPD_LB.value()
+        role_ratings_df.loc['lbr4', 'dur'] = self.spinBox_R4_DUR_LB.value()
+        role_ratings_df.loc['lbr4', 'we'] = self.spinBox_R4_WE_LB.value()
+        role_ratings_df.loc['lbr4', 'sta'] = self.spinBox_R4_STA_LB.value()
+        role_ratings_df.loc['lbr4', 'str'] = self.spinBox_R4_STR_LB.value()
+        role_ratings_df.loc['lbr4', 'blk'] = self.spinBox_R4_BLK_LB.value()
+        role_ratings_df.loc['lbr4', 'tkl'] = self.spinBox_R4_TKL_LB.value()
+        role_ratings_df.loc['lbr4', 'han'] = self.spinBox_R4_HAN_LB.value()
+        role_ratings_df.loc['lbr4', 'gi'] = self.spinBox_R4_GI_LB.value()
+        role_ratings_df.loc['lbr4', 'elu'] = self.spinBox_R4_ELU_LB.value()
+        role_ratings_df.loc['lbr4', 'tec'] = self.spinBox_R4_TEC_LB.value()
+
+        role_ratings_df.loc['lbr5', 'label'] = self.lineEdit_R5_LB.text()
+        role_ratings_df.loc['lbr5', 'ath'] = self.spinBox_R5_ATH_LB.value()
+        role_ratings_df.loc['lbr5', 'spd'] = self.spinBox_R5_SPD_LB.value()
+        role_ratings_df.loc['lbr5', 'dur'] = self.spinBox_R5_DUR_LB.value()
+        role_ratings_df.loc['lbr5', 'we'] = self.spinBox_R5_WE_LB.value()
+        role_ratings_df.loc['lbr5', 'sta'] = self.spinBox_R5_STA_LB.value()
+        role_ratings_df.loc['lbr5', 'str'] = self.spinBox_R5_STR_LB.value()
+        role_ratings_df.loc['lbr5', 'blk'] = self.spinBox_R5_BLK_LB.value()
+        role_ratings_df.loc['lbr5', 'tkl'] = self.spinBox_R5_TKL_LB.value()
+        role_ratings_df.loc['lbr5', 'han'] = self.spinBox_R5_HAN_LB.value()
+        role_ratings_df.loc['lbr5', 'gi'] = self.spinBox_R5_GI_LB.value()
+        role_ratings_df.loc['lbr5', 'elu'] = self.spinBox_R5_ELU_LB.value()
+        role_ratings_df.loc['lbr5', 'tec'] = self.spinBox_R5_TEC_LB.value()
+
+        role_ratings_df.loc['lbr6', 'label'] = self.lineEdit_R6_LB.text()
+        role_ratings_df.loc['lbr6', 'ath'] = self.spinBox_R6_ATH_LB.value()
+        role_ratings_df.loc['lbr6', 'spd'] = self.spinBox_R6_SPD_LB.value()
+        role_ratings_df.loc['lbr6', 'dur'] = self.spinBox_R6_DUR_LB.value()
+        role_ratings_df.loc['lbr6', 'we'] = self.spinBox_R6_WE_LB.value()
+        role_ratings_df.loc['lbr6', 'sta'] = self.spinBox_R6_STA_LB.value()
+        role_ratings_df.loc['lbr6', 'str'] = self.spinBox_R6_STR_LB.value()
+        role_ratings_df.loc['lbr6', 'blk'] = self.spinBox_R6_BLK_LB.value()
+        role_ratings_df.loc['lbr6', 'tkl'] = self.spinBox_R6_TKL_LB.value()
+        role_ratings_df.loc['lbr6', 'han'] = self.spinBox_R6_HAN_LB.value()
+        role_ratings_df.loc['lbr6', 'gi'] = self.spinBox_R6_GI_LB.value()
+        role_ratings_df.loc['lbr6', 'elu'] = self.spinBox_R6_ELU_LB.value()
+        role_ratings_df.loc['lbr6', 'tec'] = self.spinBox_R6_TEC_LB.value()
+
+        # DB Section
+        role_ratings_df.loc['dbr1', 'label'] = self.lineEdit_R1_DB.text()
+        role_ratings_df.loc['dbr1', 'ath'] = self.spinBox_R1_ATH_DB.value()
+        role_ratings_df.loc['dbr1', 'spd'] = self.spinBox_R1_SPD_DB.value()
+        role_ratings_df.loc['dbr1', 'dur'] = self.spinBox_R1_DUR_DB.value()
+        role_ratings_df.loc['dbr1', 'we'] = self.spinBox_R1_WE_DB.value()
+        role_ratings_df.loc['dbr1', 'sta'] = self.spinBox_R1_STA_DB.value()
+        role_ratings_df.loc['dbr1', 'str'] = self.spinBox_R1_STR_DB.value()
+        role_ratings_df.loc['dbr1', 'blk'] = self.spinBox_R1_BLK_DB.value()
+        role_ratings_df.loc['dbr1', 'tkl'] = self.spinBox_R1_TKL_DB.value()
+        role_ratings_df.loc['dbr1', 'han'] = self.spinBox_R1_HAN_DB.value()
+        role_ratings_df.loc['dbr1', 'gi'] = self.spinBox_R1_GI_DB.value()
+        role_ratings_df.loc['dbr1', 'elu'] = self.spinBox_R1_ELU_DB.value()
+        role_ratings_df.loc['dbr1', 'tec'] = self.spinBox_R1_TEC_DB.value()
+
+        role_ratings_df.loc['dbr2', 'label'] = self.lineEdit_R2_DB.text()
+        role_ratings_df.loc['dbr2', 'ath'] = self.spinBox_R2_ATH_DB.value()
+        role_ratings_df.loc['dbr2', 'spd'] = self.spinBox_R2_SPD_DB.value()
+        role_ratings_df.loc['dbr2', 'dur'] = self.spinBox_R2_DUR_DB.value()
+        role_ratings_df.loc['dbr2', 'we'] = self.spinBox_R2_WE_DB.value()
+        role_ratings_df.loc['dbr2', 'sta'] = self.spinBox_R2_STA_DB.value()
+        role_ratings_df.loc['dbr2', 'str'] = self.spinBox_R2_STR_DB.value()
+        role_ratings_df.loc['dbr2', 'blk'] = self.spinBox_R2_BLK_DB.value()
+        role_ratings_df.loc['dbr2', 'tkl'] = self.spinBox_R2_TKL_DB.value()
+        role_ratings_df.loc['dbr2', 'han'] = self.spinBox_R2_HAN_DB.value()
+        role_ratings_df.loc['dbr2', 'gi'] = self.spinBox_R2_GI_DB.value()
+        role_ratings_df.loc['dbr2', 'elu'] = self.spinBox_R2_ELU_DB.value()
+        role_ratings_df.loc['dbr2', 'tec'] = self.spinBox_R2_TEC_DB.value()
+
+        role_ratings_df.loc['dbr3', 'label'] = self.lineEdit_R3_DB.text()
+        role_ratings_df.loc['dbr3', 'ath'] = self.spinBox_R3_ATH_DB.value()
+        role_ratings_df.loc['dbr3', 'spd'] = self.spinBox_R3_SPD_DB.value()
+        role_ratings_df.loc['dbr3', 'dur'] = self.spinBox_R3_DUR_DB.value()
+        role_ratings_df.loc['dbr3', 'we'] = self.spinBox_R3_WE_DB.value()
+        role_ratings_df.loc['dbr3', 'sta'] = self.spinBox_R3_STA_DB.value()
+        role_ratings_df.loc['dbr3', 'str'] = self.spinBox_R3_STR_DB.value()
+        role_ratings_df.loc['dbr3', 'blk'] = self.spinBox_R3_BLK_DB.value()
+        role_ratings_df.loc['dbr3', 'tkl'] = self.spinBox_R3_TKL_DB.value()
+        role_ratings_df.loc['dbr3', 'han'] = self.spinBox_R3_HAN_DB.value()
+        role_ratings_df.loc['dbr3', 'gi'] = self.spinBox_R3_GI_DB.value()
+        role_ratings_df.loc['dbr3', 'elu'] = self.spinBox_R3_ELU_DB.value()
+        role_ratings_df.loc['dbr3', 'tec'] = self.spinBox_R3_TEC_DB.value()
+
+        role_ratings_df.loc['dbr4', 'label'] = self.lineEdit_R4_DB.text()
+        role_ratings_df.loc['dbr4', 'ath'] = self.spinBox_R4_ATH_DB.value()
+        role_ratings_df.loc['dbr4', 'spd'] = self.spinBox_R4_SPD_DB.value()
+        role_ratings_df.loc['dbr4', 'dur'] = self.spinBox_R4_DUR_DB.value()
+        role_ratings_df.loc['dbr4', 'we'] = self.spinBox_R4_WE_DB.value()
+        role_ratings_df.loc['dbr4', 'sta'] = self.spinBox_R4_STA_DB.value()
+        role_ratings_df.loc['dbr4', 'str'] = self.spinBox_R4_STR_DB.value()
+        role_ratings_df.loc['dbr4', 'blk'] = self.spinBox_R4_BLK_DB.value()
+        role_ratings_df.loc['dbr4', 'tkl'] = self.spinBox_R4_TKL_DB.value()
+        role_ratings_df.loc['dbr4', 'han'] = self.spinBox_R4_HAN_DB.value()
+        role_ratings_df.loc['dbr4', 'gi'] = self.spinBox_R4_GI_DB.value()
+        role_ratings_df.loc['dbr4', 'elu'] = self.spinBox_R4_ELU_DB.value()
+        role_ratings_df.loc['dbr4', 'tec'] = self.spinBox_R4_TEC_DB.value()
+
+        role_ratings_df.loc['dbr5', 'label'] = self.lineEdit_R5_DB.text()
+        role_ratings_df.loc['dbr5', 'ath'] = self.spinBox_R5_ATH_DB.value()
+        role_ratings_df.loc['dbr5', 'spd'] = self.spinBox_R5_SPD_DB.value()
+        role_ratings_df.loc['dbr5', 'dur'] = self.spinBox_R5_DUR_DB.value()
+        role_ratings_df.loc['dbr5', 'we'] = self.spinBox_R5_WE_DB.value()
+        role_ratings_df.loc['dbr5', 'sta'] = self.spinBox_R5_STA_DB.value()
+        role_ratings_df.loc['dbr5', 'str'] = self.spinBox_R5_STR_DB.value()
+        role_ratings_df.loc['dbr5', 'blk'] = self.spinBox_R5_BLK_DB.value()
+        role_ratings_df.loc['dbr5', 'tkl'] = self.spinBox_R5_TKL_DB.value()
+        role_ratings_df.loc['dbr5', 'han'] = self.spinBox_R5_HAN_DB.value()
+        role_ratings_df.loc['dbr5', 'gi'] = self.spinBox_R5_GI_DB.value()
+        role_ratings_df.loc['dbr5', 'elu'] = self.spinBox_R5_ELU_DB.value()
+        role_ratings_df.loc['dbr5', 'tec'] = self.spinBox_R5_TEC_DB.value()
+
+        role_ratings_df.loc['dbr6', 'label'] = self.lineEdit_R6_DB.text()
+        role_ratings_df.loc['dbr6', 'ath'] = self.spinBox_R6_ATH_DB.value()
+        role_ratings_df.loc['dbr6', 'spd'] = self.spinBox_R6_SPD_DB.value()
+        role_ratings_df.loc['dbr6', 'dur'] = self.spinBox_R6_DUR_DB.value()
+        role_ratings_df.loc['dbr6', 'we'] = self.spinBox_R6_WE_DB.value()
+        role_ratings_df.loc['dbr6', 'sta'] = self.spinBox_R6_STA_DB.value()
+        role_ratings_df.loc['dbr6', 'str'] = self.spinBox_R6_STR_DB.value()
+        role_ratings_df.loc['dbr6', 'blk'] = self.spinBox_R6_BLK_DB.value()
+        role_ratings_df.loc['dbr6', 'tkl'] = self.spinBox_R6_TKL_DB.value()
+        role_ratings_df.loc['dbr6', 'han'] = self.spinBox_R6_HAN_DB.value()
+        role_ratings_df.loc['dbr6', 'gi'] = self.spinBox_R6_GI_DB.value()
+        role_ratings_df.loc['dbr6', 'elu'] = self.spinBox_R6_ELU_DB.value()
+        role_ratings_df.loc['dbr6', 'tec'] = self.spinBox_R6_TEC_DB.value()
+
+        # K Section
+        role_ratings_df.loc['kr1', 'label'] = self.lineEdit_R1_K.text()
+        role_ratings_df.loc['kr1', 'ath'] = self.spinBox_R1_ATH_K.value()
+        role_ratings_df.loc['kr1', 'spd'] = self.spinBox_R1_SPD_K.value()
+        role_ratings_df.loc['kr1', 'dur'] = self.spinBox_R1_DUR_K.value()
+        role_ratings_df.loc['kr1', 'we'] = self.spinBox_R1_WE_K.value()
+        role_ratings_df.loc['kr1', 'sta'] = self.spinBox_R1_STA_K.value()
+        role_ratings_df.loc['kr1', 'str'] = self.spinBox_R1_STR_K.value()
+        role_ratings_df.loc['kr1', 'blk'] = self.spinBox_R1_BLK_K.value()
+        role_ratings_df.loc['kr1', 'tkl'] = self.spinBox_R1_TKL_K.value()
+        role_ratings_df.loc['kr1', 'han'] = self.spinBox_R1_HAN_K.value()
+        role_ratings_df.loc['kr1', 'gi'] = self.spinBox_R1_GI_K.value()
+        role_ratings_df.loc['kr1', 'elu'] = self.spinBox_R1_ELU_K.value()
+        role_ratings_df.loc['kr1', 'tec'] = self.spinBox_R1_TEC_K.value()
+
+        role_ratings_df.loc['kr2', 'label'] = self.lineEdit_R2_K.text()
+        role_ratings_df.loc['kr2', 'ath'] = self.spinBox_R2_ATH_K.value()
+        role_ratings_df.loc['kr2', 'spd'] = self.spinBox_R2_SPD_K.value()
+        role_ratings_df.loc['kr2', 'dur'] = self.spinBox_R2_DUR_K.value()
+        role_ratings_df.loc['kr2', 'we'] = self.spinBox_R2_WE_K.value()
+        role_ratings_df.loc['kr2', 'sta'] = self.spinBox_R2_STA_K.value()
+        role_ratings_df.loc['kr2', 'str'] = self.spinBox_R2_STR_K.value()
+        role_ratings_df.loc['kr2', 'blk'] = self.spinBox_R2_BLK_K.value()
+        role_ratings_df.loc['kr2', 'tkl'] = self.spinBox_R2_TKL_K.value()
+        role_ratings_df.loc['kr2', 'han'] = self.spinBox_R2_HAN_K.value()
+        role_ratings_df.loc['kr2', 'gi'] = self.spinBox_R2_GI_K.value()
+        role_ratings_df.loc['kr2', 'elu'] = self.spinBox_R2_ELU_K.value()
+        role_ratings_df.loc['kr2', 'tec'] = self.spinBox_R2_TEC_K.value()
+
+        role_ratings_df.loc['kr3', 'label'] = self.lineEdit_R3_K.text()
+        role_ratings_df.loc['kr3', 'ath'] = self.spinBox_R3_ATH_K.value()
+        role_ratings_df.loc['kr3', 'spd'] = self.spinBox_R3_SPD_K.value()
+        role_ratings_df.loc['kr3', 'dur'] = self.spinBox_R3_DUR_K.value()
+        role_ratings_df.loc['kr3', 'we'] = self.spinBox_R3_WE_K.value()
+        role_ratings_df.loc['kr3', 'sta'] = self.spinBox_R3_STA_K.value()
+        role_ratings_df.loc['kr3', 'str'] = self.spinBox_R3_STR_K.value()
+        role_ratings_df.loc['kr3', 'blk'] = self.spinBox_R3_BLK_K.value()
+        role_ratings_df.loc['kr3', 'tkl'] = self.spinBox_R3_TKL_K.value()
+        role_ratings_df.loc['kr3', 'han'] = self.spinBox_R3_HAN_K.value()
+        role_ratings_df.loc['kr3', 'gi'] = self.spinBox_R3_GI_K.value()
+        role_ratings_df.loc['kr3', 'elu'] = self.spinBox_R3_ELU_K.value()
+        role_ratings_df.loc['kr3', 'tec'] = self.spinBox_R3_TEC_K.value()
+
+        role_ratings_df.loc['kr4', 'label'] = self.lineEdit_R4_K.text()
+        role_ratings_df.loc['kr4', 'ath'] = self.spinBox_R4_ATH_K.value()
+        role_ratings_df.loc['kr4', 'spd'] = self.spinBox_R4_SPD_K.value()
+        role_ratings_df.loc['kr4', 'dur'] = self.spinBox_R4_DUR_K.value()
+        role_ratings_df.loc['kr4', 'we'] = self.spinBox_R4_WE_K.value()
+        role_ratings_df.loc['kr4', 'sta'] = self.spinBox_R4_STA_K.value()
+        role_ratings_df.loc['kr4', 'str'] = self.spinBox_R4_STR_K.value()
+        role_ratings_df.loc['kr4', 'blk'] = self.spinBox_R4_BLK_K.value()
+        role_ratings_df.loc['kr4', 'tkl'] = self.spinBox_R4_TKL_K.value()
+        role_ratings_df.loc['kr4', 'han'] = self.spinBox_R4_HAN_K.value()
+        role_ratings_df.loc['kr4', 'gi'] = self.spinBox_R4_GI_K.value()
+        role_ratings_df.loc['kr4', 'elu'] = self.spinBox_R4_ELU_K.value()
+        role_ratings_df.loc['kr4', 'tec'] = self.spinBox_R4_TEC_K.value()
+
+        role_ratings_df.loc['kr5', 'label'] = self.lineEdit_R5_K.text()
+        role_ratings_df.loc['kr5', 'ath'] = self.spinBox_R5_ATH_K.value()
+        role_ratings_df.loc['kr5', 'spd'] = self.spinBox_R5_SPD_K.value()
+        role_ratings_df.loc['kr5', 'dur'] = self.spinBox_R5_DUR_K.value()
+        role_ratings_df.loc['kr5', 'we'] = self.spinBox_R5_WE_K.value()
+        role_ratings_df.loc['kr5', 'sta'] = self.spinBox_R5_STA_K.value()
+        role_ratings_df.loc['kr5', 'str'] = self.spinBox_R5_STR_K.value()
+        role_ratings_df.loc['kr5', 'blk'] = self.spinBox_R5_BLK_K.value()
+        role_ratings_df.loc['kr5', 'tkl'] = self.spinBox_R5_TKL_K.value()
+        role_ratings_df.loc['kr5', 'han'] = self.spinBox_R5_HAN_K.value()
+        role_ratings_df.loc['kr5', 'gi'] = self.spinBox_R5_GI_K.value()
+        role_ratings_df.loc['kr5', 'elu'] = self.spinBox_R5_ELU_K.value()
+        role_ratings_df.loc['kr5', 'tec'] = self.spinBox_R5_TEC_K.value()
+
+        role_ratings_df.loc['kr6', 'label'] = self.lineEdit_R6_K.text()
+        role_ratings_df.loc['kr6', 'ath'] = self.spinBox_R6_ATH_K.value()
+        role_ratings_df.loc['kr6', 'spd'] = self.spinBox_R6_SPD_K.value()
+        role_ratings_df.loc['kr6', 'dur'] = self.spinBox_R6_DUR_K.value()
+        role_ratings_df.loc['kr6', 'we'] = self.spinBox_R6_WE_K.value()
+        role_ratings_df.loc['kr6', 'sta'] = self.spinBox_R6_STA_K.value()
+        role_ratings_df.loc['kr6', 'str'] = self.spinBox_R6_STR_K.value()
+        role_ratings_df.loc['kr6', 'blk'] = self.spinBox_R6_BLK_K.value()
+        role_ratings_df.loc['kr6', 'tkl'] = self.spinBox_R6_TKL_K.value()
+        role_ratings_df.loc['kr6', 'han'] = self.spinBox_R6_HAN_K.value()
+        role_ratings_df.loc['kr6', 'gi'] = self.spinBox_R6_GI_K.value()
+        role_ratings_df.loc['kr6', 'elu'] = self.spinBox_R6_ELU_K.value()
+        role_ratings_df.loc['kr6', 'tec'] = self.spinBox_R6_TEC_K.value()
+
+        # P Section
+        role_ratings_df.loc['pr1', 'label'] = self.lineEdit_R1_P.text()
+        role_ratings_df.loc['pr1', 'ath'] = self.spinBox_R1_ATH_P.value()
+        role_ratings_df.loc['pr1', 'spd'] = self.spinBox_R1_SPD_P.value()
+        role_ratings_df.loc['pr1', 'dur'] = self.spinBox_R1_DUR_P.value()
+        role_ratings_df.loc['pr1', 'we'] = self.spinBox_R1_WE_P.value()
+        role_ratings_df.loc['pr1', 'sta'] = self.spinBox_R1_STA_P.value()
+        role_ratings_df.loc['pr1', 'str'] = self.spinBox_R1_STR_P.value()
+        role_ratings_df.loc['pr1', 'blk'] = self.spinBox_R1_BLK_P.value()
+        role_ratings_df.loc['pr1', 'tkl'] = self.spinBox_R1_TKL_P.value()
+        role_ratings_df.loc['pr1', 'han'] = self.spinBox_R1_HAN_P.value()
+        role_ratings_df.loc['pr1', 'gi'] = self.spinBox_R1_GI_P.value()
+        role_ratings_df.loc['pr1', 'elu'] = self.spinBox_R1_ELU_P.value()
+        role_ratings_df.loc['pr1', 'tec'] = self.spinBox_R1_TEC_P.value()
+
+        role_ratings_df.loc['pr2', 'label'] = self.lineEdit_R2_P.text()
+        role_ratings_df.loc['pr2', 'ath'] = self.spinBox_R2_ATH_P.value()
+        role_ratings_df.loc['pr2', 'spd'] = self.spinBox_R2_SPD_P.value()
+        role_ratings_df.loc['pr2', 'dur'] = self.spinBox_R2_DUR_P.value()
+        role_ratings_df.loc['pr2', 'we'] = self.spinBox_R2_WE_P.value()
+        role_ratings_df.loc['pr2', 'sta'] = self.spinBox_R2_STA_P.value()
+        role_ratings_df.loc['pr2', 'str'] = self.spinBox_R2_STR_P.value()
+        role_ratings_df.loc['pr2', 'blk'] = self.spinBox_R2_BLK_P.value()
+        role_ratings_df.loc['pr2', 'tkl'] = self.spinBox_R2_TKL_P.value()
+        role_ratings_df.loc['pr2', 'han'] = self.spinBox_R2_HAN_P.value()
+        role_ratings_df.loc['pr2', 'gi'] = self.spinBox_R2_GI_P.value()
+        role_ratings_df.loc['pr2', 'elu'] = self.spinBox_R2_ELU_P.value()
+        role_ratings_df.loc['pr2', 'tec'] = self.spinBox_R2_TEC_P.value()
+
+        role_ratings_df.loc['pr3', 'label'] = self.lineEdit_R3_P.text()
+        role_ratings_df.loc['pr3', 'ath'] = self.spinBox_R3_ATH_P.value()
+        role_ratings_df.loc['pr3', 'spd'] = self.spinBox_R3_SPD_P.value()
+        role_ratings_df.loc['pr3', 'dur'] = self.spinBox_R3_DUR_P.value()
+        role_ratings_df.loc['pr3', 'we'] = self.spinBox_R3_WE_P.value()
+        role_ratings_df.loc['pr3', 'sta'] = self.spinBox_R3_STA_P.value()
+        role_ratings_df.loc['pr3', 'str'] = self.spinBox_R3_STR_P.value()
+        role_ratings_df.loc['pr3', 'blk'] = self.spinBox_R3_BLK_P.value()
+        role_ratings_df.loc['pr3', 'tkl'] = self.spinBox_R3_TKL_P.value()
+        role_ratings_df.loc['pr3', 'han'] = self.spinBox_R3_HAN_P.value()
+        role_ratings_df.loc['pr3', 'gi'] = self.spinBox_R3_GI_P.value()
+        role_ratings_df.loc['pr3', 'elu'] = self.spinBox_R3_ELU_P.value()
+        role_ratings_df.loc['pr3', 'tec'] = self.spinBox_R3_TEC_P.value()
+
+        role_ratings_df.loc['pr4', 'label'] = self.lineEdit_R4_P.text()
+        role_ratings_df.loc['pr4', 'ath'] = self.spinBox_R4_ATH_P.value()
+        role_ratings_df.loc['pr4', 'spd'] = self.spinBox_R4_SPD_P.value()
+        role_ratings_df.loc['pr4', 'dur'] = self.spinBox_R4_DUR_P.value()
+        role_ratings_df.loc['pr4', 'we'] = self.spinBox_R4_WE_P.value()
+        role_ratings_df.loc['pr4', 'sta'] = self.spinBox_R4_STA_P.value()
+        role_ratings_df.loc['pr4', 'str'] = self.spinBox_R4_STR_P.value()
+        role_ratings_df.loc['pr4', 'blk'] = self.spinBox_R4_BLK_P.value()
+        role_ratings_df.loc['pr4', 'tkl'] = self.spinBox_R4_TKL_P.value()
+        role_ratings_df.loc['pr4', 'han'] = self.spinBox_R4_HAN_P.value()
+        role_ratings_df.loc['pr4', 'gi'] = self.spinBox_R4_GI_P.value()
+        role_ratings_df.loc['pr4', 'elu'] = self.spinBox_R4_ELU_P.value()
+        role_ratings_df.loc['pr4', 'tec'] = self.spinBox_R4_TEC_P.value()
+
+        role_ratings_df.loc['pr5', 'label'] = self.lineEdit_R5_P.text()
+        role_ratings_df.loc['pr5', 'ath'] = self.spinBox_R5_ATH_P.value()
+        role_ratings_df.loc['pr5', 'spd'] = self.spinBox_R5_SPD_P.value()
+        role_ratings_df.loc['pr5', 'dur'] = self.spinBox_R5_DUR_P.value()
+        role_ratings_df.loc['pr5', 'we'] = self.spinBox_R5_WE_P.value()
+        role_ratings_df.loc['pr5', 'sta'] = self.spinBox_R5_STA_P.value()
+        role_ratings_df.loc['pr5', 'str'] = self.spinBox_R5_STR_P.value()
+        role_ratings_df.loc['pr5', 'blk'] = self.spinBox_R5_BLK_P.value()
+        role_ratings_df.loc['pr5', 'tkl'] = self.spinBox_R5_TKL_P.value()
+        role_ratings_df.loc['pr5', 'han'] = self.spinBox_R5_HAN_P.value()
+        role_ratings_df.loc['pr5', 'gi'] = self.spinBox_R5_GI_P.value()
+        role_ratings_df.loc['pr5', 'elu'] = self.spinBox_R5_ELU_P.value()
+        role_ratings_df.loc['pr5', 'tec'] = self.spinBox_R5_TEC_P.value()
+
+        role_ratings_df.loc['pr6', 'label'] = self.lineEdit_R6_P.text()
+        role_ratings_df.loc['pr6', 'ath'] = self.spinBox_R6_ATH_P.value()
+        role_ratings_df.loc['pr6', 'spd'] = self.spinBox_R6_SPD_P.value()
+        role_ratings_df.loc['pr6', 'dur'] = self.spinBox_R6_DUR_P.value()
+        role_ratings_df.loc['pr6', 'we'] = self.spinBox_R6_WE_P.value()
+        role_ratings_df.loc['pr6', 'sta'] = self.spinBox_R6_STA_P.value()
+        role_ratings_df.loc['pr6', 'str'] = self.spinBox_R6_STR_P.value()
+        role_ratings_df.loc['pr6', 'blk'] = self.spinBox_R6_BLK_P.value()
+        role_ratings_df.loc['pr6', 'tkl'] = self.spinBox_R6_TKL_P.value()
+        role_ratings_df.loc['pr6', 'han'] = self.spinBox_R6_HAN_P.value()
+        role_ratings_df.loc['pr6', 'gi'] = self.spinBox_R6_GI_P.value()
+        role_ratings_df.loc['pr6', 'elu'] = self.spinBox_R6_ELU_P.value()
+        role_ratings_df.loc['pr6', 'tec'] = self.spinBox_R6_TEC_P.value()
+
+
+        # Write to csv file
+        list_total = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
+        role_ratings_df['total'] = role_ratings_df.loc[:,list_total].sum(axis=1)
+        logger.info("Saving role ratings to csv...")
+        role_ratings_df.to_csv(role_ratings_csv)
+        global show_update_role_ratings_dialog
+        show_update_role_ratings_dialog = True
+        super().accept()
+
+
+class RoleRatingsUpdateDB(QDialog, Ui_DialogRoleRatingUpdateDB_Progress):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.runUpdateJob()
+
+    def accept(self):
+        super().accept()
+
+
+    def runUpdateJob(self):
+        logger.info("Updating Role Ratings in Recruits DB")
+        # Step 1: Create a QThread object
+        self.thread = QThread()
+        # Step 2: Create a worker object
+        self.worker = RoleRatingDBWorker()
+        # Step 3: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 4: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.progress)
+        # Step 6: Start the thread
+        self.thread.start()
+        # Final resets
+        self.thread.finished.connect(self.accept)
+
+    def progress(self, n):
+        self.progressBar.setValue(n) 
 
 class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
     def __init__(self, parent=None):
@@ -1417,8 +5051,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"&New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"&Load Season", None))
         self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"&Grab Recruit Data", None))
+        self.actionExport_to_CSV.setText(QCoreApplication.translate("MainWindow", u"&Export to CSV", None))
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"&WIS Credentials", None))
         self.actionBold_Attributes.setText(QCoreApplication.translate("MainWindow", u"&Bold Attributes", None))
+        self.actionRole_Ratings.setText(QCoreApplication.translate("MainWindow", u"&Role Ratings", None))
         self.comboBoxPositionFilter.setEnabled(False)
         self.checkBoxHideSigned.setEnabled(False)
         self.checkBoxUndecided.setEnabled(False)
@@ -1440,6 +5076,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterTKL.setEnabled(False)
         self.lineEditfilterWE.setEnabled(False)
         self.lineEditfilterGPA.setEnabled(False)
+        self.actionExport_to_CSV.setEnabled(False)
         
         # Allow only integers to be entered into the ratings filter fields
         self.onlyInt = QIntValidator()
@@ -1463,7 +5100,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionNew_Season.triggered.connect(self.open_New_Season)
         self.actionLoad_Season.triggered.connect(self.open_Load_Season)
         self.actionGrabSeasonData.triggered.connect(self.open_Grab_Season_Data)
+        self.actionExport_to_CSV.triggered.connect(self.export_db_to_csv)
         self.actionBold_Attributes.triggered.connect(self.open_Bold_Attributes)
+        self.actionRole_Ratings.triggered.connect(self.open_Role_Ratings)
         self.comboBoxPositionFilter.activated.connect(self.position_filter)
         self.comboBoxMilesFilter.activated.connect(self.miles_filter)
         self.checkBoxHideSigned.stateChanged.connect(self.hide_signed_filter)
@@ -1504,6 +5143,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 update_active_teams(coachid)
         else:
             False
+
+
+    def export_db_to_csv(self):
+        dbname = db.databaseName()
+        logger.info(f"Exporting {dbname} to csv...")
+        conn = sqlite3.connect(db.databaseName(), isolation_level=None,
+                        detect_types=sqlite3.PARSE_COLNAMES)
+        db_df = pd.read_sql_query("SELECT * FROM recruits", conn)
+        db_df.to_csv(f"{dbname}.csv", index=False)
+        mw.statusbar.showMessage(f"Exported data to: '{dbname}.csv'")
 
 
     def tableclickaction(self, item):
@@ -1731,6 +5380,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.setWindowTitle(f"{window_title} - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
+            self.actionExport_to_CSV.setEnabled(True)
             self.loadModel()
             
             
@@ -1744,6 +5394,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.setWindowTitle(f"{window_title} - {db.databaseName()}")
             self.actionGrabSeasonData.setEnabled(True)
+            self.actionExport_to_CSV.setEnabled(True)
             self.loadModel()
             
 
@@ -1767,6 +5418,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("Exiting Bold Attributes dialog")
         if db.databaseName() != "":
             self.loadModel()
+
+    
+    def open_Role_Ratings(self):
+        logger.debug("Entering Role Ratings dialog")
+        global show_update_role_ratings_dialog
+        show_update_role_ratings_dialog = False
+        dialog = RoleRatings()
+        dialog.ui = Ui_DialogRoleRatings()
+        dialog.exec_()
+        dialog.show()
+        if db.databaseName() != "":
+            if show_update_role_ratings_dialog:
+                logger.debug("Showing Role Rating Update DB progress dialog")
+                update_dialog = RoleRatingsUpdateDB()
+                update_dialog.ui = Ui_DialogRoleRatingUpdateDB_Progress()
+                update_dialog.exec_()
+                update_dialog.show()
+            self.loadModel()
+        logger.debug("Exiting Role Ratings dialog")
 
 
     def check_stored_creds(self):
@@ -1885,6 +5555,104 @@ def update_active_teams(coachid):
             config.write(file)
     elif coach_profile_page.status_code == 503:
         logger.error(f"Request to grab {coachid} profile page was NOT successful. Please check coach ID.")
+
+
+def create_bold_attributes_df():
+    data = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+    index_names = ['qb', 'rb', 'wr', 'te', 'ol', 'dl', 'lb', 'db', 'k', 'p']
+    column_headers = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
+    df = pd.DataFrame(data, columns=column_headers, index=index_names)
+    return df
+
+
+def create_role_ratings_df():
+    data = [['QB', 10, 4, 0, 0, 0, 26, 0, 0, 0, 24, 8, 28, 100],
+            ['QBRun', 8, 18, 2, 1, 3, 24, 0, 0, 0, 16, 20, 8, 100],
+            ['QBU1', 8, 4, 1, 1, 2, 26, 0, 0, 0, 26, 8, 24, 100],
+            ['QBU2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['QBU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['QBU4', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['RB', 8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8, 100],
+            ['FB', 8, 0, 1, 1, 3, 36, 30, 0, 0, 0, 13, 8, 100],
+            ['RBSpeed', 8, 24, 1, 1, 3, 20, 0, 0, 0, 10, 25, 8, 100],
+            ['RBPow', 8, 20, 1, 1, 3, 25, 0, 0, 0, 10, 24, 8, 100],
+            ['RBPoss', 8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8, 100],
+            ['RBU1', 8, 22, 1, 1, 3, 21, 0, 0, 3, 11, 22, 8, 100],
+            ['WR', 15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8, 100],
+            ['WRPoss', 16, 12, 1, 1, 3, 0, 0, 0, 24, 24, 11, 8, 100],
+            ['WRDeep', 12, 23, 1, 1, 3, 0, 0, 0, 11, 18, 23, 8, 100],
+            ['WRU1', 15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8, 100],
+            ['WRU2', 15, 18, 1, 1, 3, 0, 0, 0, 18, 20, 16, 8, 100],
+            ['WRU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['TE', 14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8, 100],
+            ['TEBlock', 11, 0, 1, 1, 2, 36, 26, 0, 0, 15, 0, 8, 100],
+            ['TEPoss', 16, 12, 1, 1, 2, 0, 0, 0, 24, 24, 12, 8, 100],
+            ['TEU1', 14, 6, 1, 1, 2, 18, 13, 0, 13, 18, 6, 8, 100],
+            ['TEU2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['TEU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['OL', 12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8, 100],
+            ['Tackle', 12, 0, 1, 1, 2, 23, 41, 0, 0, 12, 0, 8, 100],
+            ['Grd-Cntr', 12, 0, 1, 1, 2, 41, 23, 0, 0, 12, 0, 8, 100],
+            ['OLU1', 12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8, 100],
+            ['OLU2', 12, 0, 1, 1, 2, 32, 32, 0, 0, 12, 0, 8, 100],
+            ['OLU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['DL', 13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8, 100],
+            ['DT', 12, 6, 1, 1, 2, 38, 0, 17, 0, 15, 0, 8, 100],
+            ['DE', 12, 15, 1, 1, 2, 22, 0, 24, 0, 15, 0, 8, 100],
+            ['DLU1', 13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8, 100],
+            ['DLU2', 13, 8, 1, 1, 2, 32, 0, 20, 0, 15, 0, 8, 100],
+            ['DLU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['LB', 15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8, 100],
+            ['ILB', 12, 4, 1, 1, 2, 38, 0, 22, 0, 12, 0, 8, 100],
+            ['OLB', 13, 12, 1, 1, 2, 21, 0, 21, 0, 21, 0, 8, 100],
+            ['LBU1', 13, 19, 1, 1, 2, 15, 0, 20, 0, 21, 0, 8, 100],
+            ['LBU2', 15, 8, 1, 1, 2, 30, 0, 20, 0, 15, 0, 8, 100],
+            ['LBU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['DB', 16, 20, 1, 1, 4, 10, 0, 10, 10, 20, 0, 8, 100],
+            ['Safety', 18, 17, 1, 1, 4, 12, 0, 12, 10, 17, 0, 8, 100],
+            ['CB', 21, 21, 1, 1, 4, 7, 0, 7, 12, 18, 0, 8, 100],
+            ['DBU1', 15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8, 100],
+            ['DBU2', 15, 20, 1, 1, 4, 11, 0, 20, 8, 12, 0, 8, 100],
+            ['DBU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['K', 8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36, 100],
+            ['KU1', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['KU2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['KU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['KU4', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['KU5', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['P', 8, 4, 1, 1, 0, 36, 0, 0, 0, 14, 0, 36, 100],
+            ['PU1', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['PU2', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['PU3', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['PU4', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            ['PU5', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    ]
+    index_names = ['qbr1', 'qbr2', 'qbr3', 'qbr4', 'qbr5', 'qbr6',
+                    'rbr1', 'rbr2', 'rbr3', 'rbr4', 'rbr5', 'rbr6',
+                    'wrr1', 'wrr2', 'wrr3', 'wrr4', 'wrr5', 'wrr6',
+                    'ter1', 'ter2', 'ter3', 'ter4', 'ter5', 'ter6',
+                    'olr1', 'olr2', 'olr3', 'olr4', 'olr5', 'olr6',
+                    'dlr1', 'dlr2', 'dlr3', 'dlr4', 'dlr5', 'dlr6',
+                    'lbr1', 'lbr2', 'lbr3', 'lbr4', 'lbr5', 'lbr6',
+                    'dbr1', 'dbr2', 'dbr3', 'dbr4', 'dbr5', 'dbr6',
+                    'kr1', 'kr2', 'kr3', 'kr4', 'kr5', 'kr6',
+                    'pr1', 'pr2', 'pr3', 'pr4', 'pr5', 'pr6',
+    ]
+    column_headers = ['label', 'ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec', 'total']
+    df = pd.DataFrame(data, columns=column_headers, index=index_names)
+    list_total = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
+    df['total'] = df.loc[:,list_total].sum(axis=1)
+    return df
 
 
 class TableModel(QSqlTableModel):
@@ -2140,22 +5908,23 @@ if __name__ == "__main__":
     else:
         logger.debug("bold_attributes_csv file path NOT found.")
         logger.debug("Creating bold_attributes.csv file...")
-
-        data = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        ]
-        index_names = ['qb', 'rb', 'wr', 'te', 'ol', 'dl', 'lb', 'db', 'k', 'p']
-        column_headers = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
-        bold_attributes_df = pd.DataFrame(data, columns=column_headers, index=index_names)
+        bold_attributes_df = create_bold_attributes_df()
         bold_attributes_df.to_csv(bold_attributes_csv)
+
+    # Role Ratings Config
+    show_update_role_ratings_dialog = False
+    role_ratings_csv = "./role_ratings.csv"
+    if path.exists(role_ratings_csv):
+        logger.debug("role_ratnigs_csv file path found.")
+        try:
+            role_ratings_df = pd.read_csv(role_ratings_csv, header = 0, index_col=0)
+        except Exception as e:
+            logger.error(f"Exception ({e}) reading role_ratings.csv file.")
+    else:
+        logger.debug("role_ratings_csv file path NOT found.")
+        logger.debug("Creating role_ratings.csv file...")
+        role_ratings_df = create_role_ratings_df()
+        role_ratings_df.to_csv(role_ratings_csv)
 
     # Configure for High DPI
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
