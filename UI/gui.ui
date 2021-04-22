@@ -730,8 +730,15 @@
     <property name="title">
      <string>Data</string>
     </property>
+    <widget class="QMenu" name="menuExport_to_CSV">
+     <property name="title">
+      <string>Export to CSV</string>
+     </property>
+     <addaction name="actionAll_Recruits"/>
+     <addaction name="actionWatchlist_Only"/>
+    </widget>
     <addaction name="actionGrabSeasonData"/>
-    <addaction name="actionExport_to_CSV"/>
+    <addaction name="menuExport_to_CSV"/>
    </widget>
    <widget class="QMenu" name="menuOptions">
     <property name="title">
@@ -798,9 +805,14 @@
     <string>Role Ratings</string>
    </property>
   </action>
-  <action name="actionExport_to_CSV">
+  <action name="actionAll_Recruits">
    <property name="text">
-    <string>Export to CSV</string>
+    <string>All Recruits</string>
+   </property>
+  </action>
+  <action name="actionWatchlist_Only">
+   <property name="text">
+    <string>Watchlist Only</string>
    </property>
   </action>
  </widget>
