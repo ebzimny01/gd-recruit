@@ -343,7 +343,7 @@
          </font>
         </property>
         <property name="text">
-         <string>BLK &gt;</string>
+         <string>BLK &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -394,7 +394,7 @@
          </font>
         </property>
         <property name="text">
-         <string>HAN &gt;</string>
+         <string>HAN &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -430,7 +430,7 @@
          </font>
         </property>
         <property name="text">
-         <string>GI &gt;</string>
+         <string>GI &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -472,7 +472,7 @@
          </font>
         </property>
         <property name="text">
-         <string>STR &gt;</string>
+         <string>STR &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -505,7 +505,7 @@
          </font>
         </property>
         <property name="text">
-         <string>ELU &gt;</string>
+         <string>ELU &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -520,7 +520,7 @@
          </font>
         </property>
         <property name="text">
-         <string>DUR &gt;</string>
+         <string>DUR &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -544,7 +544,7 @@
          </font>
         </property>
         <property name="text">
-         <string>TEC &gt;</string>
+         <string>TEC &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -559,7 +559,7 @@
          </font>
         </property>
         <property name="text">
-         <string>TKL &gt;</string>
+         <string>TKL &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -574,7 +574,7 @@
          </font>
         </property>
         <property name="text">
-         <string>ATH &gt;</string>
+         <string>ATH &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -589,7 +589,7 @@
          </font>
         </property>
         <property name="text">
-         <string>SPD &gt;</string>
+         <string>SPD &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -646,7 +646,7 @@
          </font>
         </property>
         <property name="text">
-         <string>WE &gt;</string>
+         <string>WE &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -661,7 +661,7 @@
          </font>
         </property>
         <property name="text">
-         <string>STA &gt;</string>
+         <string>STA &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -671,7 +671,7 @@
       <item row="0" column="13">
        <widget class="QLabel" name="labelfilterGPA">
         <property name="text">
-         <string>GPA &gt;</string>
+         <string>GPA &gt;=</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -730,10 +730,26 @@
     <property name="title">
      <string>Data</string>
     </property>
+    <widget class="QMenu" name="menuExport_to_CSV">
+     <property name="title">
+      <string>Export to CSV</string>
+     </property>
+     <addaction name="actionAll_Recruits"/>
+     <addaction name="actionWatchlist_Only"/>
+    </widget>
     <addaction name="actionGrabSeasonData"/>
+    <addaction name="menuExport_to_CSV"/>
+   </widget>
+   <widget class="QMenu" name="menuOptions">
+    <property name="title">
+     <string>Options</string>
+    </property>
+    <addaction name="actionBold_Attributes"/>
+    <addaction name="actionRole_Ratings"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menudata"/>
+   <addaction name="menuOptions"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionNew_Season">
@@ -777,6 +793,26 @@
     <font>
      <family>Arial</family>
     </font>
+   </property>
+  </action>
+  <action name="actionBold_Attributes">
+   <property name="text">
+    <string>Bold Attributes</string>
+   </property>
+  </action>
+  <action name="actionRole_Ratings">
+   <property name="text">
+    <string>Role Ratings</string>
+   </property>
+  </action>
+  <action name="actionAll_Recruits">
+   <property name="text">
+    <string>All Recruits</string>
+   </property>
+  </action>
+  <action name="actionWatchlist_Only">
+   <property name="text">
+    <string>Watchlist Only</string>
    </property>
   </action>
  </widget>

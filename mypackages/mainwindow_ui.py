@@ -3,6 +3,11 @@ from PySide2.QtGui import *
 from PySide2.QtWidgets import *
 from PySide2.QtSql import *
 
+from PySide2.QtCore import *
+from PySide2.QtGui import *
+from PySide2.QtWidgets import *
+
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
@@ -23,6 +28,14 @@ class Ui_MainWindow(object):
         self.actionWIS_Credentials = QAction(MainWindow)
         self.actionWIS_Credentials.setObjectName(u"actionWIS_Credentials")
         self.actionWIS_Credentials.setFont(font)
+        self.actionBold_Attributes = QAction(MainWindow)
+        self.actionBold_Attributes.setObjectName(u"actionBold_Attributes")
+        self.actionRole_Ratings = QAction(MainWindow)
+        self.actionRole_Ratings.setObjectName(u"actionRole_Ratings")
+        self.actionAll_Recruits = QAction(MainWindow)
+        self.actionAll_Recruits.setObjectName(u"actionAll_Recruits")
+        self.actionWatchlist_Only = QAction(MainWindow)
+        self.actionWatchlist_Only.setObjectName(u"actionWatchlist_Only")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.verticalLayout = QVBoxLayout(self.centralwidget)
@@ -356,6 +369,10 @@ class Ui_MainWindow(object):
         self.menuFile.setObjectName(u"menuFile")
         self.menudata = QMenu(self.menubar)
         self.menudata.setObjectName(u"menudata")
+        self.menuExport_to_CSV = QMenu(self.menudata)
+        self.menuExport_to_CSV.setObjectName(u"menuExport_to_CSV")
+        self.menuOptions = QMenu(self.menubar)
+        self.menuOptions.setObjectName(u"menuOptions")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QStatusBar(MainWindow)
         self.statusbar.setObjectName(u"statusbar")
@@ -384,10 +401,16 @@ class Ui_MainWindow(object):
 
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menudata.menuAction())
+        self.menubar.addAction(self.menuOptions.menuAction())
         self.menuFile.addAction(self.actionWIS_Credentials)
         self.menuFile.addAction(self.actionNew_Season)
         self.menuFile.addAction(self.actionLoad_Season)
         self.menudata.addAction(self.actionGrabSeasonData)
+        self.menudata.addAction(self.menuExport_to_CSV.menuAction())
+        self.menuExport_to_CSV.addAction(self.actionAll_Recruits)
+        self.menuExport_to_CSV.addAction(self.actionWatchlist_Only)
+        self.menuOptions.addAction(self.actionBold_Attributes)
+        self.menuOptions.addAction(self.actionRole_Ratings)
 
         self.retranslateUi(MainWindow)
 
@@ -400,6 +423,10 @@ class Ui_MainWindow(object):
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"Load Season", None))
         self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"Grab Recruit Data", None))
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"WIS Credentials", None))
+        self.actionBold_Attributes.setText(QCoreApplication.translate("MainWindow", u"Bold Attributes", None))
+        self.actionRole_Ratings.setText(QCoreApplication.translate("MainWindow", u"Role Ratings", None))
+        self.actionAll_Recruits.setText(QCoreApplication.translate("MainWindow", u"All Recruits", None))
+        self.actionWatchlist_Only.setText(QCoreApplication.translate("MainWindow", u"Watchlist Only", None))
         self.labelPositionFilter.setText(QCoreApplication.translate("MainWindow", u"Pos:", None))
         self.comboBoxPositionFilter.setItemText(0, QCoreApplication.translate("MainWindow", u"ALL", None))
         self.comboBoxPositionFilter.setItemText(1, QCoreApplication.translate("MainWindow", u"QB", None))
@@ -426,22 +453,27 @@ class Ui_MainWindow(object):
         self.comboBoxMilesFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"1400", None))
 
         self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"Apply", None))
-        self.labelfilterBLK.setText(QCoreApplication.translate("MainWindow", u"BLK >", None))
-        self.labelfilterHAN.setText(QCoreApplication.translate("MainWindow", u"HAN >", None))
+#if QT_CONFIG(shortcut)
+        self.pushButtonApplyRatingsFilters.setShortcut("")
+#endif // QT_CONFIG(shortcut)
+        self.labelfilterBLK.setText(QCoreApplication.translate("MainWindow", u"BLK >=", None))
+        self.labelfilterHAN.setText(QCoreApplication.translate("MainWindow", u"HAN >=", None))
         self.pushButtonClearRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
-        self.labelfilterGI.setText(QCoreApplication.translate("MainWindow", u"GI >", None))
-        self.labelfilterSTR.setText(QCoreApplication.translate("MainWindow", u"STR >", None))
-        self.labelfilterELU.setText(QCoreApplication.translate("MainWindow", u"ELU >", None))
-        self.labelfilterDUR.setText(QCoreApplication.translate("MainWindow", u"DUR >", None))
-        self.labelfilterTEC.setText(QCoreApplication.translate("MainWindow", u"TEC >", None))
-        self.labelfilterTKL.setText(QCoreApplication.translate("MainWindow", u"TKL >", None))
-        self.labelfilterATH.setText(QCoreApplication.translate("MainWindow", u"ATH >", None))
-        self.labelfilterSPD.setText(QCoreApplication.translate("MainWindow", u"SPD >", None))
+        self.labelfilterGI.setText(QCoreApplication.translate("MainWindow", u"GI >=", None))
+        self.labelfilterSTR.setText(QCoreApplication.translate("MainWindow", u"STR >=", None))
+        self.labelfilterELU.setText(QCoreApplication.translate("MainWindow", u"ELU >=", None))
+        self.labelfilterDUR.setText(QCoreApplication.translate("MainWindow", u"DUR >=", None))
+        self.labelfilterTEC.setText(QCoreApplication.translate("MainWindow", u"TEC >=", None))
+        self.labelfilterTKL.setText(QCoreApplication.translate("MainWindow", u"TKL >=", None))
+        self.labelfilterATH.setText(QCoreApplication.translate("MainWindow", u"ATH >=", None))
+        self.labelfilterSPD.setText(QCoreApplication.translate("MainWindow", u"SPD >=", None))
         self.labelConsideringTextSearch.setText(QCoreApplication.translate("MainWindow", u"Considering Search:", None))
-        self.labelfilterWE.setText(QCoreApplication.translate("MainWindow", u"WE >", None))
-        self.labelfilterSTA.setText(QCoreApplication.translate("MainWindow", u"STA >", None))
-        self.labelfilterGPA.setText(QCoreApplication.translate("MainWindow", u"GPA >", None))
+        self.labelfilterWE.setText(QCoreApplication.translate("MainWindow", u"WE >=", None))
+        self.labelfilterSTA.setText(QCoreApplication.translate("MainWindow", u"STA >=", None))
+        self.labelfilterGPA.setText(QCoreApplication.translate("MainWindow", u"GPA >=", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"Data", None))
+        self.menuExport_to_CSV.setTitle(QCoreApplication.translate("MainWindow", u"Export to CSV", None))
+        self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"Options", None))
     # retranslateUi
 
