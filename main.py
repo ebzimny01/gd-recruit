@@ -1,4 +1,4 @@
-version = "0.3.2"
+version = "0.3.3"
 window_title = f"GD Recruit Assistant Beta ({version})"
 import sys
 import platform
@@ -5115,6 +5115,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonApplyRatingsFilters.clicked.connect(self.apply_ratings_filters)
         self.pushButtonClearRatingsFilters.clicked.connect(self.clear_ratings_filter_fields)
         self.recruit_tableView.clicked.connect(self.tableclickaction)
+        self.pushButtonDonatePayPal.clicked.connect(self.donation)
         
         # Filter data structure used to track which filters are active
         # And then used to build the filter string
@@ -5183,6 +5184,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             mw.statusbar.showMessage(f"Exported data to: '{filename}'")
 
 
+    def donation(self):
+        url = QUrl("https://paypal.me/EdZimny?locale.x=en_US")
+        logger.info(f"Opening Donation URL --> {url}")
+        QDesktopServices.openUrl(url)
+
+    
     def tableclickaction(self, item):
         print(f"You clicked on column {item.column()} and row {item.row()} with cell data = {item.data()}")
         if item.column() == 0:
