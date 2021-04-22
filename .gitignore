@@ -6,3 +6,6 @@
 /gdrecruit.log
 /.idea/*
 /mypackages/__pycache__/*
+build/*
+dist/*
+/*.spec
