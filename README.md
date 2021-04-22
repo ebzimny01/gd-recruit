@@ -14,3 +14,6 @@ This repository includes the code used to build GD Recruit Assistant application
 5. Recruits marked from watchlist will show a green check mark icon.
 6. Formatted ID and Hometown columns with blue text to give some indication these are clickable links to additional website info.
 7. Added ability to export data to .csv file.
+
+
+### [Original Prototype Demo Video](https://youtu.be/rj0khucVjzc)
