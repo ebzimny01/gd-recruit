@@ -1,6 +1,8 @@
 # GD Recruit Assistant
 This repository includes the code used to build GD Recruit Assistant application.
 
+Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for additional information.
+
 ## What's New
 ### Beta v0.3.3 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
 1. Export to CSV now offers two options -> export All Recruits or export Watchlist Only recruits.
