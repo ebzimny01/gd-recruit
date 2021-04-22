@@ -715,7 +715,7 @@
      <x>0</x>
      <y>0</y>
      <width>1169</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -731,12 +731,14 @@
      <string>Data</string>
     </property>
     <addaction name="actionGrabSeasonData"/>
+    <addaction name="actionExport_to_CSV"/>
    </widget>
    <widget class="QMenu" name="menuOptions">
     <property name="title">
      <string>Options</string>
     </property>
     <addaction name="actionBold_Attributes"/>
+    <addaction name="actionRole_Ratings"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menudata"/>
@@ -789,6 +791,16 @@
   <action name="actionBold_Attributes">
    <property name="text">
     <string>Bold Attributes</string>
+   </property>
+  </action>
+  <action name="actionRole_Ratings">
+   <property name="text">
+    <string>Role Ratings</string>
+   </property>
+  </action>
+  <action name="actionExport_to_CSV">
+   <property name="text">
+    <string>Export to CSV</string>
    </property>
   </action>
  </widget>
