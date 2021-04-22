@@ -1,8 +1,8 @@
-*.db
-config.ini
+/*.db
+/config.ini
 *.pyc
-recruitDB.log
-*.csv
-gdrecruit.log
-./.idea/*
-./mypackages/__pycache__/*
+/recruitDB.log
+/*.csv
+/gdrecruit.log
+/.idea/*
+/mypackages/__pycache__/*
