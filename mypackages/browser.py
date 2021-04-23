@@ -110,7 +110,7 @@ class TwoFactorAuthDialog(QDialog, Ui_DialogTwoFactorAuth):
         wait_for_code = False
         super().accept()
 
-@logger.catch
+
 def wis_browser(cfg, user, pwd, f, d, progress = None):
     # Default settings #
     twofactor = False
