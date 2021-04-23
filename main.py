@@ -1151,7 +1151,13 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         pwd = self.lineEditWISPassword.text()
         config = configparser.ConfigParser()
         config.read('./config.ini')
-        config.set('WISCreds', 'coachid', coachid)
+        if config['WISCreds']['coachid'] != coachid:
+            logger.info("CoachID was changed. Clearing cookies from storage_state.")
+            config.set('WISCreds', 'coachid', coachid)
+            # If coachid changes then assume auth changes.
+            # Therefore have to clear the browser storage state.
+            global storage_state
+            storage_state = ""
         config.set('WISCreds', 'username', user)
         config.set('WISCreds', 'password', pwd)
         with open("./config.ini", 'w') as file:
@@ -5986,6 +5992,7 @@ if __name__ == "__main__":
         logger.info("Config.ini does not contain Logging section")
 
     # global variable used to store 2-factor auth code
+    
     code = ""
     wait_for_code = False
     wis_gd_df = ''
