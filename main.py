@@ -1,16 +1,9 @@
 version = "0.3.4"
 window_title = f"GD Recruit Assistant Beta ({version})"
+from logging import FileHandler
 import sys
 import platform
-import logging
-logging.basicConfig(filename="./gdrecruit.log",
-                    filemode='w',
-                    level=logging.DEBUG,
-                    format='%(asctime)s %(name)s: %(threadName)s: %(levelname)s: %(message)s',
-                    datefmt='%m/%d/%Y %I:%M:%S %p'
-)
-logger = logging.getLogger(__name__)
-
+from loguru import logger
 import os, os.path
 from os import path
 from queue import Queue
@@ -46,25 +39,10 @@ from pathlib import Path
 
 
 def logQueryError(query):
-    logging.error(f"{datetime.datetime.now()}: query: last error: {query.lastError()}")
-    logging.error(f"{datetime.datetime.now()}: query: last query: {query.lastQuery()}")
+    logger.error(f"{datetime.datetime.now()}: query: last error: {query.lastError()}")
+    logger.error(f"{datetime.datetime.now()}: query: last query: {query.lastQuery()}")
 
-
-wis_gd_df = ''
-gdr_csv = ''
-bold_attributes_csv = ''
-if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-    gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
-    #bold_attributes_csv = f"{Path(sys._MEIPASS) / 'data' / 'bold_attributes.csv'}"
-else:
-    gdr_csv = f"./data/gdr.csv"
-    #bold_attributes_csv = f"./data/bold_attributes.csv"
-logger.info(f"gdr.csv path is = {gdr_csv}")
-#logger.info(f"bold_attributes.csv path is = {bold_attributes_csv}")
-wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
-#bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
-
-
+@logger.catch
 def query_Recruit_IDs(type, dbconn):
     openDB(dbconn)
     logger.info(f"query_Recruit_IDs: Database name = {dbconn.databaseName()} Connection name = {dbconn.connectionName()} Tables = {dbconn.tables()}")
@@ -107,7 +85,7 @@ def query_Recruit_IDs(type, dbconn):
     logger.info("End of query_Recruit_IDs function")
     return rids
 
-
+@logger.catch
 def calculate_role_rating(pos, ratings):
         attributes = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
         rating_formulas = {
@@ -224,7 +202,7 @@ class RoleRatingDBWorker(QObject):
     finished = Signal()
     progress = Signal(int)
     
-        
+    @logger.catch   
     def run(self):
         """Long-running Initialize Recruit task goes here."""
         logger.info("Started RoleRatingDBWorker.run function")
@@ -276,7 +254,7 @@ class InitializeWorker(QObject):
     progress = Signal(int, int)
     
     
-    
+    @logger.catch
     def run(self):
         """Long-running Initialize Recruit task goes here."""
         logger.info("Started InitializeWorker.run function")
@@ -366,6 +344,7 @@ class Worker(QRunnable):
         self.signals = WorkerSignals()
         self.kwargs['progress_callback'] = self.signals.progress
 
+    @logger.catch
     @Slot()
     def run(self):
         try:
@@ -413,7 +392,8 @@ class QueueMonitorWorker(QObject):
         self.rc = rc    # recruit ID list, either an initialize list or update list
         self.rl = rl    # recruit list length
         self.t = t      # type = 'initialize' or 'update'
-
+    
+    @logger.catch
     def run(self):
         logger.info("Started QueueMonitorWorker.run function")
         # Loop to monitor queue size
@@ -507,6 +487,7 @@ class MarkRecruitsWorker(QObject):
     finished = Signal()
     progress = Signal(int)
     
+    @logger.catch
     def run(self):
         
         potential_lookup = {
@@ -665,7 +646,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     def accept(self):
         super().accept()
 
-
+    @logger.catch
     def runInitializeJob(self):
         logger.info("Button Pressed: Initialize Recruits")
         # Step 1: Create a QThread object
@@ -696,6 +677,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckMarkGrabStaticData.setVisible(False)
         self.thread.finished.connect(self.queue_run_initialize_attributes)
 
+    @logger.catch
     def reportInitializeProgress(self, n, m):
         # print(f"n = {n}\nm = {m}")
         if n == 0:
@@ -753,7 +735,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
             self.progressBarInitializeRecruits.setVisible(False)
 
-
+    @logger.catch
     def queue_run_initialize_attributes(self):
         logger.info(f"Running queue_run_initialize_attributes function")
         self.queue_rid_urls(self.rid_queue, "all")
@@ -764,7 +746,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.stopped = False
         self.run_threads(self.recruit_initialize, self.completed)
 
-
+    @logger.catch
     def recruit_initialize(self, progress_callback):
         while self.rid_queue.qsize() > 0:
             logger.debug(f"Looking for the next Recruit ID...")
@@ -805,7 +787,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 return
         return
 
-
+    @logger.catch
     def queue_rid_urls(self, q=Queue(), t=str()):
         rids = query_Recruit_IDs(t, db)
         if t == "all":
@@ -828,13 +810,13 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 logger.debug(f"Queuing ({t}): {recruit}")
                 q.put(recruit)
             
-
+    @logger.catch
     def progress_fn(self, msg):
         #self.info.append(str(msg))
         logger.debug("Running progress_fn function")
         return
 
-
+    @logger.catch
     def run_threads(self, process, on_complete):
         # Step 1: Create thread object to monitor queue
         self.thread = QThread()
@@ -884,7 +866,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             #self.progressbar.setRange(0,0)
         return
 
-
+    @logger.catch
     def initialize_finished(self):
         logger.debug("Running initialized_finished function")
         self.pushButtonUpdateConsideringSigned.setVisible(True)
@@ -894,14 +876,14 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
         self.labelRecruitsInitialized.setText(f"Initialized {self.rids_all_length} Recruits...")
 
-
+    @logger.catch
     def update_finished(self):
         logger.debug("Running update_finished function")
         self.pushButtonUpdateConsideringSigned.setEnabled(True)
         self.pushButtonInitializeRecruits.setEnabled(True)
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
 
-
+    @logger.catch
     def recruit_update(self, progress_callback):
         while self.rid_queue.qsize() > 0:
             logger.debug(f"Length of queue = {self.rid_queue.qsize()}")
@@ -941,6 +923,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 return
         return
 
+    @logger.catch
     def queue_run_update_considering(self):
         self.progressBarUpdateConsidering.setVisible(True)
         self.pushButtonInitializeRecruits.setEnabled(False)
@@ -953,6 +936,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.stopped = False
         self.run_threads(self.recruit_update, self.completed)
 
+    
     def stop(self):
         self.stopped=True
         return
@@ -961,7 +945,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         logger.debug(f"Running threading completed function")
         return
 
-
+    @logger.catch
     def queue_monitor_initialize_progress(self, n):
         if n == 0:
             logger.debug("Queue is empty.")
@@ -976,7 +960,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         elif n > 1000000:
             self.progressBarInitializeRecruits.setValue(n - 1000000)
 
-
+    @logger.catch
     def queue_monitor_update_progress(self, n):
         if n == 0:
             logger.debug("Queue is empty.")
@@ -987,7 +971,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.progressBarUpdateConsidering.setValue(completed)
 
 
-
+    @logger.catch
     def runMarkRecruitsJob(self):
         logger.info("Button Pressed: Mark Recruits From Watchlist")
         # Step 1: Create a QThread object
@@ -1015,7 +999,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             lambda: self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
         )
 
-
+    @logger.catch
     def reportMarkRecruitsProgress(self, n):
         if n == 0:
             self.progressBarMarkWatchlist.setStyleSheet("color: blue")
@@ -1083,6 +1067,7 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         self.buttonBox.button(QDialogButtonBox.Save).setEnabled(False)
         self.lineEditSeasonNumber.textChanged.connect(self.buttonstate)
 
+    
     def buttonstate(self):
         if self.lineEditSeasonNumber.text() != '':
             self.buttonBox.button(QDialogButtonBox.Save).setEnabled(True)
@@ -1090,6 +1075,7 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         else:
             self.buttonBox.button(QDialogButtonBox.Save).setEnabled(False)
 
+    @logger.catch
     def accept(self):
         selected = self.comboBoxTeamID.currentText()
         seasonnum = self.lineEditSeasonNumber.text()
@@ -1117,14 +1103,14 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         self.lineEditWISUsername.textChanged.connect(self.buttonstate)
         self.lineEditWISPassword.textChanged.connect(self.buttonstate)
         
-
+    
     def buttonstate(self):
         if self.lineEditWISCoachID.text() != '' and self.lineEditWISPassword.text() != '' and self.lineEditWISUsername.text() != '':
             self.buttonBox.button(QDialogButtonBox.Save).setEnabled(True)
         else:
             self.buttonBox.button(QDialogButtonBox.Save).setEnabled(False)
 
-
+    @logger.catch
     def validate_coach_profile(self):
         requests_session = requests.Session()
         coachid = self.lineEditWISCoachID.text()
@@ -1142,7 +1128,7 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
                 self.labelCheckMarkcoachIDValidationError.setVisible(True)
                 self.labelCheckMarkcoachIDValidated.setVisible(False)
 
-
+    @logger.catch
     def accept(self):
         coachid = self.lineEditWISCoachID.text()
         logger.info(f"Coach ID = {coachid}")
@@ -2794,7 +2780,7 @@ class RoleRatings(QDialog, Ui_DialogRoleRatings):
         self.spinBox_R6_ELU_P.valueChanged.connect(self.update_row_total)
         self.spinBox_R6_TEC_P.valueChanged.connect(self.update_row_total)
 
-
+    
     def update_row_total(self):
         # QB Section
         self.lcdNumber_R1_QB.display(
@@ -3826,7 +3812,7 @@ class RoleRatings(QDialog, Ui_DialogRoleRatings):
             ])
         )
 
-
+    @logger.catch
     def accept(self):
 
         # QB Section
@@ -4699,7 +4685,7 @@ class RoleRatingsUpdateDB(QDialog, Ui_DialogRoleRatingUpdateDB_Progress):
     def accept(self):
         super().accept()
 
-
+    @logger.catch
     def runUpdateJob(self):
         logger.info("Updating Role Ratings in Recruits DB")
         # Step 1: Create a QThread object
@@ -4719,6 +4705,7 @@ class RoleRatingsUpdateDB(QDialog, Ui_DialogRoleRatingUpdateDB_Progress):
         # Final resets
         self.thread.finished.connect(self.accept)
 
+    @logger.catch
     def progress(self, n):
         self.progressBar.setValue(n) 
 
@@ -4872,6 +4859,7 @@ class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
         self.checkBox_P_ELU.setChecked(enable_check[bold_attributes_df['elu']['p']])
         self.checkBox_P_TEC.setChecked(enable_check[bold_attributes_df['tec']['p']])
 
+    @logger.catch
     def accept(self):
 
         # Save the state of the check boxes in dataframe and save to csv
@@ -5149,7 +5137,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             False
 
-
+    @logger.catch
     def export_db_to_csv_all(self):
         dbname = db.databaseName()
         logger.info(f"Exporting {dbname} to csv...")
@@ -5166,7 +5154,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             db_df.to_csv(filename, index=False)
             mw.statusbar.showMessage(f"Exported data to: '{filename}'")
 
-
+    @logger.catch
     def export_db_to_csv_watchlist(self):
         dbname = db.databaseName()
         logger.info(f"Exporting {dbname} to csv...")
@@ -5183,13 +5171,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             db_df.to_csv(filename, index=False)
             mw.statusbar.showMessage(f"Exported data to: '{filename}'")
 
-
+    @logger.catch
     def donation(self):
         url = QUrl("https://paypal.me/EdZimny?locale.x=en_US")
         logger.info(f"Opening Donation URL --> {url}")
         QDesktopServices.openUrl(url)
 
-    
+    @logger.catch
     def tableclickaction(self, item):
         print(f"You clicked on column {item.column()} and row {item.row()} with cell data = {item.data()}")
         if item.column() == 0:
@@ -5214,14 +5202,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.info(f"Opening URL --> {url}")
             QDesktopServices.openUrl(url)
 
-
+    @logger.catch
     def newFilter(self, model):
         filter = self.getFilterString()
         logger.info(f"New filter string = {filter}")
         model.setFilter(filter)
         model.select()
 
-
+    @logger.catch
     def getFilterString(self):
         filter_string_list = []
         separator = " and "
@@ -5238,6 +5226,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             filter_string = separator.join(filter_string_list)
             return filter_string
 
+    @logger.catch
     def clear_ratings_filter_fields(self):
         logger.info("Clear Ratings Filters button was clicked!")
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5279,7 +5268,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         self.newFilter(self.model)
 
-
+    @logger.catch
     def apply_helper(self, k, v):
             if v:
                 logger.info(f"Enabling {k} filter...")
@@ -5291,7 +5280,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 logger.info(f"Clearing {k} filter...")
                 self.string_filter[k] = ""
 
-
+    @logger.catch
     def apply_ratings_filters(self):
         logger.info("Ratings Filters Apply button was clicked!")
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5325,7 +5314,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.newFilter(self.model)
 
-
+    @logger.catch
     def undecided_filter(self):
         state = self.checkBoxUndecided.checkState()
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5340,7 +5329,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         self.newFilter(self.model)
 
-
+    @logger.catch
     def watched_filter(self):
         state = self.checkBoxWatched.checkState()
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5355,7 +5344,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.newFilter(self.model)
 
-
+    @logger.catch
     def hide_signed_filter(self):
         state = self.checkBoxHideSigned.checkState()
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5370,7 +5359,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         self.newFilter(self.model)
     
-
+    @logger.catch
     def miles_filter(self):
         combo_box_filter = f"miles < {self.comboBoxMilesFilter.currentText()}"
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5383,7 +5372,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         self.newFilter(self.model)
 
-
+    @logger.catch
     def position_filter(self):
         combo_box_filter = f"pos = '{self.comboBoxPositionFilter.currentText()}'"
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5396,7 +5385,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         self.newFilter(self.model)
 
-
+    @logger.catch
     def open_WIS_cred(self):
         dialog = WISCred()
         dialog.ui = Ui_WISCredentialDialog()        
@@ -5404,7 +5393,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.show()
         self.check_stored_creds()
 
-
+    @logger.catch
     def open_New_Season(self):
         dialog = NewSeason()
         dialog.ui = Ui_DialogNewSeason()
@@ -5418,8 +5407,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.actionAll_Recruits.setEnabled(True)
             self.actionWatchlist_Only.setEnabled(True)
             self.loadModel()
-            
-            
+       
+    @logger.catch            
     def open_Load_Season(self):
         dialog = LoadSeason()
         dialog.ui = Ui_DialogLoadSeason()
@@ -5434,7 +5423,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.actionWatchlist_Only.setEnabled(True)
             self.loadModel()
             
-
+    @logger.catch
     def open_Grab_Season_Data(self):
         dialog = GrabSeasonData()
         dialog.ui = Ui_WidgetGrabSeasonData()
@@ -5445,7 +5434,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.loadModel()
 
-
+    @logger.catch
     def open_Bold_Attributes(self):
         logger.debug("Entering Bold Attributes dialog")
         dialog = BoldAttributes()
@@ -5456,7 +5445,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.loadModel()
 
-    
+    @logger.catch
     def open_Role_Ratings(self):
         logger.debug("Entering Role Ratings dialog")
         global show_update_role_ratings_dialog
@@ -5475,7 +5464,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.loadModel()
         logger.debug("Exiting Role Ratings dialog")
 
-
+    @logger.catch
     def check_stored_creds(self):
         coachid, user, pwd, config = load_config()
         if user == '' or pwd == '':
@@ -5487,7 +5476,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.actionLoad_Season.setEnabled(True)
             return True
    
-
+    @logger.catch
     def loadModel(self):
         self.model = TableModel()
         # initializeModel(self.model)
@@ -5516,6 +5505,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterWE.setEnabled(True)
         self.lineEditfilterGPA.setEnabled(True)
 
+@logger.catch
 def load_config():
     config = configparser.ConfigParser()
     configfile = config.read('./config.ini')
@@ -5559,7 +5549,7 @@ def load_config():
 
     return coachid, username, password, config
 
-
+@logger.catch
 def update_active_teams(coachid):
     cid, user, pwd, config = load_config()
     config.remove_section('Schools')
@@ -5593,7 +5583,7 @@ def update_active_teams(coachid):
     elif coach_profile_page.status_code == 503:
         logger.error(f"Request to grab {coachid} profile page was NOT successful. Please check coach ID.")
 
-
+@logger.catch
 def create_bold_attributes_df():
     data = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -5611,7 +5601,7 @@ def create_bold_attributes_df():
     df = pd.DataFrame(data, columns=column_headers, index=index_names)
     return df
 
-
+@logger.catch
 def create_role_ratings_df():
     data = [['QB', 10, 4, 0, 0, 0, 26, 0, 0, 0, 24, 8, 28, 100],
             ['QBRun', 8, 18, 2, 1, 3, 24, 0, 0, 0, 16, 20, 8, 100],
@@ -5813,6 +5803,7 @@ class TableModel(QSqlTableModel):
         self.p_bold = set(bold_mapping.loc['p'])
         self.p_bold.discard(0)
 
+    @logger.catch
     def info(self):
         logger.debug("     -> info")
         logger.debug(f"         TableModel tables inside : {self.database().tables()}")
@@ -5822,6 +5813,7 @@ class TableModel(QSqlTableModel):
         logger.debug(f"         TableModel self.lastEror : {self.lastError().text()}")
         logger.debug("     <- info")
 
+    @logger.catch
     def data(self, index, role):
         if role == Qt.ForegroundRole:
             # Format blue text for Recruit ID and Hometown columns to indicate hyperlinks
@@ -5905,21 +5897,33 @@ class TableModel(QSqlTableModel):
 
         return QSqlTableModel.data(self, index, role)
     
+    @logger.catch
     def setData(self, index, value, role=Qt.EditRole):
         if not index.isValid():
             return False
         else:
             return QSqlTableModel.setData(self, index, value, role)
 
-
+    @logger.catch
     def flags(self, index):
         if not index.isValid():
             return Qt.NoItemFlags
         else:
             return QSqlTableModel.flags(self, index)
 
+def start_logging(level):
+    logger.remove()
+    logger.add("gdrecruit.log",
+                format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {thread.name: >10}:{module: <8}:{line: >4}:{function: <20} - {message}",
+                level=level,
+                rotation="10 MB",
+                compression="zip")
+    logger.info(f"Logging level = {level}")
+    
 
 if __name__ == "__main__":
+    log_level = "INFO"
+    start_logging(log_level)
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         logger.info('running in a PyInstaller bundle')
     else:
@@ -5934,6 +5938,38 @@ if __name__ == "__main__":
     logger.info(f"Platform Machine = {platform.machine()}")
     logger.info(f"Platform Processor = {platform.processor()}")
     
+    coachid, usern, passwd, config = load_config()
+    logger.info("Read config.ini file")
+    if config.has_section('Logging'):
+        logger.info("Config.ini contains Logging section")
+        if config.has_option('Logging', 'level'):
+            logger.info("Logging section contains 'level' option")
+            try:
+                log_level = config.get('Logging', 'level')
+            except Exception as e:
+                logger.error(f"Oops...exception getting Log Level setting from config.ini: {e.__class__}")
+            else:
+                start_logging(log_level.upper())
+        else:
+            logger.info("Logging section does not contain 'level' option")
+    else:
+        logger.info("Config.ini does not contain Logging section")
+
+    wis_gd_df = ''
+    gdr_csv = ''
+    bold_attributes_csv = ''
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
+        #bold_attributes_csv = f"{Path(sys._MEIPASS) / 'data' / 'bold_attributes.csv'}"
+    else:
+        gdr_csv = f"./data/gdr.csv"
+        #bold_attributes_csv = f"./data/bold_attributes.csv"
+    logger.info(f"gdr.csv path is = {gdr_csv}")
+    #logger.info(f"bold_attributes.csv path is = {bold_attributes_csv}")
+    wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
+    #bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
+
+
     # Bold Attributes Config
     bold_attributes_csv = "./bold_attributes.csv" 
     if path.exists(bold_attributes_csv):
@@ -5952,7 +5988,7 @@ if __name__ == "__main__":
     show_update_role_ratings_dialog = False
     role_ratings_csv = "./role_ratings.csv"
     if path.exists(role_ratings_csv):
-        logger.debug("role_ratnigs_csv file path found.")
+        logger.debug("role_ratings_csv file path found.")
         try:
             role_ratings_df = pd.read_csv(role_ratings_csv, header = 0, index_col=0)
         except Exception as e:

@@ -1,7 +1,5 @@
 from configparser import Error
-import logging
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 from os import stat
 from playwright.sync_api import sync_playwright
