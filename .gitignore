@@ -9,3 +9,5 @@
 build/*
 dist/*
 /*.spec
+/*.png
+/browser_cookie*.json
