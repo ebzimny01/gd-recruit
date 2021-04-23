@@ -2780,7 +2780,7 @@ class RoleRatings(QDialog, Ui_DialogRoleRatings):
         self.spinBox_R6_ELU_P.valueChanged.connect(self.update_row_total)
         self.spinBox_R6_TEC_P.valueChanged.connect(self.update_row_total)
 
-    @logger.catch
+    
     def update_row_total(self):
         # QB Section
         self.lcdNumber_R1_QB.display(
@@ -5988,7 +5988,7 @@ if __name__ == "__main__":
     show_update_role_ratings_dialog = False
     role_ratings_csv = "./role_ratings.csv"
     if path.exists(role_ratings_csv):
-        logger.debug("role_ratnigs_csv file path found.")
+        logger.debug("role_ratings_csv file path found.")
         try:
             role_ratings_df = pd.read_csv(role_ratings_csv, header = 0, index_col=0)
         except Exception as e:
