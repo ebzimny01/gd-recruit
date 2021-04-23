@@ -262,7 +262,10 @@ class InitializeWorker(QObject):
         self.progress.emit(0, 1)
 
         
-        coachid, user, pwd, config = load_config()
+        c = load_config()
+        config = c['config']
+        user = c['username']
+        pwd = c['password']
         requests_session = requests.Session()
         db_t.setDatabaseName(db.databaseName())
         openDB(db_t)
@@ -505,7 +508,11 @@ class MarkRecruitsWorker(QObject):
         self.progress.emit(0)
 
         # Launch playwright browser to grab watched recruits
-        coachid, user, pwd, config = load_config()
+        c = load_config()
+        config = c['config']
+        user = c['username']
+        pwd = c['password']
+
         db_t.setDatabaseName(db.databaseName())
         page = wis_browser(config, user, pwd, "grab_watched_recruits", db_t, self.progress)
         if page == "":
@@ -1025,6 +1032,11 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonInitializeRecruits.setEnabled(True)
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
             mw.statusbar.showMessage("ERROR: There was a problem loading Recruit Summary Page.")
+        if n == 6:
+            twofactor_diag = TwoFactorAuthDialog()
+            twofactor_diag.ui = Ui_DialogTwoFactorAuth()
+            twofactor_diag.exec_()
+            twofactor_diag.show()
         if n == 999999:
             self.pushButtonInitializeRecruits.setEnabled(True)
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
@@ -1090,7 +1102,10 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
 class WISCred(QDialog, Ui_WISCredentialDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        coachid, wisuser, pwd, config = load_config()
+        c = load_config()
+        coachid = c['coachid']
+        wisuser = c['username']
+        pwd = c['password']
         self.setupUi(self, coachid, wisuser, pwd)
         self.buttonstate()
         self.labelCheckMarkcoachIDValidated.setVisible(False)
@@ -5131,7 +5146,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # Grab coachid from config file
             # Use it to grab active GD teams from coach profile page
             # Then store teams in config.ini
-            coachid, user, pwd, config = load_config()
+            c = load_config()
+            coachid = c['coachid']
             if coachid != '':
                 update_active_teams(coachid)
         else:
@@ -5466,7 +5482,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @logger.catch
     def check_stored_creds(self):
-        coachid, user, pwd, config = load_config()
+        c = load_config()
+        user = c['username']
+        pwd = c['password']
         if user == '' or pwd == '':
             self.actionNew_Season.setEnabled(False)
             self.actionLoad_Season.setEnabled(False)
@@ -5515,7 +5533,8 @@ def load_config():
         config['WISCreds'] = {
                         'coachid' : '',
                         'username' : '',
-                        'password' : ''
+                        'password' : '',
+                        'twofactor' : 'false'
                         }
     else:
         logger.info("config.ini file found")
@@ -5531,27 +5550,33 @@ def load_config():
             if not config.has_option('WISCreds','password'):
                 logger.info("Adding missing password option to WISCreds section")
                 config['WISCreds']['password'] = ''
+            if not config.has_option('WISCreds','twofactor'):
+                logger.info("Adding missing twofactor option to WISCreds section")
+                config['WISCreds']['twofactor'] = 'false'
         else:
             logger.info("Adding missing WISCreds section")
             config['WISCreds'] = {
                         'coachid' : '',
                         'username' : '',
-                        'password' : ''
+                        'password' : '',
+                        'twofactor' : 'false'
                         }
     
     with open("./config.ini", 'w') as file:
-            config.write(file)
+        config.write(file)
 
 
     coachid = config['WISCreds']['coachid']
     username = config['WISCreds']['username']
     password = config['WISCreds']['password']
-
-    return coachid, username, password, config
+    twofactor = config['WISCreds']['twofactor']
+    c = {'config': config, 'username': username, 'password': password, 'twofactor': twofactor, 'coachid': coachid}
+    return c
 
 @logger.catch
 def update_active_teams(coachid):
-    cid, user, pwd, config = load_config()
+    c = load_config()
+    config = c['config']
     config.remove_section('Schools')
     config.add_section('Schools')
     requests_session = requests.Session()
@@ -5922,6 +5947,7 @@ def start_logging(level):
     
 
 if __name__ == "__main__":
+    
     log_level = "INFO"
     start_logging(log_level)
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
@@ -5938,7 +5964,11 @@ if __name__ == "__main__":
     logger.info(f"Platform Machine = {platform.machine()}")
     logger.info(f"Platform Processor = {platform.processor()}")
     
-    coachid, usern, passwd, config = load_config()
+    c = load_config()
+    config = c['config']
+    usern = c['username']
+    passwd = c['password']
+    coachid = c['coachid']
     logger.info("Read config.ini file")
     if config.has_section('Logging'):
         logger.info("Config.ini contains Logging section")
@@ -5955,6 +5985,9 @@ if __name__ == "__main__":
     else:
         logger.info("Config.ini does not contain Logging section")
 
+    # global variable used to store 2-factor auth code
+    code = ""
+    wait_for_code = False
     wis_gd_df = ''
     gdr_csv = ''
     bold_attributes_csv = ''
