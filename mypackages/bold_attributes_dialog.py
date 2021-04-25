@@ -6,7 +6,7 @@ class Ui_DialogBoldAttributes(object):
     def setupUi(self, DialogBoldAttributes):
         if not DialogBoldAttributes.objectName():
             DialogBoldAttributes.setObjectName(u"DialogBoldAttributes")
-        DialogBoldAttributes.setWindowModality(Qt.WindowModal)
+        DialogBoldAttributes.setWindowModality(Qt.ApplicationModal)
         DialogBoldAttributes.resize(677, 462)
         sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
