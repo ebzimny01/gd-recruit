@@ -17,7 +17,7 @@ logging.info(f"Checkmark icon path is = {checkmarkicon}")
 logging.info(f"X icon path is = {x_icon}")
 
 # WARNING!!!
-# Pasting new code from Designer, need to make sure you replace check mark icon!
+# Pasting new code from Designer, need to make sure you replace check mark and X icons!
 
 class Ui_WidgetGrabSeasonData(object):
     def setupUi(self, WidgetGrabSeasonData):
@@ -38,7 +38,7 @@ class Ui_WidgetGrabSeasonData(object):
         self.pushButtonUpdateConsideringSigned.setFont(font)
         self.progressBarInitializeRecruits = QProgressBar(WidgetGrabSeasonData)
         self.progressBarInitializeRecruits.setObjectName(u"progressBarInitializeRecruits")
-        self.progressBarInitializeRecruits.setGeometry(QRect(200, 250, 321, 31))
+        self.progressBarInitializeRecruits.setGeometry(QRect(200, 260, 321, 31))
         self.progressBarInitializeRecruits.setStyleSheet(u"")
         self.progressBarInitializeRecruits.setValue(24)
         self.progressBarInitializeRecruits.setTextVisible(True)
@@ -67,7 +67,7 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelRecruitsInitialized.setAlignment(Qt.AlignCenter)
         self.labelProgressCreateRecruitDB = QLabel(WidgetGrabSeasonData)
         self.labelProgressCreateRecruitDB.setObjectName(u"labelProgressCreateRecruitDB")
-        self.labelProgressCreateRecruitDB.setGeometry(QRect(227, 100, 341, 16))
+        self.labelProgressCreateRecruitDB.setGeometry(QRect(227, 97, 341, 21))
         font3 = QFont()
         font3.setFamily(u"Arial")
         font3.setPointSize(12)
@@ -84,11 +84,11 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkAuthWIS.setScaledContents(True)
         self.labelAuthWIS = QLabel(WidgetGrabSeasonData)
         self.labelAuthWIS.setObjectName(u"labelAuthWIS")
-        self.labelAuthWIS.setGeometry(QRect(227, 128, 341, 16))
+        self.labelAuthWIS.setGeometry(QRect(227, 126, 341, 21))
         self.labelAuthWIS.setFont(font3)
         self.labelGrabUnsigned = QLabel(WidgetGrabSeasonData)
         self.labelGrabUnsigned.setObjectName(u"labelGrabUnsigned")
-        self.labelGrabUnsigned.setGeometry(QRect(227, 159, 341, 16))
+        self.labelGrabUnsigned.setGeometry(QRect(227, 157, 341, 21))
         self.labelGrabUnsigned.setFont(font3)
         self.labelCheckMarkGrabUnsigned = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkGrabUnsigned.setObjectName(u"labelCheckMarkGrabUnsigned")
@@ -97,7 +97,7 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkGrabUnsigned.setScaledContents(True)
         self.labelGrabSigned = QLabel(WidgetGrabSeasonData)
         self.labelGrabSigned.setObjectName(u"labelGrabSigned")
-        self.labelGrabSigned.setGeometry(QRect(227, 189, 341, 16))
+        self.labelGrabSigned.setGeometry(QRect(227, 186, 341, 21))
         self.labelGrabSigned.setFont(font3)
         self.labelCheckMarkGrabSigned = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkGrabSigned.setObjectName(u"labelCheckMarkGrabSigned")
@@ -106,11 +106,11 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkGrabSigned.setScaledContents(True)
         self.labelGrabStaticData = QLabel(WidgetGrabSeasonData)
         self.labelGrabStaticData.setObjectName(u"labelGrabStaticData")
-        self.labelGrabStaticData.setGeometry(QRect(227, 219, 341, 16))
+        self.labelGrabStaticData.setGeometry(QRect(227, 220, 341, 21))
         self.labelGrabStaticData.setFont(font3)
         self.labelCheckMarkGrabStaticData = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkGrabStaticData.setObjectName(u"labelCheckMarkGrabStaticData")
-        self.labelCheckMarkGrabStaticData.setGeometry(QRect(197, 217, 21, 21))
+        self.labelCheckMarkGrabStaticData.setGeometry(QRect(197, 221, 21, 21))
         self.labelCheckMarkGrabStaticData.setPixmap(QPixmap(checkmarkicon))
         self.labelCheckMarkGrabStaticData.setScaledContents(True)
         self.pushButtonMarkRecruitsFromWatchlist = QPushButton(WidgetGrabSeasonData)
@@ -133,7 +133,7 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkAuthWIS_Error.setScaledContents(True)
         self.labelAuthWIS_MarkRecruits = QLabel(WidgetGrabSeasonData)
         self.labelAuthWIS_MarkRecruits.setObjectName(u"labelAuthWIS_MarkRecruits")
-        self.labelAuthWIS_MarkRecruits.setGeometry(QRect(230, 474, 341, 16))
+        self.labelAuthWIS_MarkRecruits.setGeometry(QRect(230, 474, 341, 21))
         self.labelAuthWIS_MarkRecruits.setFont(font3)
         self.labelCheckMarkAuthWIS_MarkRecruits = QLabel(WidgetGrabSeasonData)
         self.labelCheckMarkAuthWIS_MarkRecruits.setObjectName(u"labelCheckMarkAuthWIS_MarkRecruits")
@@ -174,3 +174,4 @@ class Ui_WidgetGrabSeasonData(object):
         self.labelCheckMarkAuthWIS_MarkRecruits.setText("")
         self.labelCheckMarkAuthWIS_Error_MarkRecruits.setText("")
     # retranslateUi
+
