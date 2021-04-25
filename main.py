@@ -27,11 +27,13 @@ from mypackages.role_ratings_dialog import Ui_DialogRoleRatings
 from mypackages.role_ratings_update_db import Ui_DialogRoleRatingUpdateDB_Progress
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
+import mypackages.config as myconfig
 import configparser
 from progress.bar import Bar
 import pandas as pd
 import numpy as np
 from pathlib import Path
+
 
 
 # https://stackoverflow.com/questions/61316258/how-to-overwrite-qdialog-accept
@@ -1068,7 +1070,7 @@ class LoadSeason(QDialog, Ui_DialogLoadSeason):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
-        db_files = [x for x in os.listdir() if x.endswith(".db")]
+        db_files = [x for x in os.listdir(myconfig.seasons_directory_path) if x.endswith(".db")]
         logger.debug(f"db_files = {db_files}")
         c = load_config()
         config = c['config']
@@ -1086,7 +1088,7 @@ class LoadSeason(QDialog, Ui_DialogLoadSeason):
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
 
     def accept(self):
-        season_filename = self.comboBoxSelectSeason.currentText()
+        season_filename = os.path.join(myconfig.seasons_directory_path, self.comboBoxSelectSeason.currentText())
         db.close()
         db.setDatabaseName(season_filename)
         super().accept()
@@ -1096,9 +1098,9 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         super().__init__(parent)
         self.setupUi(self)
         config = configparser.ConfigParser()
-        config.read('./config.ini')
+        config.read(myconfig.config_file)
         if config.has_option('WISCreds', 'coachid'):
-            coachid = config.get('WISCreds', 'coachid')
+            self.coachid = config.get('WISCreds', 'coachid')
         if config.has_section('Schools') and len(config['Schools']) > 0:
             school_list = config.items('Schools')
             names_only = []
@@ -1123,7 +1125,7 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
     def accept(self):
         selected = self.comboBoxTeamID.currentText()
         seasonnum = self.lineEditSeasonNumber.text()
-        season_filename = f"{coachid} - {seasonnum} - {selected}.db"
+        season_filename = os.path.join(myconfig.seasons_directory_path, f"{self.coachid} - {seasonnum} - {selected}.db")
         print(f"Setting database name to: {season_filename}")
         db.setDatabaseName(season_filename)
         db.close()
@@ -1172,6 +1174,7 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
             if coach_profile_page.status_code == 200:
                 logger.info(f"Validated coach ID: {coachid} (status code = {coach_profile_page.status_code})")
                 config = self.c['config']
+                self.coachid = coachid
                 if config['WISCreds']['coachid'] != coachid:
                     logger.info("CoachID was changed. Clearing cookies from storage_state.")
                     config.set('WISCreds', 'coachid', coachid)
@@ -1199,7 +1202,7 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
 
     
     def check_stored_cookie(self, coachid):
-        file = f"./browser_cookie_{coachid}.json"
+        file = os.path.join(myconfig.cookies_directory_path, f"browser_cookie_{coachid}.json")
         self.labelCookieStored.setVisible(True)
         self.labelCheckMarkCookieStored.setVisible(False)
         self.labelCookieStoredError.setVisible(False)
@@ -1208,6 +1211,7 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
             self.pushButton_LoginStoreCookie.setEnabled(True)
             self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
         else:
+            logger.info(f"Path to {file} does not exist!")
             self.labelCheckMarkCookieStored.setVisible(False)
             self.labelCookieStoredError.setVisible(True)
 
@@ -4793,9 +4797,8 @@ class RoleRatings(QDialog, Ui_DialogRoleRatings):
         list_total = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
         role_ratings_df['total'] = role_ratings_df.loc[:,list_total].sum(axis=1)
         logger.info("Saving role ratings to csv...")
-        role_ratings_df.to_csv(role_ratings_csv)
-        global show_update_role_ratings_dialog
-        show_update_role_ratings_dialog = True
+        role_ratings_df.to_csv(myconfig.role_ratings_csv)
+        myconfig.show_update_role_ratings_dialog = True
         super().accept()
 
 
@@ -5130,7 +5133,7 @@ class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
         bold_attributes_df['tec']['p'] = check_enabled[self.checkBox_P_TEC.checkState()]
 
         # Write to csv file
-        bold_attributes_df.to_csv(bold_attributes_csv)
+        bold_attributes_df.to_csv(myconfig.bold_attributes_csv)
         super().accept()
 
 
@@ -5287,6 +5290,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             mw.statusbar.showMessage(f"Export failure. Be sure you have a season loaded with recruits before exporting.")
         else:
             db_df.to_csv(filename, index=False)
+            print(f"Exported data to: '{filename}'")
+            logger.info(f"Exported data to: '{filename}'")
             mw.statusbar.showMessage(f"Exported data to: '{filename}'")
 
     
@@ -5304,6 +5309,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             mw.statusbar.showMessage(f"Export failure. Be sure you have a season loaded with recruits before exporting.")
         else:
             db_df.to_csv(filename, index=False)
+            print(f"Exported data to: '{filename}'")
+            logger.info(f"Exported data to: '{filename}'")
             mw.statusbar.showMessage(f"Exported data to: '{filename}'")
 
     
@@ -5618,14 +5625,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     def open_Role_Ratings(self):
         logger.debug("Entering Role Ratings dialog")
-        global show_update_role_ratings_dialog
-        show_update_role_ratings_dialog = False
+        myconfig.show_update_role_ratings_dialog = False
         dialog = RoleRatings()
         dialog.ui = Ui_DialogRoleRatings()
         dialog.exec_()
         dialog.show()
         if db.databaseName() != "":
-            if show_update_role_ratings_dialog:
+            if myconfig.show_update_role_ratings_dialog:
                 logger.debug("Showing Role Rating Update DB progress dialog")
                 update_dialog = RoleRatingsUpdateDB()
                 update_dialog.ui = Ui_DialogRoleRatingUpdateDB_Progress()
@@ -5638,7 +5644,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def check_stored_creds(self):
         c = load_config()
         coachid = c['coachid']
-        cookiefile = f"./browser_cookie_{coachid}.json"
+        cookiefile = os.path.join(myconfig.cookies_directory_path, f"browser_cookie_{coachid}.json")
         if coachid != '' and path.exists(cookiefile):
             self.actionNew_Season.setEnabled(True)
             self.actionLoad_Season.setEnabled(True)
@@ -5706,8 +5712,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 def load_config():
     config = configparser.ConfigParser()
-    configfile = config.read('./config.ini')
+    configfile = config.read(myconfig.config_file)
     config_changed = False
+    old_config_file = os.path.join(myconfig.cwd, "config.ini")
+    if path.exists(old_config_file):
+        logger.info(f"Found old config.ini. Deleting {old_config_file}")
+        os.remove(old_config_file)
     if  configfile == []:
         logger.info("config.ini file not found")
         logger.info("Creating config.ini with WISCreds section")
@@ -5749,7 +5759,7 @@ def load_config():
 
 def write_config(config):
     logger.info("Writing config to config.ini file...")
-    with open("./config.ini", 'w') as file:
+    with open(myconfig.config_file, 'w') as file:
         config.write(file)
 
 
@@ -5782,8 +5792,8 @@ def update_active_teams(coachid):
         else:
             logger.error(f"{coachid} does not have any active GD teams!")
     
-        with open("./config.ini", 'w') as file:
-            config.write(file)
+        write_config(config)
+
     elif coach_profile_page.status_code == 503:
         logger.error(f"Request to grab {coachid} profile page was NOT successful. Please check coach ID.")
 
@@ -6142,7 +6152,10 @@ if __name__ == "__main__":
     logger.info(f"Platform Architecture = {platform.architecture()}")
     logger.info(f"Platform Machine = {platform.machine()}")
     logger.info(f"Platform Processor = {platform.processor()}")
-    
+    logger.info(f"Current working directory = {myconfig.cwd}")
+    logger.info(f"Config file path = {myconfig.config_file}")
+    logger.info(f"Role Ratings CSV file path = {myconfig.role_ratings_csv}")
+    logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")
     c = load_config()
     config = c['config']
     coachid = c['coachid']
@@ -6166,49 +6179,40 @@ if __name__ == "__main__":
     clear_model = False
     code = ""
     wait_for_code = False
-    wis_gd_df = ''
     gdr_csv = ''
-    bold_attributes_csv = ''
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
-        #bold_attributes_csv = f"{Path(sys._MEIPASS) / 'data' / 'bold_attributes.csv'}"
     else:
         gdr_csv = f"./data/gdr.csv"
-        #bold_attributes_csv = f"./data/bold_attributes.csv"
     logger.info(f"gdr.csv path is = {gdr_csv}")
-    #logger.info(f"bold_attributes.csv path is = {bold_attributes_csv}")
     wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
-    #bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
-
 
     # Bold Attributes Config
-    bold_attributes_csv = "./bold_attributes.csv" 
-    if path.exists(bold_attributes_csv):
+    if path.exists(myconfig.bold_attributes_csv):
         logger.debug("bold_attributes_csv file path found.")
         try:
-            bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
+            bold_attributes_df = pd.read_csv(myconfig.bold_attributes_csv, header = 0, index_col=0)
         except Exception as e:
             logger.error(f"Exception ({e}) reading bold_attributes.csv file.")
     else:
         logger.debug("bold_attributes_csv file path NOT found.")
         logger.debug("Creating bold_attributes.csv file...")
         bold_attributes_df = create_bold_attributes_df()
-        bold_attributes_df.to_csv(bold_attributes_csv)
+        bold_attributes_df.to_csv(myconfig.bold_attributes_csv)
 
-    # Role Ratings Config
-    show_update_role_ratings_dialog = False
-    role_ratings_csv = "./role_ratings.csv"
-    if path.exists(role_ratings_csv):
+    
+    
+    if path.exists(myconfig.role_ratings_csv):
         logger.debug("role_ratings_csv file path found.")
         try:
-            role_ratings_df = pd.read_csv(role_ratings_csv, header = 0, index_col=0)
+            role_ratings_df = pd.read_csv(myconfig.role_ratings_csv, header = 0, index_col=0)
         except Exception as e:
             logger.error(f"Exception ({e}) reading role_ratings.csv file.")
     else:
         logger.debug("role_ratings_csv file path NOT found.")
         logger.debug("Creating role_ratings.csv file...")
         role_ratings_df = create_role_ratings_df()
-        role_ratings_df.to_csv(role_ratings_csv)
+        role_ratings_df.to_csv(myconfig.role_ratings_csv)
 
     # Configure for High DPI
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
