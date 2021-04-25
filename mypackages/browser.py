@@ -19,6 +19,8 @@ from pathlib import Path
 import inspect
 from main import logQueryError, load_config
 from mypackages.two_factor_auth import Ui_DialogTwoFactorAuth
+import mypackages.config as myconfig
+
 
 storage_state = ""
 
@@ -117,7 +119,7 @@ class TwoFactorAuthDialog(QDialog, Ui_DialogTwoFactorAuth):
 
 def check_for_stored_cookies(coachid):
     global storage_state
-    file = f"./browser_cookie_{coachid}.json" 
+    file = os.path.join(myconfig.cookies_directory_path, f"browser_cookie_{coachid}.json")
     if path.exists(file):
         logger.info(f"{file} file path found.")
         try:
@@ -134,6 +136,7 @@ def check_for_stored_cookies(coachid):
         logger.info("storage_state is not empty")
     return storage_state
 
+
 def wis_browser(f, d, progress = None):
     # Default settings #
     headless = True
@@ -141,7 +144,6 @@ def wis_browser(f, d, progress = None):
     timer_expect_navigation = 10000
     timer_incorrect_creds = 2000
     timer_mylocker = 60000
-
     c = load_config()
     coachid = c['coachid']
     config = c['config']
@@ -164,7 +166,7 @@ def wis_browser(f, d, progress = None):
     global storage_state
     storage_state = check_for_stored_cookies(coachid)
     if storage_state == "" or "auth_to_store_cookies" in f:
-        file = f"./browser_cookie_{coachid}.json" 
+        file = os.path.join(myconfig.cookies_directory_path, f"browser_cookie_{coachid}.json") 
         if path.exists(file):
             logger.info(f"Deleting current cookie file {file}")
             os.remove(file)
@@ -192,7 +194,6 @@ def wis_browser(f, d, progress = None):
                 return False
             except Exception as err:
                 logger.error(f"e.message = {err.message}")
-                page.screenshot(path=f"exception-{err.message}.png")
                 if err.message == "NS_BINDING_ABORTED":
                     logger.error(f"Ignoring {err} exception")
                     pass
@@ -232,7 +233,7 @@ def wis_browser(f, d, progress = None):
                     return False
             else:
                 logger.info("Found 'My Locker' so authentication was successful.")
-                cookiefile = f"browser_cookie_{coachid}.json"
+                cookiefile = os.path.join(myconfig.cookies_directory_path, f"browser_cookie_{coachid}.json")
                 logger.info(f"Store cookie state in {cookiefile}")
                 storage_state = context.storage_state()
                 with open(cookiefile, "w") as write_file:
