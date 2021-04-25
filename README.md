@@ -6,7 +6,7 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 ## What's New
 
 ### Beta v0.4.1 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
-1. Redesigned the authentication experience and implementing cookie reuse. This also means the app will no longer store your username and password. More details here.
+1. Redesigned the authentication experience and implementing cookie reuse. This also means the app will no longer store your username and password. More details [here](https://github.com/ebzimny01/gd-recruit/wiki/New-Auth-Process-in-BETA-v0.4.1).
 2. Restructured where some of the underlying files are stored:
    * Config directory contains configuration files
    * Seasons directory contains the season database files and will also contain any exported CSV files
