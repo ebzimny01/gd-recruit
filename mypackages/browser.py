@@ -134,69 +134,26 @@ def check_for_stored_cookies(coachid):
         logger.info("storage_state is not empty")
     return storage_state
 
-def wis_browser(cfg, user, pwd, f, d, progress = None):
+def wis_browser(f, d, progress = None):
     # Default settings #
-    twofactor = False
     headless = True
     browser_pause = False
-    timer_expect_navigation = 30000
-    timer_six_digit_code = 2000
+    timer_expect_navigation = 10000
     timer_incorrect_creds = 2000
-    timer_mylocker = 15000
-    #
+    timer_mylocker = 60000
 
-    logger.info(f"Default Browser config.ini --> headless = {headless}")
     c = load_config()
     coachid = c['coachid']
     config = c['config']
-    try:
-        twofactor = config.getboolean('WISCreds', 'twofactor')
-    except Exception as e:
-        logger.error(f"Oops...exception getting twofactor setting from config.ini: {e.__class__}")
-    logger.info("Read config.ini file")
     if config.has_section('Browser'):
-        logger.info("Config.ini contains Browser section")
-        if config.has_option('Browser', 'headless'):
-            logger.info("Browser section contains 'headless' option")
+        logger.info("Config 'Browser' section found")
+        if config.has_option('Browser','headless'):
+            logger.info("'Browser' section has 'headless' option")
             try:
                 headless = config.getboolean('Browser', 'headless')
-            except Exception as e:
-                logger.error(f"Oops...exception getting headless setting from config.ini: {e.__class__}")
-        if config.has_option('Browser', 'timer_expect_navigation'):
-            logger.info("Browser section contains 'timer_expect_navigation' option")
-            try:
-                timer_expect_navigation = config.getint('Browser', 'timer_expect_navigation')
-            except:
-                logger.error("Ignoring setting:'timer_expect_navigation' setting was not numeric.")
-        if config.has_option('Browser', 'timer_six_digit_code'):
-            logger.info("Browser section contains 'timer_six_digit_code' option")
-            try:
-                timer_six_digit_code = config.getint('Browser', 'timer_six_digit_code')
-            except:
-                logger.error("Ignoring setting:'timer_six_digit_code' setting was not numeric.")
-        if config.has_option('Browser', 'timer_incorrect_creds'):
-            logger.info("Browser section contains 'timer_incorrect_creds' option")
-            try:
-                timer_incorrect_creds = config.getint('Browser', 'timer_incorrect_creds')
-            except:
-                logger.error("Ignoring setting:'timer_incorrect_creds' setting was not numeric.")
-        if config.has_option('Browser', 'timer_mylocker'):
-            logger.info("Browser section contains 'timer_mylocker' option")
-            try:
-                timer_mylocker = config.getint('Browser', 'timer_mylocker')
-            except:
-                logger.error("Ignoring setting:'timer_my_locker' setting was not numeric.")
-        if config.has_option('Browser', 'pause'):
-            logger.info("Browser section contains 'pause' option")
-            try:
-                browser_pause = config.getboolean('Browser', 'pause')
-            except Exception as e:
-                logger.error(f"Oops...exception getting 'pause' setting from config.ini: {e.__class__}")
-            
-    else:
-        logger.info("Config.ini does not contain Browser section")
+            except Exception as err:
+                logger.error("Error trying to get boolean value from Browser headless option.")
 
-    logger.info(f"Setting twofactor = {twofactor}")
     logger.info(f"Setting headless = {headless}")
     logger.info(f"Setting timer_expect_navigation = {timer_expect_navigation}")
     logger.info(f"Setting timer_incorrect_creds = {timer_incorrect_creds}")
@@ -206,6 +163,14 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
 
     global storage_state
     storage_state = check_for_stored_cookies(coachid)
+    if storage_state == "" or "auth_to_store_cookies" in f:
+        file = f"./browser_cookie_{coachid}.json" 
+        if path.exists(file):
+            logger.info(f"Deleting current cookie file {file}")
+            os.remove(file)
+        headless = False
+        logger.info("Session requires interactive login.")
+        logger.info(f"Setting headless = {headless}")
     with sync_playwright() as p:
         browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1234' / 'firefox' / 'firefox.exe'
         logger.info(f"Browser path = {browser_path}")
@@ -214,72 +179,20 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
             headless=headless,
             executable_path=browser_path)
         
-        if storage_state == "":
+        if "auth_to_store_cookies" in f or storage_state == "":
+            logger.info(f"Opening non-headless browser in order to have user complete auth process and store cookies.")
             context = browser.new_context()
-        else:
-            context = browser.new_context(storage_state=storage_state)
-        page = context.new_page()
-
-        page.set_viewport_size({"width": 1900, "height": 1200})
-        page.goto("https://www.whatifsports.com/locker/")
-        logger.info(page.title())
-        
-        if storage_state == "":
-            # Click text=Login
-            page.click("text=Login")
-        
-            logger.info("Authenticating to WIS...")
-            
-            # Click input[name="username"]
-            logger.info("Clicking on WIS username field...")
-            page.click("input[name=\"username\"]")
-            s = randsleep()
-            logger.debug(f"Sleeping for {s} seconds...")
-            time.sleep(s)
-            # Fill input[name="username"]
-            logger.info("Entering WIS username...")
-            page.fill("input[name=\"username\"]", user)
-            s = randsleep()
-            logger.debug(f"Sleeping for {s} seconds...")
-            time.sleep(s)
-            # Click input[name="password"]
-            logger.info("Clicking on WIS password field...")
-            page.click("input[name=\"password\"]")
-            s = randsleep()
-            logger.debug(f"Sleeping for {s} seconds...")
-            time.sleep(s)
-            # Fill input[name="password"]
-            logger.info("Entering WIS password...")
-            page.fill("input[name=\"password\"]", pwd)
-            s = randsleep()
-            logger.debug(f"Sleeping for {s} seconds...")
-            time.sleep(s)
-            # Click button:has-text("Sign in")
-            
-            logger.info("Clicking on WIS login button...")
+            page = context.new_page()
+            page.set_viewport_size({"width": 1900, "height": 1200})
             try:
-                with page.expect_navigation(url='https://www.whatifsports.com/locker/lockerroom.asp', timeout=timer_expect_navigation):
-                    page.click("button:has-text(\"Sign in\")")
-                    # assert page.url == "https://idsrv.fanball.com/localregistration/silentlogin"
-                    # Go to https://www.whatifsports.com/locker/lockerroom.asp
-                    # page.goto("https://www.whatifsports.com/locker/lockerroom.asp")
+                page.goto("https://www.whatifsports.com/locker/", timeout=timer_expect_navigation)
             except TimeoutError as err:
-                logger.error(f"TimeoutError during WIS Authentication attempt: {err.__class__}")
+                logger.error(f"Exception during authentication section: {err.__class__}")
                 logger.error(f"Exception = {err}")
-                page.screenshot(path=f"exception-wis_auth_timeout.png")
-                try:
-                    auth_error = page.wait_for_selector("text=Incorrect email or password", timeout=timer_incorrect_creds)
-                except TimeoutError as err:
-                    logger.error("No incorrect credentials detected after original browser timeout exception.")
-                    logger.error(f"Exception = {err}")
-                    logger.error(f"Some unknown error occurred.")
-                    return False
-                else:
-                    logger.error(auth_error.inner_text())
-                    return False
+                return False
             except Exception as err:
                 logger.error(f"e.message = {err.message}")
-                page.screenshot(path=f"exception-{err.essage}.png")
+                page.screenshot(path=f"exception-{err.message}.png")
                 if err.message == "NS_BINDING_ABORTED":
                     logger.error(f"Ignoring {err} exception")
                     pass
@@ -287,21 +200,76 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                     logger.error(f"Exception following WIS Authentication attempt: {err.__class__}")
                     logger.error(f"Exception = {err}")
                     return False
+            # Click text=Login
+            page.click("text=Login")
+            # Click input[name="username"]
+            logger.info("Clicking on WIS username field...")
+            page.click("input[name=\"username\"]")
+            try:
+                logger.info(f"Waiting for My Locker...")
+                page.wait_for_selector("h1:has-text(\"My Locker\")", timeout=timer_mylocker)
+            except TimeoutError as err:
+                logger.error(f"Timeout waiting for My Locker: {err.__class__}")
+                logger.error(f"Exception = {err}")
+                logger.debug("progress.emit(999999)")
+                progress.emit(999999)
+                return False
+            except Exception as err:
+                if err.message == "NS_BINDING_ABORTED":
+                    logger.error(f"Ignoring {err} exception")
+                    cookiefile = f"browser_cookie_{coachid}.json"
+                    logger.info(f"Store cookie state in {cookiefile}")
+                    storage_state = context.storage_state()
+                    with open(cookiefile, "w") as write_file:
+                        json.dump(storage_state, write_file)
+                    logger.debug("progress.emit(1)")
+                    progress.emit(1)
+                else:
+                    logger.error(f"Exception during select text 'My Locker' section: {err.__class__}")
+                    logger.error(f"Exception = {err}")
+                    logger.debug("progress.emit(999999)")
+                    progress.emit(999999)
+                    return False
             else:
-                logger.info("Completed initial 'wait for navigation' authentication try-except block.")
-                if browser_pause == True:
-                    page.pause()
-
-        try:
-            logger.info(f"Waiting for My Locker...")
-            page.wait_for_selector("h1:has-text(\"My Locker\")", timeout=timer_mylocker)
-        except Exception as err:
-            logger.error(f"Exception during select text 'My Locker' section: {err.__class__}")
-            logger.error(f"Exception = {err}")
-            page.screenshot(path=f"my_locker_exception-{err.message}.png")
-            return False
+                logger.info("Found 'My Locker' so authentication was successful.")
+                cookiefile = f"browser_cookie_{coachid}.json"
+                logger.info(f"Store cookie state in {cookiefile}")
+                storage_state = context.storage_state()
+                with open(cookiefile, "w") as write_file:
+                    json.dump(storage_state, write_file)
+                logger.debug("progress.emit(1)")
+                progress.emit(1)
+                return True
+            finally:
+                time.sleep(2)
+                context.close()
+                browser.close()
+                logger.info("Playwright browser closed.")
+            
         else:
-            logger.info("Found 'My Locker' so authentication was successful.")
+            context = browser.new_context(storage_state=storage_state)
+            page = context.new_page()
+            page.set_viewport_size({"width": 1900, "height": 1200})
+            page.goto("https://www.whatifsports.com/locker/")
+            try:
+                logger.info(f"Waiting for My Locker...")
+                page.wait_for_selector("h1:has-text(\"My Locker\")", timeout=timer_mylocker)
+            except TimeoutError as err:
+                logger.error(f"Timeout waiting for My Locker: {err.__class__}")
+                logger.error(f"Exception = {err}")
+                return False
+            except Exception as err:
+                if err.message == "NS_BINDING_ABORTED":
+                    logger.error(f"Ignoring {err} exception")
+                else:
+                    logger.error(f"Exception during select text 'My Locker' section: {err.__class__}")
+                    logger.error(f"Exception = {err}")
+                    context.close()
+                    browser.close()
+                    logger.info("Playwright browser closed.")
+                    return False
+            else:
+                logger.info("Found 'My Locker' so authentication was successful.")
             
             if "scrape_recruit_IDs" in f:
                 # Thread progress emit signal indicating WIS Auth is complete
@@ -448,6 +416,9 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                         progress.emit(200 + i, 1)
 
                 d.close()
+                context.close()
+                browser.close()
+                logger.info("Playwright browser closed.")
                 return True
 
 
@@ -482,15 +453,10 @@ def wis_browser(cfg, user, pwd, f, d, progress = None):
                     recruit_summary = BeautifulSoup(page.content(), "lxml")
                     logger.info("Grabbed Recruiting Summary page content")
                 finally:
-                    return recruit_summary
-        finally:
-            storage_state = context.storage_state()
-            with open(f"browser_cookie_{coachid}.json", "w") as write_file:
-                json.dump(storage_state, write_file)
-            context.close()
-            browser.close()
-            logger.info("Playwright browser closed.")
-        
+                    context.close()
+                    browser.close()
+                    logger.info("Playwright browser closed.")
+                    return recruit_summary        
         
 
 def get_create_recruit_query_object(d):
