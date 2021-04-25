@@ -9,9 +9,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>480</width>
+    <height>238</height>
    </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>Arial</family>
+    <pointsize>12</pointsize>
+   </font>
   </property>
   <property name="windowTitle">
    <string>Load Season</string>
@@ -19,15 +25,16 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>240</y>
-     <width>341</width>
+     <x>10</x>
+     <y>170</y>
+     <width>461</width>
      <height>32</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="orientation">
@@ -36,37 +43,42 @@
    <property name="standardButtons">
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
+   <property name="centerButtons">
+    <bool>true</bool>
+   </property>
   </widget>
   <widget class="QLabel" name="labelSelectSeason">
    <property name="geometry">
     <rect>
      <x>20</x>
      <y>30</y>
-     <width>81</width>
+     <width>271</width>
      <height>21</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>18</pointsize>
     </font>
    </property>
    <property name="text">
-    <string>Select season:</string>
+    <string>Select season to load:</string>
    </property>
   </widget>
   <widget class="QComboBox" name="comboBoxSelectSeason">
    <property name="geometry">
     <rect>
-     <x>150</x>
-     <y>30</y>
-     <width>231</width>
+     <x>20</x>
+     <y>70</y>
+     <width>441</width>
      <height>22</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
   </widget>
