@@ -28,6 +28,7 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 7. Added ability to export data to .csv file.
 
 Beta v0.2.5 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta_0_2_5.exe)
+
 Beta v0.2.3 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=6kHR4uZ69DNOjNZbgcQ5RqRO9zDFLOUV)
 
 ### [Original Prototype Demo Video](https://youtu.be/rj0khucVjzc)
