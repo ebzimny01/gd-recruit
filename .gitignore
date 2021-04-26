@@ -11,3 +11,6 @@ dist/*
 /*.spec
 /*.png
 /browser_cookie*.json
+config/*
+seasons/*
+cookies/*

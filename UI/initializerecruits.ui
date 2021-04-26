@@ -58,7 +58,7 @@
    <property name="geometry">
     <rect>
      <x>200</x>
-     <y>250</y>
+     <y>260</y>
      <width>321</width>
      <height>31</height>
     </rect>
@@ -146,9 +146,9 @@
    <property name="geometry">
     <rect>
      <x>227</x>
-     <y>100</y>
+     <y>97</y>
      <width>341</width>
-     <height>16</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="font">
@@ -203,9 +203,9 @@
    <property name="geometry">
     <rect>
      <x>227</x>
-     <y>128</y>
+     <y>126</y>
      <width>341</width>
-     <height>16</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="font">
@@ -222,9 +222,9 @@
    <property name="geometry">
     <rect>
      <x>227</x>
-     <y>159</y>
+     <y>157</y>
      <width>341</width>
-     <height>16</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="font">
@@ -260,9 +260,9 @@
    <property name="geometry">
     <rect>
      <x>227</x>
-     <y>189</y>
+     <y>186</y>
      <width>341</width>
-     <height>16</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="font">
@@ -298,9 +298,9 @@
    <property name="geometry">
     <rect>
      <x>227</x>
-     <y>219</y>
+     <y>220</y>
      <width>341</width>
-     <height>16</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="font">
@@ -317,7 +317,7 @@
    <property name="geometry">
     <rect>
      <x>197</x>
-     <y>217</y>
+     <y>221</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -404,7 +404,7 @@
      <x>230</x>
      <y>474</y>
      <width>341</width>
-     <height>16</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="font">

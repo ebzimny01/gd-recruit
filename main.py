@@ -1,5 +1,6 @@
-version = "0.3.4"
+version = "0.4.1"
 window_title = f"GD Recruit Assistant Beta ({version})"
+from asyncio.windows_events import NULL
 from logging import FileHandler
 import sys
 import platform
@@ -26,11 +27,13 @@ from mypackages.role_ratings_dialog import Ui_DialogRoleRatings
 from mypackages.role_ratings_update_db import Ui_DialogRoleRatingUpdateDB_Progress
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
+import mypackages.config as myconfig
 import configparser
 from progress.bar import Bar
 import pandas as pd
 import numpy as np
 from pathlib import Path
+
 
 
 # https://stackoverflow.com/questions/61316258/how-to-overwrite-qdialog-accept
@@ -262,11 +265,9 @@ class InitializeWorker(QObject):
         self.progress.emit(0, 1)
 
         
-        c = load_config()
-        config = c['config']
-        user = c['username']
-        pwd = c['password']
-        requests_session = requests.Session()
+        #c = load_config()
+        #config = c['config']
+        #requests_session = requests.Session()
         db_t.setDatabaseName(db.databaseName())
         openDB(db_t)
         createRecruitTableQuery = QSqlQuery(db_t)
@@ -323,7 +324,7 @@ class InitializeWorker(QObject):
         
         #Thread progress signaling DB was created
         self.progress.emit(1, 1)
-        result = wis_browser(config, user, pwd, "scrape_recruit_IDs", db_t, self.progress)
+        result = wis_browser("scrape_recruit_IDs", db_t, self.progress)
         if result:
             # After grabbing all Recruit IDs and storing in DB.
             # This thread is finished and now need to signal 
@@ -486,6 +487,28 @@ class QueueMonitorWorker(QObject):
         self.finished.emit()
 
 
+class BrowserAuthWorker(QObject):
+    finished = Signal()
+    progress = Signal(int)
+    
+    
+    def run(self):
+        """Long-running Initialize Recruit task goes here."""
+
+        # Thread signaling start
+        logger.debug("progress.emit(0)")
+        self.progress.emit(0)
+        
+        page = wis_browser("auth_to_store_cookies", db_t, self.progress)
+
+        if not page:
+            logger.debug("progress.emit(999999)")
+            self.progress.emit(999999)
+
+        logger.debug("finished.emit()")
+        self.finished.emit()
+
+
 class MarkRecruitsWorker(QObject):
     finished = Signal()
     progress = Signal(int)
@@ -508,13 +531,11 @@ class MarkRecruitsWorker(QObject):
         self.progress.emit(0)
 
         # Launch playwright browser to grab watched recruits
-        c = load_config()
-        config = c['config']
-        user = c['username']
-        pwd = c['password']
-
+        #c = load_config()
+        #config = c['config']
+        
         db_t.setDatabaseName(db.databaseName())
-        page = wis_browser(config, user, pwd, "grab_watched_recruits", db_t, self.progress)
+        page = wis_browser("grab_watched_recruits", db_t, self.progress)
         if page == "":
             # Implies issues loading Recruit Summary page.
             self.progress.emit(2000)
@@ -1049,14 +1070,25 @@ class LoadSeason(QDialog, Ui_DialogLoadSeason):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
-        db_files = [x for x in os.listdir() if x.endswith(".db")]
-        if len(db_files) > 0:
-            self.comboBoxSelectSeason.addItems(db_files)
+        db_files = [x for x in os.listdir(myconfig.seasons_directory_path) if x.endswith(".db")]
+        logger.debug(f"db_files = {db_files}")
+        c = load_config()
+        config = c['config']
+        if config.has_option('WISCreds', 'coachid'):
+            coachid = config.get('WISCreds', 'coachid')
+            logger.debug(f"LoadSeason coachid = {coachid}")
+            if coachid != "":
+                filtered_db_files = [k for k in db_files if coachid in k]
+            else:
+                filtered_db_files = []
+        logger.debug(f"filtered_db_files = {filtered_db_files}")
+        if len(filtered_db_files) > 0:
+            self.comboBoxSelectSeason.addItems(filtered_db_files)
         else:
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
 
     def accept(self):
-        season_filename = self.comboBoxSelectSeason.currentText()
+        season_filename = os.path.join(myconfig.seasons_directory_path, self.comboBoxSelectSeason.currentText())
         db.close()
         db.setDatabaseName(season_filename)
         super().accept()
@@ -1066,7 +1098,9 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         super().__init__(parent)
         self.setupUi(self)
         config = configparser.ConfigParser()
-        config.read('./config.ini')
+        config.read(myconfig.config_file)
+        if config.has_option('WISCreds', 'coachid'):
+            self.coachid = config.get('WISCreds', 'coachid')
         if config.has_section('Schools') and len(config['Schools']) > 0:
             school_list = config.items('Schools')
             names_only = []
@@ -1091,7 +1125,7 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
     def accept(self):
         selected = self.comboBoxTeamID.currentText()
         seasonnum = self.lineEditSeasonNumber.text()
-        season_filename = f"{seasonnum} - {selected}.db"
+        season_filename = os.path.join(myconfig.seasons_directory_path, f"{self.coachid} - {seasonnum} - {selected}.db")
         print(f"Setting database name to: {season_filename}")
         db.setDatabaseName(season_filename)
         db.close()
@@ -1102,67 +1136,139 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
 class WISCred(QDialog, Ui_WISCredentialDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        c = load_config()
-        coachid = c['coachid']
-        wisuser = c['username']
-        pwd = c['password']
-        self.setupUi(self, coachid, wisuser, pwd)
-        self.buttonstate()
+        logger.debug("Entering WISCred class section...")
+        self.c = load_config()
+        self.coachid = self.c['coachid']
+        logger.info(f"WISCred section: coachid = {self.coachid}")
+        self.setupUi(self, self.coachid)
         self.labelCheckMarkcoachIDValidated.setVisible(False)
         self.labelCheckMarkcoachIDValidationError.setVisible(False)
-        # Validate coachid from config file is proper
-        if coachid != "":
-            self.validate_coach_profile()
-        self.lineEditWISCoachID.textChanged.connect(self.buttonstate)
-        self.lineEditWISCoachID.editingFinished.connect(self.validate_coach_profile)
-        self.lineEditWISUsername.textChanged.connect(self.buttonstate)
-        self.lineEditWISPassword.textChanged.connect(self.buttonstate)
+        self.labelCheckMarkCookieStored.setVisible(False)
+        self.labelCookieStored.setVisible(False)
+        self.labelCookieStoredError.setVisible(False)
+        self.progressBarLoginStoreCookies.setVisible(False)
+        self.pushButton_LoginStoreCookie.setEnabled(False)
+        self.pushButton_LoginStoreCookie.setVisible(False)
+        self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
         
-    
-    def buttonstate(self):
-        if self.lineEditWISCoachID.text() != '' and self.lineEditWISPassword.text() != '' and self.lineEditWISUsername.text() != '':
-            self.buttonBox.button(QDialogButtonBox.Save).setEnabled(True)
-        else:
-            self.buttonBox.button(QDialogButtonBox.Save).setEnabled(False)
+        # Validate coachid from config file is proper
+        if self.coachid != "":
+            self.validate_coach_profile()
+        self.lineEditWISCoachID.editingFinished.connect(self.validate_coach_profile)
+        self.pushButton_LoginStoreCookie.clicked.connect(self.browser_auth)
+        self.buttonBox.button(QDialogButtonBox.Close).clicked.connect(self.accept)
 
     
     def validate_coach_profile(self):
         requests_session = requests.Session()
         coachid = self.lineEditWISCoachID.text()
         if coachid == "":
+            self.labelCookieStored.setVisible(False)
             self.labelCheckMarkcoachIDValidationError.setVisible(False)
             self.labelCheckMarkcoachIDValidated.setVisible(False)
+            self.labelCheckMarkCookieStored.setVisible(False)
+            self.labelCookieStoredError.setVisible(False)
+            self.pushButton_LoginStoreCookie.setVisible(False)
         else:
             coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}")
             if coach_profile_page.status_code == 200:
                 logger.info(f"Validated coach ID: {coachid} (status code = {coach_profile_page.status_code})")
+                config = self.c['config']
+                self.coachid = coachid
+                if config['WISCreds']['coachid'] != coachid:
+                    logger.info("CoachID was changed. Clearing cookies from storage_state.")
+                    config.set('WISCreds', 'coachid', coachid)
+                    write_config(config)
+                    # If coachid changes then assume auth changes.
+                    # Therefore have to clear the browser storage state.
+                    global storage_state
+                    storage_state = ""
+                    global clear_model
+                    clear_model = True
                 self.labelCheckMarkcoachIDValidationError.setVisible(False)
                 self.labelCheckMarkcoachIDValidated.setVisible(True)
+                self.pushButton_LoginStoreCookie.setVisible(True)
+                self.pushButton_LoginStoreCookie.setEnabled(True)
+                self.check_stored_cookie(coachid)
             else:
                 logger.info(f"Error validating coach ID: {coachid} (status code = {coach_profile_page.status_code})")
                 self.labelCheckMarkcoachIDValidationError.setVisible(True)
                 self.labelCheckMarkcoachIDValidated.setVisible(False)
+                self.pushButton_LoginStoreCookie.setVisible(False)
+                self.labelCookieStored.setVisible(False)
+                self.labelCheckMarkCookieStored.setVisible(False)
+                self.labelCookieStoredError.setVisible(False)
+                self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
 
     
+    def check_stored_cookie(self, coachid):
+        file = os.path.join(myconfig.cookies_directory_path, f"browser_cookie_{coachid}.json")
+        self.labelCookieStored.setVisible(True)
+        self.labelCheckMarkCookieStored.setVisible(False)
+        self.labelCookieStoredError.setVisible(False)
+        if path.exists(file):
+            self.labelCheckMarkCookieStored.setVisible(True)
+            self.pushButton_LoginStoreCookie.setEnabled(True)
+            self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
+        else:
+            logger.info(f"Path to {file} does not exist!")
+            self.labelCheckMarkCookieStored.setVisible(False)
+            self.labelCookieStoredError.setVisible(True)
+
+
+
+    def browser_auth(self):
+        logger.info("Button Pressed: Login To Store Cookies")
+        # Step 1: Create a QThread object
+        self.thread = QThread()
+        # Step 2: Create a worker object
+        self.worker = BrowserAuthWorker()
+        # Step 3: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 4: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.browser_auth_Progress)
+        # Step 6: Start the thread
+        self.thread.start()
+        # Final resets
+        self.progressBarLoginStoreCookies.setVisible(True)
+        self.lineEditWISCoachID.setEnabled(False)
+        self.pushButton_LoginStoreCookie.setEnabled(False)
+        self.labelCheckMarkCookieStored.setVisible(False)
+        self.labelCookieStoredError.setVisible(False)
+        self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
+        self.thread.finished.connect(
+            lambda: self.check_stored_cookie(self.coachid)
+        )
+
+
+    def browser_auth_Progress(self, n):
+        if n == 0:
+            logger.debug("browser auth received emit signal 0")
+            logger.info("Thread started for WIS Auth and storing cookies.")
+        if n == 1:
+            logger.debug("browser auth received emit signal 1")
+            logger.info("WIS auth through playwright browser completed.")
+            self.progressBarLoginStoreCookies.setVisible(False)
+            self.lineEditWISCoachID.setEnabled(True)
+            self.pushButton_LoginStoreCookie.setEnabled(True)
+            self.labelCheckMarkCookieStored.setVisible(True)
+            self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
+        if n == 999999:
+            logger.debug("browser auth received emit signal 999999")
+            self.labelCookieStoredError.setVisible(True)
+            self.progressBarLoginStoreCookies.setVisible(False)
+            self.pushButton_LoginStoreCookie.setEnabled(True)
+            self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
+            logger.error("There was a problem authenticating to WIS.")
+            mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
+    
+
     def accept(self):
-        coachid = self.lineEditWISCoachID.text()
-        logger.info(f"Coach ID = {coachid}")
-        user = self.lineEditWISUsername.text()
-        pwd = self.lineEditWISPassword.text()
-        config = configparser.ConfigParser()
-        config.read('./config.ini')
-        if config['WISCreds']['coachid'] != coachid:
-            logger.info("CoachID was changed. Clearing cookies from storage_state.")
-            config.set('WISCreds', 'coachid', coachid)
-            # If coachid changes then assume auth changes.
-            # Therefore have to clear the browser storage state.
-            global storage_state
-            storage_state = ""
-        config.set('WISCreds', 'username', user)
-        config.set('WISCreds', 'password', pwd)
-        with open("./config.ini", 'w') as file:
-            config.write(file)
-        update_active_teams(coachid)
+        update_active_teams(self.lineEditWISCoachID.text())
         super().accept()
 
 
@@ -4691,9 +4797,8 @@ class RoleRatings(QDialog, Ui_DialogRoleRatings):
         list_total = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
         role_ratings_df['total'] = role_ratings_df.loc[:,list_total].sum(axis=1)
         logger.info("Saving role ratings to csv...")
-        role_ratings_df.to_csv(role_ratings_csv)
-        global show_update_role_ratings_dialog
-        show_update_role_ratings_dialog = True
+        role_ratings_df.to_csv(myconfig.role_ratings_csv)
+        myconfig.show_update_role_ratings_dialog = True
         super().accept()
 
 
@@ -5028,7 +5133,7 @@ class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
         bold_attributes_df['tec']['p'] = check_enabled[self.checkBox_P_TEC.checkState()]
 
         # Write to csv file
-        bold_attributes_df.to_csv(bold_attributes_csv)
+        bold_attributes_df.to_csv(myconfig.bold_attributes_csv)
         super().accept()
 
 
@@ -5128,7 +5233,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         # Filter data structure used to track which filters are active
         # And then used to build the filter string
-        self.string_filter = {
+        self.string_filter =  self.get_clean_string_filter()
+        
+        if self.check_stored_creds():
+            # Grab coachid from config file
+            # Use it to grab active GD teams from coach profile page
+            # and save to config file
+            c = load_config()
+            coachid = c['coachid']
+            update_active_teams(coachid)
+            self.statusbar.showMessage(f"Current coachid = {coachid} (Auth Cookie Saved)")
+        else:
+            c = load_config()
+            coachid = c['coachid']
+            if coachid == "":
+                self.statusbar.showMessage("No coachid configured")
+            else:
+                self.statusbar.showMessage(f"Current coachid = {coachid} (No Auth Cookie)")
+
+
+    def get_clean_string_filter(self):
+        logger.debug("Creating new clean filter...")
+        clean_filter = {
             'pos': "",
             'hide_signed': "",
             'undecided': "",
@@ -5147,17 +5273,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             'tec': "",
             'gpa':""
         }
-        
-        if self.check_stored_creds():
-            # Grab coachid from config file
-            # Use it to grab active GD teams from coach profile page
-            # Then store teams in config.ini
-            c = load_config()
-            coachid = c['coachid']
-            if coachid != '':
-                update_active_teams(coachid)
-        else:
-            False
+        return clean_filter
 
     
     def export_db_to_csv_all(self):
@@ -5174,6 +5290,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             mw.statusbar.showMessage(f"Export failure. Be sure you have a season loaded with recruits before exporting.")
         else:
             db_df.to_csv(filename, index=False)
+            print(f"Exported data to: '{filename}'")
+            logger.info(f"Exported data to: '{filename}'")
             mw.statusbar.showMessage(f"Exported data to: '{filename}'")
 
     
@@ -5191,6 +5309,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             mw.statusbar.showMessage(f"Export failure. Be sure you have a season loaded with recruits before exporting.")
         else:
             db_df.to_csv(filename, index=False)
+            print(f"Exported data to: '{filename}'")
+            logger.info(f"Exported data to: '{filename}'")
             mw.statusbar.showMessage(f"Exported data to: '{filename}'")
 
     
@@ -5288,7 +5408,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info(f"Clearing Considering filter...")
         self.string_filter['considering'] = ""
         
-        self.newFilter(self.model)
+        try:
+            self.newFilter(self.model)
+        except AttributeError as err:
+            logger.error(f"Exception ({err}).")
+            logger.error(f"No model to apply new filter.")
 
     
     def apply_helper(self, k, v):
@@ -5413,8 +5537,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.ui = Ui_WISCredentialDialog()        
         dialog.exec_()
         dialog.show()
-        self.check_stored_creds()
-
+        if self.check_stored_creds():
+            # Grab coachid from config file
+            # Use it to grab active GD teams from coach profile page
+            # and save to config file
+            c = load_config()
+            coachid = c['coachid']
+            self.statusbar.showMessage(f"Current coachid = {coachid} (Auth Cookie Saved)")
+        else:
+            c = load_config()
+            coachid = c['coachid']
+            if coachid == "":
+                self.statusbar.showMessage("No coachid configured")
+            else:
+                self.statusbar.showMessage(f"Current coachid = {coachid} (No Auth Cookie)")
+        global clear_model
+        if clear_model:
+            logger.info("Clearing database name...")
+            db.setDatabaseName("")
+            logger.info("Clearing model...")
+            self.clearmodel()
+            logger.info("Clearing window title...")
+            self.setWindowTitle(f"{window_title}")
+            self.actionGrabSeasonData.setEnabled(False)
+            self.actionAll_Recruits.setEnabled(False)
+            self.actionWatchlist_Only.setEnabled(False)
+            self.string_filter =  self.get_clean_string_filter()
+            self.clear_ratings_filter_fields()
+            self.checkBoxHideSigned.setChecked(0)
+            self.checkBoxUndecided.setChecked(0)
+            self.checkBoxWatched.setChecked(0)
+            self.comboBoxMilesFilter.setCurrentIndex(0)
+            self.comboBoxPositionFilter.setCurrentIndex(0)
+            clear_model = False
     
     def open_New_Season(self):
         dialog = NewSeason()
@@ -5470,14 +5625,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     def open_Role_Ratings(self):
         logger.debug("Entering Role Ratings dialog")
-        global show_update_role_ratings_dialog
-        show_update_role_ratings_dialog = False
+        myconfig.show_update_role_ratings_dialog = False
         dialog = RoleRatings()
         dialog.ui = Ui_DialogRoleRatings()
         dialog.exec_()
         dialog.show()
         if db.databaseName() != "":
-            if show_update_role_ratings_dialog:
+            if myconfig.show_update_role_ratings_dialog:
                 logger.debug("Showing Role Rating Update DB progress dialog")
                 update_dialog = RoleRatingsUpdateDB()
                 update_dialog.ui = Ui_DialogRoleRatingUpdateDB_Progress()
@@ -5489,17 +5643,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     def check_stored_creds(self):
         c = load_config()
-        user = c['username']
-        pwd = c['password']
-        if user == '' or pwd == '':
-            self.actionNew_Season.setEnabled(False)
-            self.actionLoad_Season.setEnabled(False)
-            return False
-        else:
+        coachid = c['coachid']
+        cookiefile = os.path.join(myconfig.cookies_directory_path, f"browser_cookie_{coachid}.json")
+        if coachid != '' and path.exists(cookiefile):
             self.actionNew_Season.setEnabled(True)
             self.actionLoad_Season.setEnabled(True)
             return True
+        else:
+            self.actionNew_Season.setEnabled(False)
+            self.actionLoad_Season.setEnabled(False)
+            return False
    
+
+    def clearmodel(self):
+        self.recruit_tableView.setModel(None)
+        self.recruit_tableView.setEnabled(False)
+        self.comboBoxPositionFilter.setEnabled(False)
+        self.checkBoxHideSigned.setEnabled(False)
+        self.checkBoxUndecided.setEnabled(False)
+        self.checkBoxWatched.setEnabled(False)
+        self.comboBoxMilesFilter.setEnabled(False)
+        self.pushButtonApplyRatingsFilters.setEnabled(False)
+        self.pushButtonClearRatingsFilters.setEnabled(False)
+        self.lineEditConsideringTextSearch.setEnabled(False)
+        self.lineEditfilterATH.setEnabled(False)
+        self.lineEditfilterBLK.setEnabled(False)
+        self.lineEditfilterDUR.setEnabled(False)
+        self.lineEditfilterELU.setEnabled(False)
+        self.lineEditfilterGI.setEnabled(False)  
+        self.lineEditfilterHAN.setEnabled(False)
+        self.lineEditfilterSPD.setEnabled(False)
+        self.lineEditfilterSTA.setEnabled(False)
+        self.lineEditfilterSTR.setEnabled(False)
+        self.lineEditfilterTEC.setEnabled(False)
+        self.lineEditfilterTKL.setEnabled(False)
+        self.lineEditfilterWE.setEnabled(False)
+        self.lineEditfilterGPA.setEnabled(False)
+
     
     def loadModel(self):
         self.model = TableModel()
@@ -5532,16 +5712,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
 def load_config():
     config = configparser.ConfigParser()
-    configfile = config.read('./config.ini')
+    configfile = config.read(myconfig.config_file)
+    config_changed = False
+    old_config_file = os.path.join(myconfig.cwd, "config.ini")
+    if path.exists(old_config_file):
+        logger.info(f"Found old config.ini. Deleting {old_config_file}")
+        os.remove(old_config_file)
     if  configfile == []:
         logger.info("config.ini file not found")
         logger.info("Creating config.ini with WISCreds section")
         config['WISCreds'] = {
-                        'coachid' : '',
-                        'username' : '',
-                        'password' : '',
-                        'twofactor' : 'false'
+                        'coachid' : ''
                         }
+        config_changed = True
     else:
         logger.info("config.ini file found")
         # If config file exists but does not contain WISCreds section, add it
@@ -5549,35 +5732,35 @@ def load_config():
             logger.info("Config WISCreds section found")
             if not config.has_option('WISCreds','coachid'):
                 logger.info("Adding missing coachid option to WISCreds section")
-                config['WISCreds']['coachid'] = ''
-            if not config.has_option('WISCreds','username'):
-                logger.info("Adding missing username option to WISCreds section")
-                config['WISCreds']['username'] = ''
-            if not config.has_option('WISCreds','password'):
-                logger.info("Adding missing password option to WISCreds section")
-                config['WISCreds']['password'] = ''
-            if not config.has_option('WISCreds','twofactor'):
-                logger.info("Adding missing twofactor option to WISCreds section")
-                config['WISCreds']['twofactor'] = 'false'
+                config.set('WISCreds','coachid','')
+                config_changed = True
+            if config.has_option('WISCreds','username'):
+                logger.info("Deleting username from config.ini because it is no longer needed.")
+                config.remove_option('WISCreds','username')
+                config_changed = True
+            if config.has_option('WISCreds','password'):
+                logger.info("Deleting password from config.ini because it is no longer needed.")
+                config.remove_option('WISCreds','password')
+                config_changed = True
         else:
             logger.info("Adding missing WISCreds section")
             config['WISCreds'] = {
-                        'coachid' : '',
-                        'username' : '',
-                        'password' : '',
-                        'twofactor' : 'false'
+                        'coachid' : ''
                         }
-    
-    with open("./config.ini", 'w') as file:
-        config.write(file)
-
+            config_changed = True
+    if config_changed:
+        logger.info("Config changed. Writing changed to config.ini file...")
+        write_config(config)
 
     coachid = config['WISCreds']['coachid']
-    username = config['WISCreds']['username']
-    password = config['WISCreds']['password']
-    twofactor = config['WISCreds']['twofactor']
-    c = {'config': config, 'username': username, 'password': password, 'twofactor': twofactor, 'coachid': coachid}
+    c = {'config': config, 'coachid': coachid}
     return c
+
+
+def write_config(config):
+    logger.info("Writing config to config.ini file...")
+    with open(myconfig.config_file, 'w') as file:
+        config.write(file)
 
 
 def update_active_teams(coachid):
@@ -5609,8 +5792,8 @@ def update_active_teams(coachid):
         else:
             logger.error(f"{coachid} does not have any active GD teams!")
     
-        with open("./config.ini", 'w') as file:
-            config.write(file)
+        write_config(config)
+
     elif coach_profile_page.status_code == 503:
         logger.error(f"Request to grab {coachid} profile page was NOT successful. Please check coach ID.")
 
@@ -5969,11 +6152,12 @@ if __name__ == "__main__":
     logger.info(f"Platform Architecture = {platform.architecture()}")
     logger.info(f"Platform Machine = {platform.machine()}")
     logger.info(f"Platform Processor = {platform.processor()}")
-    
+    logger.info(f"Current working directory = {myconfig.cwd}")
+    logger.info(f"Config file path = {myconfig.config_file}")
+    logger.info(f"Role Ratings CSV file path = {myconfig.role_ratings_csv}")
+    logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")
     c = load_config()
     config = c['config']
-    usern = c['username']
-    passwd = c['password']
     coachid = c['coachid']
     logger.info("Read config.ini file")
     if config.has_section('Logging'):
@@ -5991,53 +6175,44 @@ if __name__ == "__main__":
     else:
         logger.info("Config.ini does not contain Logging section")
 
-    # global variable used to store 2-factor auth code
-    
+    # global variables
+    clear_model = False
     code = ""
     wait_for_code = False
-    wis_gd_df = ''
     gdr_csv = ''
-    bold_attributes_csv = ''
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
-        #bold_attributes_csv = f"{Path(sys._MEIPASS) / 'data' / 'bold_attributes.csv'}"
     else:
         gdr_csv = f"./data/gdr.csv"
-        #bold_attributes_csv = f"./data/bold_attributes.csv"
     logger.info(f"gdr.csv path is = {gdr_csv}")
-    #logger.info(f"bold_attributes.csv path is = {bold_attributes_csv}")
     wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
-    #bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
-
 
     # Bold Attributes Config
-    bold_attributes_csv = "./bold_attributes.csv" 
-    if path.exists(bold_attributes_csv):
+    if path.exists(myconfig.bold_attributes_csv):
         logger.debug("bold_attributes_csv file path found.")
         try:
-            bold_attributes_df = pd.read_csv(bold_attributes_csv, header = 0, index_col=0)
+            bold_attributes_df = pd.read_csv(myconfig.bold_attributes_csv, header = 0, index_col=0)
         except Exception as e:
             logger.error(f"Exception ({e}) reading bold_attributes.csv file.")
     else:
         logger.debug("bold_attributes_csv file path NOT found.")
         logger.debug("Creating bold_attributes.csv file...")
         bold_attributes_df = create_bold_attributes_df()
-        bold_attributes_df.to_csv(bold_attributes_csv)
+        bold_attributes_df.to_csv(myconfig.bold_attributes_csv)
 
-    # Role Ratings Config
-    show_update_role_ratings_dialog = False
-    role_ratings_csv = "./role_ratings.csv"
-    if path.exists(role_ratings_csv):
+    
+    
+    if path.exists(myconfig.role_ratings_csv):
         logger.debug("role_ratings_csv file path found.")
         try:
-            role_ratings_df = pd.read_csv(role_ratings_csv, header = 0, index_col=0)
+            role_ratings_df = pd.read_csv(myconfig.role_ratings_csv, header = 0, index_col=0)
         except Exception as e:
             logger.error(f"Exception ({e}) reading role_ratings.csv file.")
     else:
         logger.debug("role_ratings_csv file path NOT found.")
         logger.debug("Creating role_ratings.csv file...")
         role_ratings_df = create_role_ratings_df()
-        role_ratings_df.to_csv(role_ratings_csv)
+        role_ratings_df.to_csv(myconfig.role_ratings_csv)
 
     # Configure for High DPI
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"

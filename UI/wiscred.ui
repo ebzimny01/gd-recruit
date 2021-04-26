@@ -3,15 +3,21 @@
  <class>WISCredentialDialog</class>
  <widget class="QDialog" name="WISCredentialDialog">
   <property name="windowModality">
-   <enum>Qt::WindowModal</enum>
+   <enum>Qt::ApplicationModal</enum>
   </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>417</width>
-    <height>313</height>
+    <height>253</height>
    </rect>
+  </property>
+  <property name="font">
+   <font>
+    <family>Arial</family>
+    <pointsize>12</pointsize>
+   </font>
   </property>
   <property name="windowTitle">
    <string>Save WIS Credentials</string>
@@ -22,131 +28,74 @@
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>240</y>
-     <width>341</width>
+     <x>140</x>
+     <y>200</y>
+     <width>111</width>
      <height>32</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="orientation">
     <enum>Qt::Horizontal</enum>
    </property>
    <property name="standardButtons">
-    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Save</set>
+    <set>QDialogButtonBox::Close</set>
    </property>
-  </widget>
-  <widget class="QLabel" name="labelWISUsername">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>110</y>
-     <width>141</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Arial</family>
-    </font>
-   </property>
-   <property name="text">
-    <string>WIS Email Login</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="labelWISPassword">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>160</y>
-     <width>141</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Arial</family>
-    </font>
-   </property>
-   <property name="text">
-    <string>WIS Password</string>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="lineEditWISUsername">
-   <property name="geometry">
-    <rect>
-     <x>170</x>
-     <y>110</y>
-     <width>191</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Arial</family>
-    </font>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="lineEditWISPassword">
-   <property name="geometry">
-    <rect>
-     <x>170</x>
-     <y>160</y>
-     <width>191</width>
-     <height>20</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <family>Arial</family>
-    </font>
-   </property>
-   <property name="echoMode">
-    <enum>QLineEdit::Password</enum>
+   <property name="centerButtons">
+    <bool>true</bool>
    </property>
   </widget>
   <widget class="QLabel" name="labelWISCoachID">
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>60</y>
-     <width>141</width>
+     <y>58</y>
+     <width>111</width>
      <height>16</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
    </property>
    <property name="text">
-    <string>WIS Coach ID</string>
+    <string>WIS Coach ID:</string>
    </property>
   </widget>
   <widget class="QLineEdit" name="lineEditWISCoachID">
    <property name="geometry">
     <rect>
-     <x>170</x>
-     <y>60</y>
-     <width>191</width>
-     <height>20</height>
+     <x>130</x>
+     <y>50</y>
+     <width>221</width>
+     <height>31</height>
     </rect>
    </property>
    <property name="font">
     <font>
      <family>Arial</family>
+     <pointsize>12</pointsize>
     </font>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="placeholderText">
+    <string>e.g. johnsmith123</string>
    </property>
   </widget>
   <widget class="QLabel" name="labelCheckMarkcoachIDValidated">
    <property name="geometry">
     <rect>
      <x>370</x>
-     <y>60</y>
+     <y>55</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -165,7 +114,7 @@
    <property name="geometry">
     <rect>
      <x>369</x>
-     <y>60</y>
+     <y>55</y>
      <width>21</width>
      <height>21</height>
     </rect>
@@ -180,11 +129,95 @@
     <bool>true</bool>
    </property>
   </widget>
+  <widget class="QLabel" name="labelCookieStored">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>114</y>
+     <width>111</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Cookie Stored:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCookieStoredError">
+   <property name="geometry">
+    <rect>
+     <x>369</x>
+     <y>114</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/x_icon.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="labelCheckMarkCookieStored">
+   <property name="geometry">
+    <rect>
+     <x>370</x>
+     <y>114</y>
+     <width>21</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../images/checkmark_1.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_LoginStoreCookie">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>109</y>
+     <width>191</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Login To Store Cookie</string>
+   </property>
+  </widget>
+  <widget class="QProgressBar" name="progressBarLoginStoreCookies">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>160</y>
+     <width>371</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="minimum">
+    <number>0</number>
+   </property>
+   <property name="maximum">
+    <number>0</number>
+   </property>
+   <property name="value">
+    <number>100</number>
+   </property>
+   <property name="textVisible">
+    <bool>false</bool>
+   </property>
+  </widget>
  </widget>
  <tabstops>
   <tabstop>lineEditWISCoachID</tabstop>
-  <tabstop>lineEditWISUsername</tabstop>
-  <tabstop>lineEditWISPassword</tabstop>
  </tabstops>
  <resources/>
  <connections>
