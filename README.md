@@ -3,6 +3,10 @@ This repository includes the code used to build GD Recruit Assistant application
 
 Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for additional information.
 
+## System Requirements
+* Microsoft Windows 10 64bit
+* Microsoft VC++ 2019 Redistributable (suggested)
+
 ## What's New
 
 ### Beta v0.4.1 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
