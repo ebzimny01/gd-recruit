@@ -36,6 +36,10 @@ class Ui_MainWindow(object):
         self.actionAll_Recruits.setObjectName(u"actionAll_Recruits")
         self.actionWatchlist_Only = QAction(MainWindow)
         self.actionWatchlist_Only.setObjectName(u"actionWatchlist_Only")
+        self.actionAdvanced = QAction(MainWindow)
+        self.actionAdvanced.setObjectName(u"actionAdvanced")
+        self.actionAbout = QAction(MainWindow)
+        self.actionAbout.setObjectName(u"actionAbout")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.verticalLayout = QVBoxLayout(self.centralwidget)
@@ -377,7 +381,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1169, 21))
+        self.menubar.setGeometry(QRect(0, 0, 1169, 22))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName(u"menuFile")
         self.menudata = QMenu(self.menubar)
@@ -386,6 +390,8 @@ class Ui_MainWindow(object):
         self.menuExport_to_CSV.setObjectName(u"menuExport_to_CSV")
         self.menuOptions = QMenu(self.menubar)
         self.menuOptions.setObjectName(u"menuOptions")
+        self.menuHelp = QMenu(self.menubar)
+        self.menuHelp.setObjectName(u"menuHelp")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QStatusBar(MainWindow)
         self.statusbar.setObjectName(u"statusbar")
@@ -415,6 +421,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menudata.menuAction())
         self.menubar.addAction(self.menuOptions.menuAction())
+        self.menubar.addAction(self.menuHelp.menuAction())
         self.menuFile.addAction(self.actionWIS_Credentials)
         self.menuFile.addAction(self.actionNew_Season)
         self.menuFile.addAction(self.actionLoad_Season)
@@ -424,6 +431,8 @@ class Ui_MainWindow(object):
         self.menuExport_to_CSV.addAction(self.actionWatchlist_Only)
         self.menuOptions.addAction(self.actionBold_Attributes)
         self.menuOptions.addAction(self.actionRole_Ratings)
+        self.menuOptions.addAction(self.actionAdvanced)
+        self.menuHelp.addAction(self.actionAbout)
 
         self.retranslateUi(MainWindow)
 
@@ -440,6 +449,8 @@ class Ui_MainWindow(object):
         self.actionRole_Ratings.setText(QCoreApplication.translate("MainWindow", u"Role Ratings", None))
         self.actionAll_Recruits.setText(QCoreApplication.translate("MainWindow", u"All Recruits", None))
         self.actionWatchlist_Only.setText(QCoreApplication.translate("MainWindow", u"Watchlist Only", None))
+        self.actionAdvanced.setText(QCoreApplication.translate("MainWindow", u"Advanced", None))
+        self.actionAbout.setText(QCoreApplication.translate("MainWindow", u"About", None))
         self.labelPositionFilter.setText(QCoreApplication.translate("MainWindow", u"Pos:", None))
         self.comboBoxPositionFilter.setItemText(0, QCoreApplication.translate("MainWindow", u"ALL", None))
         self.comboBoxPositionFilter.setItemText(1, QCoreApplication.translate("MainWindow", u"QB", None))
@@ -492,6 +503,5 @@ class Ui_MainWindow(object):
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"Data", None))
         self.menuExport_to_CSV.setTitle(QCoreApplication.translate("MainWindow", u"Export to CSV", None))
         self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"Options", None))
+        self.menuHelp.setTitle(QCoreApplication.translate("MainWindow", u"Help", None))
     # retranslateUi
-
-
