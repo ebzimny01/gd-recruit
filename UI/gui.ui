@@ -768,6 +768,7 @@ background-color: green;</string>
     </property>
     <addaction name="actionBold_Attributes"/>
     <addaction name="actionRole_Ratings"/>
+    <addaction name="actionAdvanced"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menudata"/>
@@ -835,6 +836,11 @@ background-color: green;</string>
   <action name="actionWatchlist_Only">
    <property name="text">
     <string>Watchlist Only</string>
+   </property>
+  </action>
+  <action name="actionAdvanced">
+   <property name="text">
+    <string>Advanced</string>
    </property>
   </action>
  </widget>
