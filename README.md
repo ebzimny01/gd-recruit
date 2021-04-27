@@ -41,4 +41,4 @@ Beta v0.2.5 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta_
 
 Beta v0.2.3 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=6kHR4uZ69DNOjNZbgcQ5RqRO9zDFLOUV)
 
-### [Original Prototype Demo Video](https://youtu.be/rj0khucVjzc)
+[Original Prototype Demo Video](https://youtu.be/rj0khucVjzc)
