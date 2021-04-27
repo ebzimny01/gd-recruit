@@ -13,7 +13,7 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 1. Added an Advanced Configuration Option with two config settings you can change within the UI. More info on the wiki can be found [here](https://github.com/ebzimny01/gd-recruit/wiki/BETA-v0.4.2).
    * Always show browser automation (default is enabled) - When enabled, for the actions that require a logged in browser session (e.g. Initialize Recruits and Mark Recruits From Watchlist), you will see the automated actions happening in the Firefox browser that is packaged with the application. This is useful for you to know that it is working and to also respond to the pesky Privacy Notice prompts that have started showing up.
    * Enable debug logging level (default is disable) - When enabled, the application will collect debug level logs typically used for better troubleshooting of issues.
-2. Added a Help->About menu option. Selecting this menu option will open your default web browser to the [readme page](https://github.com/ebzimny01/gd-recruit/blob/main/README.md).
+2. Added a Help->About menu option. Selecting this menu option will open your default web browser to the this readme page you are reading right now.
 
 ### Beta v0.4.1 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=idokj49OdM0XRgCFNEnmSgzBetU6rbId)
 1. Redesigned the authentication experience and implementing cookie reuse. This also means the app will no longer store your username and password. More details [here](https://github.com/ebzimny01/gd-recruit/wiki/New-Auth-Process-in-BETA-v0.4.1) including a quick demo video.
