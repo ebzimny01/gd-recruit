@@ -1,7 +1,6 @@
 version = "0.4.2"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
-from logging import FileHandler
 import sys
 import platform
 from loguru import logger
