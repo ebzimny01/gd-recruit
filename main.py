@@ -1,7 +1,6 @@
-version = "0.4.1"
+version = "0.4.2"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
-from logging import FileHandler
 import sys
 import platform
 from loguru import logger
@@ -25,6 +24,7 @@ from mypackages.bold_attributes_dialog import Ui_DialogBoldAttributes
 from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 from mypackages.role_ratings_dialog import Ui_DialogRoleRatings
 from mypackages.role_ratings_update_db import Ui_DialogRoleRatingUpdateDB_Progress
+from mypackages.advanced_config_options import Ui_DialogAdvancedConfigOptions
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
 import mypackages.config as myconfig
@@ -5137,6 +5137,50 @@ class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
         super().accept()
 
 
+class AdvancedDialog(QDialog, Ui_DialogAdvancedConfigOptions):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.c = load_config()
+        self.config = c['config']
+        self.headless = config.getboolean('Browser', 'headless')
+        logger.debug(f"Browser headless option = {self.headless}")
+        self.log_level = config.get('Logging', 'level')
+        logger.debug(f"Logging level option = {self.log_level}")
+        if self.headless == False:
+            self.checkBoxBrowserEnableNonHeadlessMode.setChecked(True)
+            self.headless_state = 2
+        else:
+            self.headless_state = 0
+        if self.log_level.upper() == 'DEBUG':
+            self.checkBoxEnableDebugLogging.setChecked(True)
+            self.log_level_state = 2
+        else:
+            self.log_level_state = 0
+
+
+    def accept(self):
+        self.new_headless_state = self.checkBoxBrowserEnableNonHeadlessMode.checkState()
+        self.new_log_level_state = self.checkBoxEnableDebugLogging.checkState()
+        if self.new_headless_state == self.headless_state and self.new_log_level_state == self.log_level_state:
+            logger.info("No changes were made to Advanced Config Options. No need to write to config file.")
+        else:
+            if self.new_headless_state != self.headless_state:
+                if self.new_headless_state == 2:
+                    self.config.set('Browser', 'headless', 'false')
+                else:
+                    self.config.set('Browser', 'headless', 'true')
+            if self.new_log_level_state != self.log_level_state:
+                if self.new_log_level_state == 2:
+                    self.config.set('Logging', 'level', 'DEBUG')
+                    start_logging('DEBUG')
+                else:
+                    self.config.set('Logging', 'level', 'INFO')
+                    start_logging('INFO')
+            logger.info("Changes were made to Advanced Config Options. Writing changes to config file.")
+            (config)
+        super().accept()
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -5163,6 +5207,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Data", None))
         self.menuExport_to_CSV.setTitle(QCoreApplication.translate("MainWindow", u"&Export to CSV", None))
         self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"&Options", None))
+        self.menuHelp.setTitle(QCoreApplication.translate("MainWindow", u"&Help", None))
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"&New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"&Load Season", None))
         self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"&Grab Recruit Data", None))
@@ -5171,6 +5216,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"&WIS Credentials", None))
         self.actionBold_Attributes.setText(QCoreApplication.translate("MainWindow", u"&Bold Attributes", None))
         self.actionRole_Ratings.setText(QCoreApplication.translate("MainWindow", u"&Role Ratings", None))
+        self.actionAdvanced.setText(QCoreApplication.translate("MainWindow", u"&Advanced", None))
+        self.actionAbout.setText(QCoreApplication.translate("MainWindow", u"&About", None))
         self.comboBoxPositionFilter.setEnabled(False)
         self.checkBoxHideSigned.setEnabled(False)
         self.checkBoxUndecided.setEnabled(False)
@@ -5230,6 +5277,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonClearRatingsFilters.clicked.connect(self.clear_ratings_filter_fields)
         self.recruit_tableView.clicked.connect(self.tableclickaction)
         self.pushButtonDonatePayPal.clicked.connect(self.donation)
+        self.actionAdvanced.triggered.connect(self.open_advanced)
+        self.actionAbout.triggered.connect(self.open_help_about)
         
         # Filter data structure used to track which filters are active
         # And then used to build the filter string
@@ -5250,6 +5299,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage("No coachid configured")
             else:
                 self.statusbar.showMessage(f"Current coachid = {coachid} (No Auth Cookie)")
+
+
+    def open_help_about(self):
+        url = QUrl("https://github.com/ebzimny01/gd-recruit/wiki")
+        logger.info(f"Opening Help About URL --> {url}")
+        QDesktopServices.openUrl(url)
 
 
     def get_clean_string_filter(self):
@@ -5640,6 +5695,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.loadModel()
         logger.debug("Exiting Role Ratings dialog")
 
+
+    def open_advanced(self):
+        logger.debug("Entering Advanced dialog")
+        dialog = AdvancedDialog()
+        dialog.ui = Ui_DialogAdvancedConfigOptions()
+        dialog.exec_()
+        dialog.show() 
+        logger.debug("Exiting Advanced dialog")
+
     
     def check_stored_creds(self):
         c = load_config()
@@ -5722,8 +5786,14 @@ def load_config():
         logger.info("config.ini file not found")
         logger.info("Creating config.ini with WISCreds section")
         config['WISCreds'] = {
-                        'coachid' : ''
+                        'coachid': ''
                         }
+        config['Browser'] = {
+            'headless': 'false'
+        }
+        config['Logging'] = {
+            'level': 'INFO'
+        }
         config_changed = True
     else:
         logger.info("config.ini file found")
@@ -5748,6 +5818,34 @@ def load_config():
                         'coachid' : ''
                         }
             config_changed = True
+        # If config file exists but does not contain Browser section, add it
+        if config.has_section('Browser'):
+            logger.info("Config Browser section found")
+            if not config.has_option('Browser', 'headless'):
+                logger.info("Adding missing headless option to Browser section")
+                config.set('Browser', 'headless', 'false')
+                config_changed = True
+        else:
+            logger.info("Adding missing Browser section")
+            config['Browser'] = {
+                        'headless': 'false'
+                        }
+            config_changed = True
+        # If config file exists but does not contain Logging section, add it
+        if config.has_section('Logging'):
+            logger.info("Config Logging section found")
+            if not config.has_option('Logging', 'level'):
+                logger.info("Adding missing level option to Logging section")
+                config.set('Logging', 'level', 'INFO')
+                config_changed = True
+        else:
+            logger.info("Adding missing Logging section")
+            config['Logging'] = {
+                        'level': 'INFO'
+                        }
+            config_changed = True
+                
+
     if config_changed:
         logger.info("Config changed. Writing changed to config.ini file...")
         write_config(config)
