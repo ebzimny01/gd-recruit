@@ -1,4 +1,4 @@
-version = "0.4.2"
+version = "0.4.3"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
 import sys
@@ -5185,11 +5185,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.settings = QSettings()
+        logger.info(f"QSettings.fileName() = {self.settings.fileName()}")
         self.recruit_tableView.setEditTriggers(QTableView.NoEditTriggers)
-        h_header = self.recruit_tableView.horizontalHeader()
-        h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
-        v_header = self.recruit_tableView.verticalHeader()
-        v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.h_header = self.recruit_tableView.horizontalHeader()
+        self.h_header.setSectionsMovable(True)
+        self.h_header.setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.v_header = self.recruit_tableView.verticalHeader()
+        self.v_header.setSectionResizeMode(QHeaderView.ResizeToContents)
 
         # This can format the text of the entire table view.
         #self.recruit_tableView.setStyleSheet("""
@@ -5279,6 +5282,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonDonatePayPal.clicked.connect(self.donation)
         self.actionAdvanced.triggered.connect(self.open_advanced)
         self.actionAbout.triggered.connect(self.open_help_about)
+        self.h_header.sectionMoved.connect(self.save_column_order)
         
         # Filter data structure used to track which filters are active
         # And then used to build the filter string
@@ -5305,6 +5309,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         url = QUrl("https://github.com/ebzimny01/gd-recruit/wiki")
         logger.info(f"Opening Help About URL --> {url}")
         QDesktopServices.openUrl(url)
+
+
+    def save_column_order(self):
+        logger.debug("Header column moved. Saving new column order state.")
+        self.settings.setValue("table_header_order", self.h_header.saveState())
 
 
     def get_clean_string_filter(self):
@@ -5772,6 +5781,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterTKL.setEnabled(True)
         self.lineEditfilterWE.setEnabled(True)
         self.lineEditfilterGPA.setEnabled(True)
+        logger.debug("Checking for saved table header state...")
+        if self.settings.contains("table_header_order"):
+            self.h_header.restoreState(self.settings.value("table_header_order", self.h_header.state()))
+            logger.debug(f"Setting table header state = {self.settings.value('table_header_order')}")
 
 
 def load_config():
@@ -6250,10 +6263,14 @@ if __name__ == "__main__":
     logger.info(f"Platform Architecture = {platform.architecture()}")
     logger.info(f"Platform Machine = {platform.machine()}")
     logger.info(f"Platform Processor = {platform.processor()}")
+    
+    # Config data
+    QCoreApplication.setOrganizationName("GD Apps")
+    QCoreApplication.setApplicationName("GD Recruit Assistant")
     logger.info(f"Current working directory = {myconfig.cwd}")
     logger.info(f"Config file path = {myconfig.config_file}")
     logger.info(f"Role Ratings CSV file path = {myconfig.role_ratings_csv}")
-    logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")
+    logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")    
     c = load_config()
     config = c['config']
     coachid = c['coachid']
