@@ -15,3 +15,4 @@ config/*
 seasons/*
 cookies/*
 wiki_images/*
+.vscode/settings.json
