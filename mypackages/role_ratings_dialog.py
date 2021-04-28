@@ -8,7 +8,14 @@ class Ui_DialogRoleRatings(object):
         if not DialogRoleRatings.objectName():
             DialogRoleRatings.setObjectName(u"DialogRoleRatings")
         DialogRoleRatings.setWindowModality(Qt.ApplicationModal)
-        DialogRoleRatings.resize(1246, 459)
+        DialogRoleRatings.resize(1245, 460)
+        sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(DialogRoleRatings.sizePolicy().hasHeightForWidth())
+        DialogRoleRatings.setSizePolicy(sizePolicy)
+        DialogRoleRatings.setMinimumSize(QSize(1245, 460))
+        DialogRoleRatings.setMaximumSize(QSize(1245, 460))
         self.buttonBox = QDialogButtonBox(DialogRoleRatings)
         self.buttonBox.setObjectName(u"buttonBox")
         self.buttonBox.setGeometry(QRect(1010, 400, 211, 32))
@@ -8098,7 +8105,7 @@ class Ui_DialogRoleRatings(object):
         self.buttonBox.accepted.connect(DialogRoleRatings.accept)
         self.buttonBox.rejected.connect(DialogRoleRatings.reject)
 
-        self.tabWidgetRoleRatings.setCurrentIndex(9)
+        self.tabWidgetRoleRatings.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(DialogRoleRatings)

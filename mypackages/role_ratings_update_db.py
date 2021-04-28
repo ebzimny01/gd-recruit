@@ -8,7 +8,14 @@ class Ui_DialogRoleRatingUpdateDB_Progress(object):
         if not DialogRoleRatingUpdateDB_Progress.objectName():
             DialogRoleRatingUpdateDB_Progress.setObjectName(u"DialogRoleRatingUpdateDB_Progress")
         DialogRoleRatingUpdateDB_Progress.setWindowModality(Qt.ApplicationModal)
-        DialogRoleRatingUpdateDB_Progress.resize(454, 232)
+        DialogRoleRatingUpdateDB_Progress.resize(450, 230)
+        sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(DialogRoleRatingUpdateDB_Progress.sizePolicy().hasHeightForWidth())
+        DialogRoleRatingUpdateDB_Progress.setSizePolicy(sizePolicy)
+        DialogRoleRatingUpdateDB_Progress.setMinimumSize(QSize(450, 230))
+        DialogRoleRatingUpdateDB_Progress.setMaximumSize(QSize(450, 230))
         self.label = QLabel(DialogRoleRatingUpdateDB_Progress)
         self.label.setObjectName(u"label")
         self.label.setGeometry(QRect(20, 60, 421, 41))
@@ -30,4 +37,5 @@ class Ui_DialogRoleRatingUpdateDB_Progress(object):
         DialogRoleRatingUpdateDB_Progress.setWindowTitle(QCoreApplication.translate("DialogRoleRatingUpdateDB_Progress", u"Role Ratings - Update Database", None))
         self.label.setText(QCoreApplication.translate("DialogRoleRatingUpdateDB_Progress", u"Updating Recruit Role Ratings in Database...", None))
     # retranslateUi
+
 

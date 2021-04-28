@@ -6,13 +6,15 @@ class Ui_DialogBoldAttributes(object):
     def setupUi(self, DialogBoldAttributes):
         if not DialogBoldAttributes.objectName():
             DialogBoldAttributes.setObjectName(u"DialogBoldAttributes")
-        DialogBoldAttributes.setWindowModality(Qt.ApplicationModal)
-        DialogBoldAttributes.resize(677, 462)
+        DialogBoldAttributes.setWindowModality(Qt.WindowModal)
+        DialogBoldAttributes.resize(675, 460)
         sizePolicy = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(DialogBoldAttributes.sizePolicy().hasHeightForWidth())
         DialogBoldAttributes.setSizePolicy(sizePolicy)
+        DialogBoldAttributes.setMinimumSize(QSize(675, 460))
+        DialogBoldAttributes.setMaximumSize(QSize(675, 460))
         self.buttonBox = QDialogButtonBox(DialogBoldAttributes)
         self.buttonBox.setObjectName(u"buttonBox")
         self.buttonBox.setGeometry(QRect(470, 400, 171, 32))
@@ -25,6 +27,7 @@ class Ui_DialogBoldAttributes(object):
         font.setFamily(u"Arial")
         font.setPointSize(12)
         self.label.setFont(font)
+        self.label.setStyleSheet(u"color: blue;")
         self.gridLayoutWidget = QWidget(DialogBoldAttributes)
         self.gridLayoutWidget.setObjectName(u"gridLayoutWidget")
         self.gridLayoutWidget.setGeometry(QRect(20, 70, 631, 295))
@@ -1644,7 +1647,7 @@ class Ui_DialogBoldAttributes(object):
     # setupUi
 
     def retranslateUi(self, DialogBoldAttributes):
-        DialogBoldAttributes.setWindowTitle(QCoreApplication.translate("DialogBoldAttributes", u"Dialog", None))
+        DialogBoldAttributes.setWindowTitle(QCoreApplication.translate("DialogBoldAttributes", u"Bold Attributes Config", None))
         self.label.setText(QCoreApplication.translate("DialogBoldAttributes", u"Check the box for each attribute you want in Bold text by position:", None))
         self.checkBox_DB_DUR.setText("")
         self.label_BLK.setText(QCoreApplication.translate("DialogBoldAttributes", u"BLK", None))
@@ -1789,3 +1792,4 @@ class Ui_DialogBoldAttributes(object):
         self.checkBox_P_STR.setText("")
         self.checkBox_QB_ATH.setText("")
     # retranslateUi
+

@@ -1,4 +1,4 @@
-version = "0.4.3"
+version = "0.4.4"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
 import sys
@@ -472,6 +472,8 @@ class QueueMonitorWorker(QObject):
                                             "signed = :signed "
                                             "WHERE id = :id")
             with Bar('Update Recruits Considering...', max=self.rl) as bar:
+                emit_progress = 1000000
+                self.progress.emit(emit_progress)
                 for each in self.rc:
                     rid = each[0]
                     signed = each[1]
@@ -482,6 +484,8 @@ class QueueMonitorWorker(QObject):
                     if not query.exec_():
                         logQueryError(query)
                     bar.next()
+                    emit_progress += 1
+                    self.progress.emit(emit_progress)
         query.finish()
         db_t.close()
         self.finished.emit()
@@ -623,6 +627,9 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('GrabSeasonDataGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         # Queue to process recruit IDs
         self.rid_queue = Queue()
         self.threadpool = QThreadPool()
@@ -665,7 +672,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.progressBarInitializeRecruits.setValue(0)
         self.progressBarUpdateConsidering.setVisible(False)
         self.progressBarUpdateConsidering.setValue(0)
-        self.labelUpdateProgressBarMax.setVisible(False)
+        self.labelCheckmarkUpdateConsidering.setVisible(False)
+        self.labelUpdateStatusText.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
         self.pushButtonUpdateConsideringSigned.clicked.connect(self.queue_run_update_considering)
         self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
@@ -697,6 +705,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.pushButtonInitializeRecruits.setEnabled(False)
         self.pushButtonMarkRecruitsFromWatchlist.setVisible(False)
         self.pushButtonUpdateConsideringSigned.setVisible(False)
+        self.labelCheckmarkUpdateConsidering.setVisible(False)
+        self.labelUpdateStatusText.setVisible(False)
         self.labelCheckMarkCreateDB.setVisible(False)
         self.labelCheckMarkAuthWIS.setVisible(False)
         self.labelCheckMarkAuthWIS_Error.setVisible(False)
@@ -866,6 +876,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonInitializeRecruits.setEnabled(False)
             self.pushButtonUpdateConsideringSigned.setEnabled(False)
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
+            self.labelUpdateStatusText.setText(f"Grabbing updates for {self.rids_unsigned_length} recruits...")
+            self.labelUpdateStatusText.setVisible(True)
             self.thread.finished.connect(self.update_finished)
         elif process.__func__.__name__ == "recruit_initialize":
             logger.debug("run_threads function -> recruit_initialize conditional statement")
@@ -910,6 +922,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.pushButtonUpdateConsideringSigned.setEnabled(True)
         self.pushButtonInitializeRecruits.setEnabled(True)
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+        self.labelUpdateStatusText.setText("Update Considering action completed.")
 
     
     def recruit_update(self, progress_callback):
@@ -957,9 +970,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.pushButtonInitializeRecruits.setEnabled(False)
         self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
         self.pushButtonUpdateConsideringSigned.setEnabled(False)
-        self.labelUpdateProgressBarMax.setVisible(True)
         self.queue_rid_urls(self.rid_queue, "unsigned")
-        self.labelUpdateProgressBarMax.setText(f"of {self.rids_unsigned_length}")
         self.progressBarUpdateConsidering.setRange(0, self.rids_unsigned_length)
         self.stopped = False
         self.run_threads(self.recruit_update, self.completed)
@@ -994,9 +1005,16 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             logger.debug("Queue is empty.")
             completed = self.rids_unsigned_length - n
             self.progressBarUpdateConsidering.setValue(completed)
-        else:
+        elif n > 0 and n <= self.rids_unsigned_length:
             completed = self.rids_unsigned_length - n
             self.progressBarUpdateConsidering.setValue(completed)
+        elif n >= 1000000:
+            if n == 1000000:
+                self.labelUpdateStatusText.setText(f"Saving {self.rids_unsigned_length} updates to database...")
+            completed = n - 1000000
+            self.progressBarUpdateConsidering.setValue(completed)
+            if completed == self.rids_unsigned_length:
+                self.labelCheckmarkUpdateConsidering.setVisible(True)
 
 
     
@@ -1066,10 +1084,30 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
 
 
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('GrabSeasonDataGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(GrabSeasonData, self).closeEvent(event)
+
+
 class LoadSeason(QDialog, Ui_DialogLoadSeason):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('LoadSeasonGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         db_files = [x for x in os.listdir(myconfig.seasons_directory_path) if x.endswith(".db")]
         logger.debug(f"db_files = {db_files}")
         c = load_config()
@@ -1091,12 +1129,35 @@ class LoadSeason(QDialog, Ui_DialogLoadSeason):
         season_filename = os.path.join(myconfig.seasons_directory_path, self.comboBoxSelectSeason.currentText())
         db.close()
         db.setDatabaseName(season_filename)
+        geometry = self.saveGeometry()
+        self.settings.setValue('LoadSeasonGeometry', geometry)
         super().accept()
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('LoadSeasonGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(LoadSeason, self).closeEvent(event)
+
 
 class NewSeason(QDialog, Ui_DialogNewSeason):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('NewSeasonGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         config = configparser.ConfigParser()
         config.read(myconfig.config_file)
         if config.has_option('WISCreds', 'coachid'):
@@ -1130,7 +1191,26 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
         db.setDatabaseName(season_filename)
         db.close()
         db.open()
+        geometry = self.saveGeometry()
+        self.settings.setValue('NewSeasonGeometry', geometry)
         super().accept()
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('NewSeasonGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(NewSeason, self).closeEvent(event)
 
 
 class WISCred(QDialog, Ui_WISCredentialDialog):
@@ -1141,6 +1221,9 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         self.coachid = self.c['coachid']
         logger.info(f"WISCred section: coachid = {self.coachid}")
         self.setupUi(self, self.coachid)
+        self.settings = QSettings()
+        geometry = self.settings.value('WISCredGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         self.labelCheckMarkcoachIDValidated.setVisible(False)
         self.labelCheckMarkcoachIDValidationError.setVisible(False)
         self.labelCheckMarkCookieStored.setVisible(False)
@@ -1269,13 +1352,35 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
 
     def accept(self):
         update_active_teams(self.lineEditWISCoachID.text())
+        geometry = self.saveGeometry()
+        self.settings.setValue('WISCredGeometry', geometry)
         super().accept()
+
+    
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('WISCredGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(WISCred, self).closeEvent(event)
 
 
 class RoleRatings(QDialog, Ui_DialogRoleRatings):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('RoleRatingsGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         
         # QB Section
         self.lineEdit_R1_QB.setText(role_ratings_df['label']['qbr1'])
@@ -4799,16 +4904,42 @@ class RoleRatings(QDialog, Ui_DialogRoleRatings):
         logger.info("Saving role ratings to csv...")
         role_ratings_df.to_csv(myconfig.role_ratings_csv)
         myconfig.show_update_role_ratings_dialog = True
+
+        geometry = self.saveGeometry()
+        self.settings.setValue('RoleRatingsGeometry', geometry)
+
         super().accept()
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('RoleRatingsGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(RoleRatings, self).closeEvent(event)
 
 
 class RoleRatingsUpdateDB(QDialog, Ui_DialogRoleRatingUpdateDB_Progress):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('RoleRatingsUpdateDBGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         self.runUpdateJob()
 
     def accept(self):
+        geometry = self.saveGeometry()
+        self.settings.setValue('RoleRatingsUpdateDBGeometry', geometry)
         super().accept()
 
     
@@ -4835,10 +4966,30 @@ class RoleRatingsUpdateDB(QDialog, Ui_DialogRoleRatingUpdateDB_Progress):
     def progress(self, n):
         self.progressBar.setValue(n) 
 
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('RoleRatingsUpdateDBGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(RoleRatingsUpdateDB, self).closeEvent(event)
+
 class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('BoldAttributesGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         self.setWindowTitle("Bold Attributes Dialog")
         
         # Check the boxes according to the loaded dataframe
@@ -5134,13 +5285,37 @@ class BoldAttributes(QDialog, Ui_DialogBoldAttributes):
 
         # Write to csv file
         bold_attributes_df.to_csv(myconfig.bold_attributes_csv)
+        geometry = self.saveGeometry()
+        self.settings.setValue('BoldAttributesGeometry', geometry)
         super().accept()
+
+    
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('BoldAttributesGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(BoldAttributes, self).closeEvent(event)
 
 
 class AdvancedDialog(QDialog, Ui_DialogAdvancedConfigOptions):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        
+        # Restore dialog window geometry
+        self.settings = QSettings()
+        geometry = self.settings.value('AdvancedDialogGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         self.c = load_config()
         self.config = c['config']
         self.headless = config.getboolean('Browser', 'headless')
@@ -5179,13 +5354,36 @@ class AdvancedDialog(QDialog, Ui_DialogAdvancedConfigOptions):
                     start_logging('INFO')
             logger.info("Changes were made to Advanced Config Options. Writing changes to config file.")
             (config)
+        
+        geometry = self.saveGeometry()
+        self.settings.setValue('AdvancedDialogGeometry', geometry)
+        
         super().accept()
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('AdvancedDialogGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(AdvancedDialog, self).closeEvent(event)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
         self.settings = QSettings()
+        geometry = self.settings.value('MainWindowGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         logger.info(f"QSettings.fileName() = {self.settings.fileName()}")
         self.recruit_tableView.setEditTriggers(QTableView.NoEditTriggers)
         self.h_header = self.recruit_tableView.horizontalHeader()
@@ -5303,6 +5501,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage("No coachid configured")
             else:
                 self.statusbar.showMessage(f"Current coachid = {coachid} (No Auth Cookie)")
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('MainWindowGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(MainWindow, self).closeEvent(event)
 
 
     def open_help_about(self):
@@ -6014,7 +6229,10 @@ class TableModel(QSqlTableModel):
         self.setTable('recruits')
         # model.setEditStrategy(QtSql.QSqlTableModel.OnFieldChange)
         self.select()
-        
+        dbname = db.databaseName()
+        dbname_re = re.search(r'(\d{5})', dbname)
+        teamid = f"{dbname_re.group(1)}"
+        self.teamname = f"{wis_gd_df.school_short[int(teamid)]}"
         # Dict to map column headers to column ID
         col_head = {
             'ID': 0,
@@ -6088,11 +6306,15 @@ class TableModel(QSqlTableModel):
 
         if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
             self.checkmarkicon = f"{Path(sys._MEIPASS) / 'images' / 'checkmark_1.png'}"
+            self.checkmarkicon_yellow = f"{Path(sys._MEIPASS) / 'images' / 'checkmark_yellow.png'}"
             self.x_icon = f"{Path(sys._MEIPASS) / 'images' / 'x_icon.png'}"
+            self.blank_icon = f"{Path(sys._MEIPASS) / 'images' / 'blank_icon.png'}"
         #checkmarkicon = f"{sys._MEIPASS}/images/checkmark_1.png"
         else:
             self.checkmarkicon = f"./images/checkmark_1.png"
+            self.checkmarkicon_yellow = f"./images/checkmark_yellow.png"
             self.x_icon = f"./images/x_icon.png"
+            self.blank_icon = f"./images/blank_icon.png"
 
         # Dataframe to be used with Bold Attributes
         data = [[col_head['ATH'], col_head['SPD'], col_head['DUR'], col_head['WE'],
@@ -6159,6 +6381,8 @@ class TableModel(QSqlTableModel):
                 elif value == '4-VH':
                     return QColor('darkgreen')
 
+            
+
         # Right Align most columns
         if role == Qt.TextAlignmentRole:
             if index.column() in [3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 31]:
@@ -6176,11 +6400,38 @@ class TableModel(QSqlTableModel):
                 value = super(TableModel, self).data(index)
                 if value == 1:
                     return QIcon(self.checkmarkicon)
+            
+            # Format considering text
+            # Red not considering
+            # Orange considering with others
+            # Green only considering your own school
+            #if index.column() == 9:
+            #    value = super(TableModel, self).data(index)
+            #    if self.teamname in value and "\n" not in value:
+            #        return QIcon(self.checkmarkicon)
+            #    if self.teamname in value and "\n" in value:
+            #        return QIcon(self.checkmarkicon_yellow)
+            #    if self.teamname not in value:
+            #        return QIcon(self.blank_icon)
 
         # Format background of the entire row to light gray if a player is signed
         if role == Qt.BackgroundRole:
             if super(TableModel, self).data(self.index(index.row(), 30), Qt.DisplayRole) == 1:
                 return QBrush(Qt.lightGray)
+        
+            # Format considering text
+            # Red not considering
+            # Orange considering with others
+            # Green only considering your own school
+            if index.column() == 9:
+                value = super(TableModel, self).data(index)
+                if self.teamname in value and "\n" not in value:
+                    return QBrush(Qt.green)
+                if self.teamname in value and "\n" in value:
+                    return QBrush(Qt.yellow)
+                #if self.teamname not in value:
+                #    return QIcon(self.blank_icon)
+            
 
         # Section to Bold the text for the critical attributes for each position
         if role == Qt.FontRole:

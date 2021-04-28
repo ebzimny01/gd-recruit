@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>677</width>
-    <height>462</height>
+    <width>675</width>
+    <height>460</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,8 +19,20 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="minimumSize">
+   <size>
+    <width>675</width>
+    <height>460</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>675</width>
+    <height>460</height>
+   </size>
+  </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Bold Attributes Config</string>
   </property>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
@@ -52,6 +64,9 @@
      <family>Arial</family>
      <pointsize>12</pointsize>
     </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">color: blue;</string>
    </property>
    <property name="text">
     <string>Check the box for each attribute you want in Bold text by position:</string>
