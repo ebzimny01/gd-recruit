@@ -45,7 +45,7 @@ def openDB(database):
         logger.info(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
 
 
-def get_recruitIDs(page_content):
+def get_recruitIDs(page_content, division):
     recruitIDs = []
     recruitpage_soup = BeautifulSoup(page_content, "lxml")
     select_Main_divGeneral = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_divGeneral")
@@ -76,7 +76,8 @@ def get_recruitIDs(page_content):
             'rank': td_tags[6].text,
             'hometown': td_tags[7].text,
             'miles': int(td_tags[8].text),
-            'considering': considering
+            'considering': considering,
+            'division': division
         })
     next_link_tag = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_lnkNextPage")
     logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
@@ -136,7 +137,7 @@ def check_for_stored_cookies(coachid):
         logger.info("storage_state is not empty")
     return storage_state
 
-
+@logger.catch()
 def wis_browser(f, d, progress = None):
     # Default settings #
     headless = True
@@ -272,17 +273,29 @@ def wis_browser(f, d, progress = None):
             else:
                 logger.info("Found 'My Locker' so authentication was successful.")
             
-            if "scrape_recruit_IDs" in f:
+            if "scrape_recruit_IDs" in f:             
                 # Thread progress emit signal indicating WIS Auth is complete
                 progress.emit(2, 1)    
                 openDB(d)            
                 dbname = d.databaseName()
+                
                 logger.info(f"Before scraping recruits: Database name = {d.databaseName()} Connection name = {d.connectionName()} Tables = {d.tables()}")
                 logger.info(f"DB is valid: {d.isValid()}")
                 logger.info(f"DB is open: {d.isOpen()}")
                 logger.info(f"DB is open error: {d.isOpenError()}")
                 
-                teamID = re.search(r"\d{5}", dbname)
+                teamID = re.search(r"(\d{5})", dbname)
+                print(teamID)
+                division_x = myconfig.wis_gd_df.division[int(teamID.group(1))]
+                logger.debug(f"TeamID {teamID.group(1)} division_x = {division_x}")
+                # Check for higher division configuration
+                if myconfig.higher_division_recruits and division_x != 'D-IA':
+                    # This means we need to determine which divisions
+                    # And then grab recruits from both
+                    data = {'D-III': 'D-II', 'D-II': 'D-IAA', 'D-IAA': 'D-IA'}
+                    
+                    division_y = data[division_x]
+
                 recruitIDs = []
                 position_dropdown = {
                     1 : "QB",
@@ -311,7 +324,7 @@ def wis_browser(f, d, progress = None):
                 progress.emit(100, 1)
                 
                 # Range is 1 to 11 to cover the 10 player positions
-                for i in range(1, 11):
+                for i in range(1, 2):
                     
                     logger.info(f"Selecting position {position_dropdown[i]}")           
                     # Select 1
@@ -334,7 +347,7 @@ def wis_browser(f, d, progress = None):
                         div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
                         div.wait_for_element_state(state="stable")
                         contents = page.content()
-                        temp, next = get_recruitIDs(contents)
+                        temp, next = get_recruitIDs(contents, division_x)
                         for t in temp:
                             bindRecruitQuery(createRecruitQuery, t, 0)
                         recruitIDs += temp
@@ -494,7 +507,8 @@ def get_create_recruit_query_object(d):
                                                         "gpa,"
                                                         "pot,"
                                                         "signed,"
-                                                        "watched) "
+                                                        "watched,"
+                                                        "division) "
                                             "VALUES (:id, "
                                                     ":name, "
                                                     ":pos, "
@@ -525,8 +539,9 @@ def get_create_recruit_query_object(d):
                                                     ":r6, "
                                                     ":gpa, "
                                                     ":pot, "
-                                                    ":signed,"
-                                                    ":watched)"):
+                                                    ":signed, "
+                                                    ":watched, "
+                                                    ":division)"):
         logger.info(f"Last query error = {createRecruitQuery.lastError()}")
         logQueryError(createRecruitQuery)
     return createRecruitQuery
@@ -565,6 +580,7 @@ def bindRecruitQuery(query, i, signed=int()):
     query.bindValue(":pot", '')
     query.bindValue(":signed", signed)
     query.bindValue(":watched", 0)
+    query.bindValue(":division", i['division'])
     if not query.exec_():
         logger.info(f"Last query error = {query.lastError()}")
         logQueryError(query)

@@ -305,7 +305,8 @@ class InitializeWorker(QObject):
                 gpa REAL,
                 pot TEXT,
                 signed INTEGER,
-                watched INTEGER
+                watched INTEGER,
+                division TEXT
             )
             """
         ):
@@ -653,6 +654,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.pushButtonUpdateConsideringSigned.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Update Considering / Signed", None))
         self.pushButtonMarkRecruitsFromWatchlist.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Mark Recruits From Watchlist", None))
 
+        self.checkBoxGrabHigherRecruits.setChecked(myconfig.higher_division_recruits)
+
         # Hide all progress check marks and text until button is pressed
         self.labelAuthWIS_MarkRecruits.setVisible(False)
         self.labelCheckMarkAuthWIS_Error.setVisible(False)
@@ -675,12 +678,19 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckmarkUpdateConsidering.setVisible(False)
         self.labelUpdateStatusText.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
+        self.checkBoxGrabHigherRecruits.stateChanged.connect(self.save_higher_recruit_config)
         self.pushButtonUpdateConsideringSigned.clicked.connect(self.queue_run_update_considering)
         self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
         self.progressBarMarkWatchlist.setVisible(False)
 
     def accept(self):
         super().accept()
+
+
+    def save_higher_recruit_config(self):
+        data = {0: False, 2: True}
+        myconfig.higher_division_recruits = data[self.checkBoxGrabHigherRecruits.checkState()]
+        logger.debug(f"myconfig.higher_division_recruits = {myconfig.higher_division_recruits}")
 
     
     def runInitializeJob(self):
@@ -713,6 +723,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckMarkGrabUnsigned.setVisible(False)
         self.labelCheckMarkGrabSigned.setVisible(False)
         self.labelCheckMarkGrabStaticData.setVisible(False)
+        self.checkBoxGrabHigherRecruits.setEnabled(False)
         self.thread.finished.connect(self.queue_run_initialize_attributes)
 
     
@@ -768,6 +779,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
             self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+            self.checkBoxGrabHigherRecruits.setEnabled(True)
         if n == 999999:
             self.labelCheckMarkAuthWIS_Error.setVisible(True)
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
@@ -947,7 +959,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                     href_tag = find_signed_with.attrs['href']
                     href_tag_re = re.search(r'(\d{5})', href_tag)
                     team_id = int(href_tag_re.group(1))
-                    considering = f"{wis_gd_df.school_short[team_id]}\n"
+                    considering = f"{myconfig.wis_gd_df.school_short[team_id]}\n"
                     signed = 1
                 else:
                     school = team_data[0].text
@@ -5616,8 +5628,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             dbfilename = db.databaseName()
             wis_id_re = re.search(r"(\d{5})", dbfilename)
             wis_id = int(wis_id_re.group(1))
-            world = wis_gd_df.world[wis_id]
-            division = wis_gd_df.division[wis_id]
+            world = myconfig.wis_gd_df.world[wis_id]
+            division = myconfig.wis_gd_df.division[wis_id]
             url = QUrl(f"https://gdanalyst.herokuapp.com/world/{world}/{division}/town?town={item.data()}")
             print(f"Opening URL --> {url}")
             logger.info(f"Opening URL --> {url}")
@@ -6232,7 +6244,7 @@ class TableModel(QSqlTableModel):
         dbname = db.databaseName()
         dbname_re = re.search(r'(\d{5})', dbname)
         teamid = f"{dbname_re.group(1)}"
-        self.teamname = f"{wis_gd_df.school_short[int(teamid)]}"
+        self.teamname = f"{myconfig.wis_gd_df.school_short[int(teamid)]}"
         # Dict to map column headers to column ID
         col_head = {
             'ID': 0,
@@ -6266,7 +6278,8 @@ class TableModel(QSqlTableModel):
             'GPA': 28,
             'Pot': 29,
             'Signed': 30,
-            'Watched': 31
+            'Watched': 31,
+            'Division': 32
         }
         
         self.setHeaderData(col_head['ID'], Qt.Horizontal, "ID")
@@ -6301,6 +6314,7 @@ class TableModel(QSqlTableModel):
         self.setHeaderData(col_head['Pot'], Qt.Horizontal, "Pot")
         self.setHeaderData(col_head['Signed'], Qt.Horizontal, "Signed")
         self.setHeaderData(col_head['Watched'], Qt.Horizontal, "Watched")
+        self.setHeaderData(col_head['Division'], Qt.Horizontal, "Division")
         self.info()
         logger.debug("<- TableModel.__init__")
 
@@ -6546,12 +6560,7 @@ if __name__ == "__main__":
     code = ""
     wait_for_code = False
     gdr_csv = ''
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
-    else:
-        gdr_csv = f"./data/gdr.csv"
-    logger.info(f"gdr.csv path is = {gdr_csv}")
-    wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
+    
 
     # Bold Attributes Config
     if path.exists(myconfig.bold_attributes_csv):

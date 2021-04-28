@@ -1,6 +1,9 @@
 import os
+import sys
 from os import path
+from pathlib import Path
 from loguru import logger
+import pandas as pd
 
 
 cwd = os.getcwd()
@@ -29,3 +32,13 @@ role_ratings_csv = os.path.join(cwd, "config", "role_ratings.csv")
 
 # Bold Attributes Config
 bold_attributes_csv = os.path.join(cwd, "config", "bold_attributes.csv")
+
+# Grab recruits from one divison higher
+higher_division_recruits = False
+
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
+else:
+    gdr_csv = f"./data/gdr.csv"
+logger.info(f"gdr.csv path is = {gdr_csv}")
+wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
