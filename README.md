@@ -9,7 +9,11 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 
 ## What's New
 
-##E Beta v0.4.5 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+### Beta v0.4.6 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+1. Added ability to grab recruits from one division higher than your team's division. Useful for D-III, D-II, and D-IAA only in case you want to see what the schools/coaches with better vision are recruiting/battling for. There is also Division Filter dropdown added.
+2. Fixed an issue where the considering background color highlights were being applied to incorrect schools.
+
+### Beta v0.4.5 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=eEpxh5YQePd4iZHzenwCj7pIwoTHD.Xa)
 1. Fixed a bug where "Penn State (Wilkinson)" was hard coded in the **New Season** dialog.
 
 ### Beta v0.4.4 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=VCrzaKZ99bWKy8i9I5CQesPyteMqT9Pn)
