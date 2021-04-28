@@ -9,7 +9,14 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 
 ## What's New
 
-### Beta v0.4.2 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+### Beta v0.4.4 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+1. You can now customize the order the table columns by dragging and dropping. The order will be saved and restored when you reopen the app or load other seasons.
+2. Color coding of recruits considering you. If you are on a recruit alone the cell background will be green. If you are on a recruit with other schools the cell background will be yellow.
+3. All the dialog windows now have fixed sizes which prevents them from being resized incorrectly.
+4. All of the windows positions are saved and restored when used again.
+5. The Update Considering progress bar will now iterate through both steps of the process. First it will progress through the download of the data from the internet for all unsigned recruits. Then it will progress through saving the downloaded data to the season database.
+
+### Beta v0.4.2 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=Z1Tx8LrAozQ50gSCdgLjh93_8lat.ZRU)
 1. Added an Advanced Configuration Option with two config settings you can change within the UI. More info on the wiki can be found [here](https://github.com/ebzimny01/gd-recruit/wiki/BETA-v0.4.2).
    * Always show browser automation (default is enabled) - When enabled, for the actions that require a logged in browser session (e.g. Initialize Recruits and Mark Recruits From Watchlist), you will see the automated actions happening in the Firefox browser that is packaged with the application. This is useful for you to know that it is working and to also respond to the pesky Privacy Notice prompts that have started showing up.
    * Enable debug logging level (default is disable) - When enabled, the application will collect debug level logs typically used for better troubleshooting of issues.
