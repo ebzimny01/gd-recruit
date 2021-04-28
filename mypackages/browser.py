@@ -286,15 +286,16 @@ def wis_browser(f, d, progress = None):
                 
                 teamID = re.search(r"(\d{5})", dbname)
                 print(teamID)
-                division_x = myconfig.wis_gd_df.division[int(teamID.group(1))]
-                logger.debug(f"TeamID {teamID.group(1)} division_x = {division_x}")
+                divisions_to_grab = []
+                divisions_to_grab.append(myconfig.wis_gd_df.division[int(teamID.group(1))])
+                logger.debug(f"TeamID {teamID.group(1)} division_to_grab = {divisions_to_grab}")
                 # Check for higher division configuration
-                if myconfig.higher_division_recruits and division_x != 'D-IA':
+                if myconfig.higher_division_recruits and divisions_to_grab[0] != 'D-IA':
                     # This means we need to determine which divisions
                     # And then grab recruits from both
                     data = {'D-III': 'D-II', 'D-II': 'D-IAA', 'D-IAA': 'D-IA'}
-                    
-                    division_y = data[division_x]
+                    divisions_to_grab.append(data[divisions_to_grab[0]])
+                    logger.debug(f"TeamID {teamID.group(1)} division_to_grab = {divisions_to_grab}")
 
                 recruitIDs = []
                 position_dropdown = {
@@ -318,90 +319,32 @@ def wis_browser(f, d, progress = None):
                 page.goto("https://www.whatifsports.com/gd/recruiting/Search.aspx")
                 # assert page.url == "https://www.whatifsports.com/gd/recruiting/Search.aspx"
                 
-                # This section covers unsigned recruits
-                logger.info("Scraping unsigned recruit IDs...")
-                # Thread progress signaling Scraping Unsigned recruits is beginning
-                progress.emit(100, 1)
+                division_selector = {'D-IA': "1", 'D-IAA': "2", 'D-II': "3", 'D-III': "4"}
                 
-                # Range is 1 to 11 to cover the 10 player positions
-                for i in range(1, 2):
+                for division in divisions_to_grab:
+                    # This section covers unsigned recruits
+                    logger.info(f"Scraping unsigned recruit IDs for {division}...")
+                    # Thread progress signaling Scraping Unsigned recruits is beginning
+                    progress.emit(100, int(division_selector[division]))
                     
-                    logger.info(f"Selecting position {position_dropdown[i]}")           
-                    # Select 1
-                    page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", f"{i}")
-                    
-                    # Click text=Recruit Search Options
-                    page.click("text=Recruit Search Options")
-                    
-                    # Select 300
-                    page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
-                    
-                    # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
-                    with page.expect_navigation():
-                        page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
-                    
-                    createRecruitQuery = get_create_recruit_query_object(d)
-
-                    next = True
-                    while next == True:
-                        div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
-                        div.wait_for_element_state(state="stable")
-                        contents = page.content()
-                        temp, next = get_recruitIDs(contents, division_x)
-                        for t in temp:
-                            bindRecruitQuery(createRecruitQuery, t, 0)
-                        recruitIDs += temp
-                        if next == True:
-                            # Click text=/.*Next \>\>.*/
-                            with page.expect_navigation():
-                                page.click("text=/.*Next \>\>.*/")
-                    logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
-                    
-                    createRecruitQuery.finish()
-                    
-                    # Thread signaling progress with grabbing unsigned recruits
-                    progress.emit(100 + i, 1)
-
-                # This section covers signed recruits
-                logger.info("Scraping signed recruit IDs...")
-                # Thread progress signaling Scraping Unsigned recruits is beginning
-                progress.emit(200, 1)
-
-                # First need to check if there are any signings at all.
-                # If no signings then skip.
-
-                # Select All
-                page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", "")
-                
-                # Select 1 = Signed
-                page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
-
-                # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
-                with page.expect_navigation():
-                    page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
-
-
-                no_recruit_check = BeautifulSoup(page.content(), "lxml")
-                results_table = no_recruit_check.find(id="ctl00_ctl00_ctl00_Main_Main_Main_h3ResultsText")
-                if results_table.text == "No recruits found":
-                    logger.info("No signings found so skipping signed recruits section...")
-                    # Thread progress signaling Scraping Signed recruits is done
-                    progress.emit(210, 1)
-                else:
+                    # Range is 1 to 11 to cover the 10 player positions
                     for i in range(1, 11):
                         
                         logger.info(f"Selecting position {position_dropdown[i]}")           
-                        # Select 1
+                        # Select Position
                         page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", f"{i}")
+                        
+                        # Select Division
+                        page.select_option("text=Projected Level: All D-IA D-IAA D-II D-III Results View: General Ratings Max Rec >> select", division_selector[division])
+
+                        # Select -1 = Unsigned
+                        page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "-1")
                         
                         # Click text=Recruit Search Options
                         page.click("text=Recruit Search Options")
                         
-                        # Select 300 = number of search results
+                        # Select 300
                         page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
-
-                        # Select 1 = Signed
-                        page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
                         
                         # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
                         with page.expect_navigation():
@@ -410,24 +353,97 @@ def wis_browser(f, d, progress = None):
                         createRecruitQuery = get_create_recruit_query_object(d)
 
                         next = True
-                        while next:
+                        while next == True:
                             div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
                             div.wait_for_element_state(state="stable")
                             contents = page.content()
-                            temp, next = get_recruitIDs(contents)
+                            temp, next = get_recruitIDs(contents, division)
                             for t in temp:
-                                bindRecruitQuery(createRecruitQuery, t, 1)
+                                bindRecruitQuery(createRecruitQuery, t, 0)
                             recruitIDs += temp
                             if next == True:
                                 # Click text=/.*Next \>\>.*/
                                 with page.expect_navigation():
                                     page.click("text=/.*Next \>\>.*/")
                         logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
-
+                        
                         createRecruitQuery.finish()
+                        
+                        # Thread signaling progress with grabbing unsigned recruits
+                        progress.emit(100 + i, 1)
+                
+                    # This section covers signed recruits
+                    logger.info(f"Scraping signed recruit IDs for {division}...")
+                    # Thread progress signaling Scraping Signed recruits is beginning
+                    progress.emit(200, int(division_selector[division]))
 
-                        # Thread signaling progress with grabbing signed recruits
-                        progress.emit(200 + i, 1)
+                    # First need to check if there are any signings at all.
+                    # If no signings then skip.
+
+                    # Select All
+                    page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", "")
+                    
+                    # Select 1 = Signed
+                    page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
+
+                    # Select Division
+                    page.select_option("text=Projected Level: All D-IA D-IAA D-II D-III Results View: General Ratings Max Rec >> select", division_selector[division])
+
+                    # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
+                    with page.expect_navigation():
+                        page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
+
+
+                    no_recruit_check = BeautifulSoup(page.content(), "lxml")
+                    results_table = no_recruit_check.find(id="ctl00_ctl00_ctl00_Main_Main_Main_h3ResultsText")
+                    if results_table.text == "No recruits found":
+                        logger.info("No signings found so skipping signed recruits section...")
+                        # Thread progress signaling Scraping Signed recruits is done
+                        progress.emit(210, 1)
+                    else:
+                        for i in range(1, 11):
+                            
+                            logger.info(f"Selecting position {position_dropdown[i]}")           
+                            # Select Position
+                            page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", f"{i}")
+                            
+                            # Select Division
+                            page.select_option("text=Projected Level: All D-IA D-IAA D-II D-III Results View: General Ratings Max Rec >> select", division_selector[division])
+
+                            # Click text=Recruit Search Options
+                            page.click("text=Recruit Search Options")
+                            
+                            # Select 300 = number of search results
+                            page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
+
+                            # Select 1 = Signed
+                            page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
+                            
+                            # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
+                            with page.expect_navigation():
+                                page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
+                            
+                            createRecruitQuery = get_create_recruit_query_object(d)
+
+                            next = True
+                            while next:
+                                div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
+                                div.wait_for_element_state(state="stable")
+                                contents = page.content()
+                                temp, next = get_recruitIDs(contents)
+                                for t in temp:
+                                    bindRecruitQuery(createRecruitQuery, t, 1)
+                                recruitIDs += temp
+                                if next == True:
+                                    # Click text=/.*Next \>\>.*/
+                                    with page.expect_navigation():
+                                        page.click("text=/.*Next \>\>.*/")
+                            logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
+
+                            createRecruitQuery.finish()
+
+                            # Thread signaling progress with grabbing signed recruits
+                            progress.emit(200 + i, 1)
 
                 d.close()
                 context.close()

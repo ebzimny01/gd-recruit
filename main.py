@@ -1,4 +1,4 @@
-version = "0.4.5"
+version = "0.4.6"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
 import sys
@@ -728,7 +728,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
 
     
     def reportInitializeProgress(self, n, m):
-        # print(f"n = {n}\nm = {m}")
+        divisions = {1: 'D-IA', 2: 'D-IAA', 3: 'D-II', 4: 'D-III'}
         if n == 0:
             self.progressBarMarkWatchlist.setVisible(False)
             self.progressBarUpdateConsidering.setVisible(False)
@@ -748,7 +748,12 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         if n == 100:
             # Starting to grab unsigned recruits
             self.progressBarInitializeRecruits.setRange(0, 100)
+            self.progressBarInitializeRecruits.setValue(0)
             self.progressBarInitializeRecruits.setVisible(True)
+            self.labelGrabUnsigned.setText(f"Grab Unsigned Recruits for {divisions[m]}")
+            self.labelGrabSigned.setText(f"Grab Signed Recruits for {divisions[m]}")
+            self.labelCheckMarkGrabUnsigned.setVisible(False)
+            self.labelCheckMarkGrabSigned.setVisible(False)
         if 100 < n <= 110:
             self.progressBarInitializeRecruits.setValue((n - 100) * 10)
             if n == 110:
@@ -5436,6 +5441,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.checkBoxUndecided.setEnabled(False)
         self.checkBoxWatched.setEnabled(False)
         self.comboBoxMilesFilter.setEnabled(False)
+        self.comboBoxDivisionFilter.setEnabled(False)
         self.pushButtonApplyRatingsFilters.setEnabled(False)
         self.pushButtonClearRatingsFilters.setEnabled(False)
         self.lineEditConsideringTextSearch.setEnabled(False)
@@ -5483,6 +5489,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionRole_Ratings.triggered.connect(self.open_Role_Ratings)
         self.comboBoxPositionFilter.activated.connect(self.position_filter)
         self.comboBoxMilesFilter.activated.connect(self.miles_filter)
+        self.comboBoxDivisionFilter.activated.connect(self.division_filter)
         self.checkBoxHideSigned.stateChanged.connect(self.hide_signed_filter)
         self.checkBoxUndecided.stateChanged.connect(self.undecided_filter)
         self.checkBoxWatched.stateChanged.connect(self.watched_filter)
@@ -5550,6 +5557,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             'hide_signed': "",
             'undecided': "",
             'miles': "",
+            'division': "",
             'ath': "",
             'spd': "",
             'dur': "",
@@ -5810,6 +5818,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.newFilter(self.model)
 
     
+    def division_filter(self):
+        combo_box_filter = f"division = '{self.comboBoxDivisionFilter.currentText()}'"
+        logger.info(f"Previous filter = {self.getFilterString()}")
+        if self.comboBoxDivisionFilter.currentText() == "All":
+            logger.info("Clearing Division Filter...")
+            self.string_filter['division'] = ""
+        else:
+            logger.info("Adding Division Filter...")
+            self.string_filter['division'] = combo_box_filter
+        
+        self.newFilter(self.model)
+
+    
     def position_filter(self):
         combo_box_filter = f"pos = '{self.comboBoxPositionFilter.currentText()}'"
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5963,6 +5984,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.checkBoxUndecided.setEnabled(False)
         self.checkBoxWatched.setEnabled(False)
         self.comboBoxMilesFilter.setEnabled(False)
+        self.comboBoxDivisionFilter.setEnabled(False)
         self.pushButtonApplyRatingsFilters.setEnabled(False)
         self.pushButtonClearRatingsFilters.setEnabled(False)
         self.lineEditConsideringTextSearch.setEnabled(False)
@@ -5992,6 +6014,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.checkBoxUndecided.setEnabled(True)
         self.checkBoxWatched.setEnabled(True)
         self.comboBoxMilesFilter.setEnabled(True)
+        self.comboBoxDivisionFilter.setEnabled(True)
         self.pushButtonApplyRatingsFilters.setEnabled(True)
         self.pushButtonClearRatingsFilters.setEnabled(True)
         self.lineEditConsideringTextSearch.setEnabled(True)
@@ -6245,6 +6268,9 @@ class TableModel(QSqlTableModel):
         dbname_re = re.search(r'(\d{5})', dbname)
         teamid = f"{dbname_re.group(1)}"
         self.teamname = f"{myconfig.wis_gd_df.school_short[int(teamid)]}"
+        c = load_config()
+        self.coachid = c['coachid']
+        self.team_filter = f"{self.teamname} ({self.coachid})"
         # Dict to map column headers to column ID
         col_head = {
             'ID': 0,
@@ -6439,9 +6465,9 @@ class TableModel(QSqlTableModel):
             # Green only considering your own school
             if index.column() == 9:
                 value = super(TableModel, self).data(index)
-                if self.teamname in value and "\n" not in value:
+                if (self.team_filter in value and "\n" not in value) or self.teamname == value:
                     return QBrush(Qt.green)
-                if self.teamname in value and "\n" in value:
+                if self.team_filter in value and "\n" in value:
                     return QBrush(Qt.yellow)
                 #if self.teamname not in value:
                 #    return QIcon(self.blank_icon)
