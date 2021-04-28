@@ -9,7 +9,10 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 
 ## What's New
 
-### Beta v0.4.4 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+##E Beta v0.4.5 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+1. Fixed a bug where "Penn State (Wilkinson)" was hard coded in the **New Season** dialog.
+
+### Beta v0.4.4 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=VCrzaKZ99bWKy8i9I5CQesPyteMqT9Pn)
 1. You can now customize the order the table columns by dragging and dropping. The order will be saved and restored when you reopen the app or load other seasons.
 2. Color coding of recruits considering you. If you are on a recruit alone the cell background will be green. If you are on a recruit with other schools the cell background will be yellow.
 3. All the dialog windows now have fixed sizes which prevents them from being resized incorrectly.
