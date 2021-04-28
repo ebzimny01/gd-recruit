@@ -134,6 +134,28 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout.addWidget(self.comboBoxMilesFilter)
 
+        self.label_DivisionFilter = QLabel(self.centralwidget)
+        self.label_DivisionFilter.setObjectName(u"label_DivisionFilter")
+        sizePolicy.setHeightForWidth(self.label_DivisionFilter.sizePolicy().hasHeightForWidth())
+        self.label_DivisionFilter.setSizePolicy(sizePolicy)
+        self.label_DivisionFilter.setMinimumSize(QSize(50, 0))
+        self.label_DivisionFilter.setMaximumSize(QSize(50, 16777215))
+        self.label_DivisionFilter.setFont(font)
+        self.label_DivisionFilter.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+
+        self.horizontalLayout.addWidget(self.label_DivisionFilter)
+
+        self.comboBoxDivisionFilter = QComboBox(self.centralwidget)
+        self.comboBoxDivisionFilter.addItem("")
+        self.comboBoxDivisionFilter.addItem("")
+        self.comboBoxDivisionFilter.addItem("")
+        self.comboBoxDivisionFilter.addItem("")
+        self.comboBoxDivisionFilter.addItem("")
+        self.comboBoxDivisionFilter.setObjectName(u"comboBoxDivisionFilter")
+        self.comboBoxDivisionFilter.setFont(font)
+
+        self.horizontalLayout.addWidget(self.comboBoxDivisionFilter)
+
         self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         self.horizontalLayout.addItem(self.horizontalSpacer)
@@ -400,7 +422,8 @@ class Ui_MainWindow(object):
         QWidget.setTabOrder(self.checkBoxHideSigned, self.checkBoxUndecided)
         QWidget.setTabOrder(self.checkBoxUndecided, self.checkBoxWatched)
         QWidget.setTabOrder(self.checkBoxWatched, self.comboBoxMilesFilter)
-        QWidget.setTabOrder(self.comboBoxMilesFilter, self.lineEditConsideringTextSearch)
+        QWidget.setTabOrder(self.comboBoxMilesFilter, self.comboBoxDivisionFilter)
+        QWidget.setTabOrder(self.comboBoxDivisionFilter, self.lineEditConsideringTextSearch)
         QWidget.setTabOrder(self.lineEditConsideringTextSearch, self.lineEditfilterATH)
         QWidget.setTabOrder(self.lineEditfilterATH, self.lineEditfilterSPD)
         QWidget.setTabOrder(self.lineEditfilterSPD, self.lineEditfilterDUR)
@@ -416,7 +439,8 @@ class Ui_MainWindow(object):
         QWidget.setTabOrder(self.lineEditfilterTEC, self.lineEditfilterGPA)
         QWidget.setTabOrder(self.lineEditfilterGPA, self.pushButtonApplyRatingsFilters)
         QWidget.setTabOrder(self.pushButtonApplyRatingsFilters, self.pushButtonClearRatingsFilters)
-        QWidget.setTabOrder(self.pushButtonClearRatingsFilters, self.recruit_tableView)
+        QWidget.setTabOrder(self.pushButtonClearRatingsFilters, self.pushButtonDonatePayPal)
+        QWidget.setTabOrder(self.pushButtonDonatePayPal, self.recruit_tableView)
 
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menudata.menuAction())
@@ -476,6 +500,13 @@ class Ui_MainWindow(object):
         self.comboBoxMilesFilter.setItemText(2, QCoreApplication.translate("MainWindow", u"360", None))
         self.comboBoxMilesFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"1400", None))
 
+        self.label_DivisionFilter.setText(QCoreApplication.translate("MainWindow", u"Division", None))
+        self.comboBoxDivisionFilter.setItemText(0, QCoreApplication.translate("MainWindow", u"All", None))
+        self.comboBoxDivisionFilter.setItemText(1, QCoreApplication.translate("MainWindow", u"D-IA", None))
+        self.comboBoxDivisionFilter.setItemText(2, QCoreApplication.translate("MainWindow", u"D-IAA", None))
+        self.comboBoxDivisionFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"D-II", None))
+        self.comboBoxDivisionFilter.setItemText(4, QCoreApplication.translate("MainWindow", u"D-III", None))
+
 #if QT_CONFIG(tooltip)
         self.pushButtonDonatePayPal.setToolTip(QCoreApplication.translate("MainWindow", u"PayPal Donation Link", None))
 #endif // QT_CONFIG(tooltip)
@@ -505,3 +536,4 @@ class Ui_MainWindow(object):
         self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"Options", None))
         self.menuHelp.setTitle(QCoreApplication.translate("MainWindow", u"Help", None))
     # retranslateUi
+
