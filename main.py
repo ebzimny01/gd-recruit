@@ -5201,6 +5201,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__(parent)
         self.setupUi(self)
         self.settings = QSettings()
+        geometry = self.settings.value('geometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
         logger.info(f"QSettings.fileName() = {self.settings.fileName()}")
         self.recruit_tableView.setEditTriggers(QTableView.NoEditTriggers)
         self.h_header = self.recruit_tableView.horizontalHeader()
@@ -5318,6 +5320,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage("No coachid configured")
             else:
                 self.statusbar.showMessage(f"Current coachid = {coachid} (No Auth Cookie)")
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('geometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(MainWindow, self).closeEvent(event)
 
 
     def open_help_about(self):
