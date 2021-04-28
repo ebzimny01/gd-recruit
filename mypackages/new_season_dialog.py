@@ -31,7 +31,6 @@ class Ui_DialogNewSeason(object):
         self.formLayout.setWidget(3, QFormLayout.LabelRole, self.labelTeamID)
 
         self.comboBoxTeamID = QComboBox(DialogNewSeason)
-        self.comboBoxTeamID.addItem("")
         self.comboBoxTeamID.setObjectName(u"comboBoxTeamID")
         sizePolicy.setHeightForWidth(self.comboBoxTeamID.sizePolicy().hasHeightForWidth())
         self.comboBoxTeamID.setSizePolicy(sizePolicy)
@@ -100,9 +99,9 @@ class Ui_DialogNewSeason(object):
     def retranslateUi(self, DialogNewSeason):
         DialogNewSeason.setWindowTitle(QCoreApplication.translate("DialogNewSeason", u"New Season", None))
         self.labelTeamID.setText(QCoreApplication.translate("DialogNewSeason", u"Team", None))
-        self.comboBoxTeamID.setItemText(0, QCoreApplication.translate("DialogNewSeason", u"Penn State (Wilkinson) 51194", None))
-
         self.labelSeasonNumber.setText(QCoreApplication.translate("DialogNewSeason", u"Season #", None))
     # retranslateUi
+
+
 
 
