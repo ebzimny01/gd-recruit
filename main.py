@@ -5781,10 +5781,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterTKL.setEnabled(True)
         self.lineEditfilterWE.setEnabled(True)
         self.lineEditfilterGPA.setEnabled(True)
-        logger.debug("Checking for saved table header state...")
+        logger.debug("Checking for saved table header order state...")
         if self.settings.contains("table_header_order"):
+            logger.debug(f"Restoring saved table header order state...")
             self.h_header.restoreState(self.settings.value("table_header_order", self.h_header.state()))
-            logger.debug(f"Setting table header state = {self.settings.value('table_header_order')}")
 
 
 def load_config():
