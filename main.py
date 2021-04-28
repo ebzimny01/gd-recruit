@@ -1,4 +1,4 @@
-version = "0.4.4"
+version = "0.4.5"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
 import sys
