@@ -6561,7 +6561,8 @@ if __name__ == "__main__":
     logger.info(f"Current working directory = {myconfig.cwd}")
     logger.info(f"Config file path = {myconfig.config_file}")
     logger.info(f"Role Ratings CSV file path = {myconfig.role_ratings_csv}")
-    logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")    
+    logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")
+    logger.info(f"gdr.csv path is = {myconfig.gdr_csv}")    
     c = load_config()
     config = c['config']
     coachid = c['coachid']
