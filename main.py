@@ -1,4 +1,4 @@
-version = "0.4.5"
+version = "0.4.6"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
 import sys
@@ -305,7 +305,8 @@ class InitializeWorker(QObject):
                 gpa REAL,
                 pot TEXT,
                 signed INTEGER,
-                watched INTEGER
+                watched INTEGER,
+                division TEXT
             )
             """
         ):
@@ -653,6 +654,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.pushButtonUpdateConsideringSigned.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Update Considering / Signed", None))
         self.pushButtonMarkRecruitsFromWatchlist.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Mark Recruits From Watchlist", None))
 
+        self.checkBoxGrabHigherRecruits.setChecked(myconfig.higher_division_recruits)
+
         # Hide all progress check marks and text until button is pressed
         self.labelAuthWIS_MarkRecruits.setVisible(False)
         self.labelCheckMarkAuthWIS_Error.setVisible(False)
@@ -675,12 +678,19 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckmarkUpdateConsidering.setVisible(False)
         self.labelUpdateStatusText.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
+        self.checkBoxGrabHigherRecruits.stateChanged.connect(self.save_higher_recruit_config)
         self.pushButtonUpdateConsideringSigned.clicked.connect(self.queue_run_update_considering)
         self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
         self.progressBarMarkWatchlist.setVisible(False)
 
     def accept(self):
         super().accept()
+
+
+    def save_higher_recruit_config(self):
+        data = {0: False, 2: True}
+        myconfig.higher_division_recruits = data[self.checkBoxGrabHigherRecruits.checkState()]
+        logger.debug(f"myconfig.higher_division_recruits = {myconfig.higher_division_recruits}")
 
     
     def runInitializeJob(self):
@@ -713,11 +723,12 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckMarkGrabUnsigned.setVisible(False)
         self.labelCheckMarkGrabSigned.setVisible(False)
         self.labelCheckMarkGrabStaticData.setVisible(False)
+        self.checkBoxGrabHigherRecruits.setEnabled(False)
         self.thread.finished.connect(self.queue_run_initialize_attributes)
 
     
     def reportInitializeProgress(self, n, m):
-        # print(f"n = {n}\nm = {m}")
+        divisions = {1: 'D-IA', 2: 'D-IAA', 3: 'D-II', 4: 'D-III'}
         if n == 0:
             self.progressBarMarkWatchlist.setVisible(False)
             self.progressBarUpdateConsidering.setVisible(False)
@@ -737,7 +748,12 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         if n == 100:
             # Starting to grab unsigned recruits
             self.progressBarInitializeRecruits.setRange(0, 100)
+            self.progressBarInitializeRecruits.setValue(0)
             self.progressBarInitializeRecruits.setVisible(True)
+            self.labelGrabUnsigned.setText(f"Grab Unsigned Recruits for {divisions[m]}")
+            self.labelGrabSigned.setText(f"Grab Signed Recruits for {divisions[m]}")
+            self.labelCheckMarkGrabUnsigned.setVisible(False)
+            self.labelCheckMarkGrabSigned.setVisible(False)
         if 100 < n <= 110:
             self.progressBarInitializeRecruits.setValue((n - 100) * 10)
             if n == 110:
@@ -768,6 +784,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.pushButtonUpdateConsideringSigned.setEnabled(True)
             self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
             self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+            self.checkBoxGrabHigherRecruits.setEnabled(True)
         if n == 999999:
             self.labelCheckMarkAuthWIS_Error.setVisible(True)
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
@@ -947,7 +964,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                     href_tag = find_signed_with.attrs['href']
                     href_tag_re = re.search(r'(\d{5})', href_tag)
                     team_id = int(href_tag_re.group(1))
-                    considering = f"{wis_gd_df.school_short[team_id]}\n"
+                    considering = f"{myconfig.wis_gd_df.school_short[team_id]}\n"
                     signed = 1
                 else:
                     school = team_data[0].text
@@ -5424,6 +5441,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.checkBoxUndecided.setEnabled(False)
         self.checkBoxWatched.setEnabled(False)
         self.comboBoxMilesFilter.setEnabled(False)
+        self.comboBoxDivisionFilter.setEnabled(False)
         self.pushButtonApplyRatingsFilters.setEnabled(False)
         self.pushButtonClearRatingsFilters.setEnabled(False)
         self.lineEditConsideringTextSearch.setEnabled(False)
@@ -5471,6 +5489,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionRole_Ratings.triggered.connect(self.open_Role_Ratings)
         self.comboBoxPositionFilter.activated.connect(self.position_filter)
         self.comboBoxMilesFilter.activated.connect(self.miles_filter)
+        self.comboBoxDivisionFilter.activated.connect(self.division_filter)
         self.checkBoxHideSigned.stateChanged.connect(self.hide_signed_filter)
         self.checkBoxUndecided.stateChanged.connect(self.undecided_filter)
         self.checkBoxWatched.stateChanged.connect(self.watched_filter)
@@ -5538,6 +5557,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             'hide_signed': "",
             'undecided': "",
             'miles': "",
+            'division': "",
             'ath': "",
             'spd': "",
             'dur': "",
@@ -5616,8 +5636,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             dbfilename = db.databaseName()
             wis_id_re = re.search(r"(\d{5})", dbfilename)
             wis_id = int(wis_id_re.group(1))
-            world = wis_gd_df.world[wis_id]
-            division = wis_gd_df.division[wis_id]
+            world = myconfig.wis_gd_df.world[wis_id]
+            division = myconfig.wis_gd_df.division[wis_id]
             url = QUrl(f"https://gdanalyst.herokuapp.com/world/{world}/{division}/town?town={item.data()}")
             print(f"Opening URL --> {url}")
             logger.info(f"Opening URL --> {url}")
@@ -5798,6 +5818,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.newFilter(self.model)
 
     
+    def division_filter(self):
+        combo_box_filter = f"division = '{self.comboBoxDivisionFilter.currentText()}'"
+        logger.info(f"Previous filter = {self.getFilterString()}")
+        if self.comboBoxDivisionFilter.currentText() == "All":
+            logger.info("Clearing Division Filter...")
+            self.string_filter['division'] = ""
+        else:
+            logger.info("Adding Division Filter...")
+            self.string_filter['division'] = combo_box_filter
+        
+        self.newFilter(self.model)
+
+    
     def position_filter(self):
         combo_box_filter = f"pos = '{self.comboBoxPositionFilter.currentText()}'"
         logger.info(f"Previous filter = {self.getFilterString()}")
@@ -5951,6 +5984,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.checkBoxUndecided.setEnabled(False)
         self.checkBoxWatched.setEnabled(False)
         self.comboBoxMilesFilter.setEnabled(False)
+        self.comboBoxDivisionFilter.setEnabled(False)
         self.pushButtonApplyRatingsFilters.setEnabled(False)
         self.pushButtonClearRatingsFilters.setEnabled(False)
         self.lineEditConsideringTextSearch.setEnabled(False)
@@ -5980,6 +6014,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.checkBoxUndecided.setEnabled(True)
         self.checkBoxWatched.setEnabled(True)
         self.comboBoxMilesFilter.setEnabled(True)
+        self.comboBoxDivisionFilter.setEnabled(True)
         self.pushButtonApplyRatingsFilters.setEnabled(True)
         self.pushButtonClearRatingsFilters.setEnabled(True)
         self.lineEditConsideringTextSearch.setEnabled(True)
@@ -6232,7 +6267,10 @@ class TableModel(QSqlTableModel):
         dbname = db.databaseName()
         dbname_re = re.search(r'(\d{5})', dbname)
         teamid = f"{dbname_re.group(1)}"
-        self.teamname = f"{wis_gd_df.school_short[int(teamid)]}"
+        self.teamname = f"{myconfig.wis_gd_df.school_short[int(teamid)]}"
+        c = load_config()
+        self.coachid = c['coachid']
+        self.team_filter = f"{self.teamname} ({self.coachid})"
         # Dict to map column headers to column ID
         col_head = {
             'ID': 0,
@@ -6266,7 +6304,8 @@ class TableModel(QSqlTableModel):
             'GPA': 28,
             'Pot': 29,
             'Signed': 30,
-            'Watched': 31
+            'Watched': 31,
+            'Division': 32
         }
         
         self.setHeaderData(col_head['ID'], Qt.Horizontal, "ID")
@@ -6301,6 +6340,7 @@ class TableModel(QSqlTableModel):
         self.setHeaderData(col_head['Pot'], Qt.Horizontal, "Pot")
         self.setHeaderData(col_head['Signed'], Qt.Horizontal, "Signed")
         self.setHeaderData(col_head['Watched'], Qt.Horizontal, "Watched")
+        self.setHeaderData(col_head['Division'], Qt.Horizontal, "Division")
         self.info()
         logger.debug("<- TableModel.__init__")
 
@@ -6425,9 +6465,9 @@ class TableModel(QSqlTableModel):
             # Green only considering your own school
             if index.column() == 9:
                 value = super(TableModel, self).data(index)
-                if self.teamname in value and "\n" not in value:
+                if (self.team_filter in value and "\n" not in value) or self.teamname == value:
                     return QBrush(Qt.green)
-                if self.teamname in value and "\n" in value:
+                if self.team_filter in value and "\n" in value:
                     return QBrush(Qt.yellow)
                 #if self.teamname not in value:
                 #    return QIcon(self.blank_icon)
@@ -6521,7 +6561,8 @@ if __name__ == "__main__":
     logger.info(f"Current working directory = {myconfig.cwd}")
     logger.info(f"Config file path = {myconfig.config_file}")
     logger.info(f"Role Ratings CSV file path = {myconfig.role_ratings_csv}")
-    logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")    
+    logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")
+    logger.info(f"gdr.csv path is = {myconfig.gdr_csv}")    
     c = load_config()
     config = c['config']
     coachid = c['coachid']
@@ -6546,12 +6587,7 @@ if __name__ == "__main__":
     code = ""
     wait_for_code = False
     gdr_csv = ''
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        gdr_csv = f"{Path(sys._MEIPASS) / 'data' / 'gdr.csv'}"
-    else:
-        gdr_csv = f"./data/gdr.csv"
-    logger.info(f"gdr.csv path is = {gdr_csv}")
-    wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
+    
 
     # Bold Attributes Config
     if path.exists(myconfig.bold_attributes_csv):
