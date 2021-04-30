@@ -804,7 +804,7 @@ background-color: green;</string>
      <x>0</x>
      <y>0</y>
      <width>1169</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -835,6 +835,7 @@ background-color: green;</string>
     </property>
     <addaction name="actionBold_Attributes"/>
     <addaction name="actionRole_Ratings"/>
+    <addaction name="actionShow_Columns"/>
     <addaction name="actionAdvanced"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -920,6 +921,11 @@ background-color: green;</string>
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionShow_Columns">
+   <property name="text">
+    <string>Show Columns</string>
    </property>
   </action>
  </widget>
