@@ -1506,7 +1506,7 @@ class ShowColumns(QDialog, Ui_DialogShowColumns):
         self.settings.setValue('ShowColumnsGeometry', geometry)
         
         # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
-        super(NewSeason, self).closeEvent(event)
+        super(ShowColumns, self).closeEvent(event)
 
 
 class RoleRatings(QDialog, Ui_DialogRoleRatings):
