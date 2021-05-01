@@ -1452,6 +1452,7 @@ class ShowColumns(QDialog, Ui_DialogShowColumns):
         self.settings.remove('HideColumns')
         logger.info("Clearing table_header_order settings stored in registry...")
         self.settings.remove('table_header_order')
+        self.settings.setValue('table_header_order', self.settings.value('table_header_order_default'))
 
 
     def accept(self):
@@ -1521,7 +1522,7 @@ class ShowColumns(QDialog, Ui_DialogShowColumns):
         self.settings.setValue('ShowColumnsGeometry', geometry)
         
         # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
-        super(NewSeason, self).closeEvent(event)
+        super(ShowColumns, self).closeEvent(event)
 
 
 class RoleRatings(QDialog, Ui_DialogRoleRatings):
@@ -5635,10 +5636,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.recruit_tableView.clicked.connect(self.tableclickaction)
         self.pushButtonDonatePayPal.clicked.connect(self.donation)
         self.h_header.sectionMoved.connect(self.save_column_order)
-
-        current_table_header_order = self.settings.value("table_header_order")
-        if current_table_header_order == '':
-            self.settings.setValue("default_table_header_order", self.h_header.saveState())
+        
+        # Default Header Config
+        table_header_order_default = b'\x00\x00\x00\xff\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00d\xff\xff\xff\xff\x00\x00\x00\x84\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x03\xe8\x00\x00\x00\x00\x00'
+        self.settings.setValue("table_header_order_default", table_header_order_default)
+        table_header_order_current = self.settings.value("table_header_order")
+        if table_header_order_current == None:
+            logger.info("Using default table header order...")
+            self.settings.setValue("table_header_order", table_header_order_default)
 
         # Filter data structure used to track which filters are active
         # And then used to build the filter string
@@ -6184,7 +6189,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("Checking for saved table header order state...")
         if self.settings.contains("table_header_order"):
             logger.debug(f"Restoring saved table header order state...")
-            self.h_header.restoreState(self.settings.value("table_header_order", self.h_header.state()))
+            self.h_header.restoreState(self.settings.value("table_header_order", self.settings.value("table_header_order_default",'')))
+            pass
 
         # Process hidden columns config
         all_columns = set(range(0,33))
