@@ -1399,8 +1399,8 @@ class ShowColumns(QDialog, Ui_DialogShowColumns):
         self.settings = QSettings()
         geometry = self.settings.value('ShowColumnsGeometry', bytes('', 'utf-8'))
         self.restoreGeometry(geometry)
-        self.hide_columns = self.settings.value('HideColumns', [])
-        self.columns = {
+        hide_columns = self.settings.value('HideColumns', [])
+        columns = {
                     0: self.checkBoxID.setChecked,
                     1: self.checkBoxName.setChecked,
                     2: self.checkBoxPos.setChecked,
@@ -1435,25 +1435,13 @@ class ShowColumns(QDialog, Ui_DialogShowColumns):
                     31: self.checkBoxWatched.setChecked,
                     32: self.checkBoxDivision.setChecked
         }
-        if self.hide_columns != '':
-            for col in self.hide_columns:
+        if hide_columns != '':
+            for col in hide_columns:
                 c = int(col)
-                self.columns[c].__call__(False)
+                columns[c].__call__(False)
                 logger.info(f"Setting UI checkbox for column {c} to unchecked")
         
-        self.pushButtonResetDefaults.clicked.connect(self.reset_defaults)
-    
-
-    def reset_defaults(self):
-        logger.info("Resetting all Show Column checkboxes to 'checked' (True)")
-        for c in range(0, len(self.columns)):
-            self.columns[c].__call__(True)
-        logger.info("Clearing HideColumns settings stored in registry...")
-        self.settings.remove('HideColumns')
-        logger.info("Clearing table_header_order settings stored in registry...")
-        self.settings.remove('table_header_order')
-
-
+        
     def accept(self):
         columns = {
                     0: self.checkBoxID.isChecked(),
@@ -1496,10 +1484,7 @@ class ShowColumns(QDialog, Ui_DialogShowColumns):
             if v == False:
                 columns_to_hide.append(k)
         logger.info(f"Saving columns to hide in registry = {columns_to_hide}")
-        if columns_to_hide != []:
-            self.settings.setValue('HideColumns', columns_to_hide)
-        else:
-            self.settings.remove('HideColumns')
+        self.settings.setValue('HideColumns', columns_to_hide)
 
         # Save Windows geometry to registry
         geometry = self.saveGeometry()
@@ -5634,12 +5619,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonClearRatingsFilters.clicked.connect(self.clear_ratings_filter_fields)
         self.recruit_tableView.clicked.connect(self.tableclickaction)
         self.pushButtonDonatePayPal.clicked.connect(self.donation)
+        
         self.h_header.sectionMoved.connect(self.save_column_order)
-
-        current_table_header_order = self.settings.value("table_header_order")
-        if current_table_header_order == '':
-            self.settings.setValue("default_table_header_order", self.h_header.saveState())
-
+        
         # Filter data structure used to track which filters are active
         # And then used to build the filter string
         self.string_filter =  self.get_clean_string_filter()
@@ -6187,21 +6169,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.h_header.restoreState(self.settings.value("table_header_order", self.h_header.state()))
 
         # Process hidden columns config
-        all_columns = set(range(0,33))
         hidden = self.settings.value('HideColumns', [])
-        print(f"load model hidden = {hidden}")
         if hidden != []:
-            hidden = set([int(i) for i in hidden])
             logger.info(f"Hiding columns = {hidden}")
             for col in hidden:
-                self.recruit_tableView.setColumnHidden(col, True)
-            not_hidden = all_columns.difference(hidden)
-            for col in not_hidden:
-                self.recruit_tableView.setColumnHidden(col, False)
-        else:
-            for col in all_columns:
-                self.recruit_tableView.setColumnHidden(col, False)
-
+                c = int(col)
+                self.recruit_tableView.setColumnHidden(c, True)
 
 def load_config():
     config = configparser.ConfigParser()
