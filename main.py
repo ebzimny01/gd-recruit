@@ -5459,29 +5459,30 @@ class AdvancedDialog(QDialog, Ui_DialogAdvancedConfigOptions):
         logger.debug(f"Logging level option = {self.log_level}")
         if self.headless == False:
             self.checkBoxBrowserEnableNonHeadlessMode.setChecked(True)
-            self.headless_state = 2
+            self.headless_state = True
         else:
-            self.headless_state = 0
+            self.headless_state = False
         if self.log_level.upper() == 'DEBUG':
             self.checkBoxEnableDebugLogging.setChecked(True)
-            self.log_level_state = 2
+            self.log_level_state = True
         else:
-            self.log_level_state = 0
+            self.log_level_state = False
 
 
     def accept(self):
-        self.new_headless_state = self.checkBoxBrowserEnableNonHeadlessMode.checkState()
-        self.new_log_level_state = self.checkBoxEnableDebugLogging.checkState()
+        self.new_headless_state = self.checkBoxBrowserEnableNonHeadlessMode.isChecked()
+        self.new_log_level_state = self.checkBoxEnableDebugLogging.isChecked()
         if self.new_headless_state == self.headless_state and self.new_log_level_state == self.log_level_state:
             logger.info("No changes were made to Advanced Config Options. No need to write to config file.")
         else:
             if self.new_headless_state != self.headless_state:
-                if self.new_headless_state == 2:
+                if self.new_headless_state == True:
                     self.config.set('Browser', 'headless', 'false')
                 else:
                     self.config.set('Browser', 'headless', 'true')
+                write_config(self.config)
             if self.new_log_level_state != self.log_level_state:
-                if self.new_log_level_state == 2:
+                if self.new_log_level_state == True:
                     self.config.set('Logging', 'level', 'DEBUG')
                     start_logging('DEBUG')
                 else:
