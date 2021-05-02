@@ -1,4 +1,4 @@
-version = "0.4.6"
+version = "0.4.7"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
 import sys
@@ -25,6 +25,7 @@ from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 from mypackages.role_ratings_dialog import Ui_DialogRoleRatings
 from mypackages.role_ratings_update_db import Ui_DialogRoleRatingUpdateDB_Progress
 from mypackages.advanced_config_options import Ui_DialogAdvancedConfigOptions
+from mypackages.show_columns import Ui_DialogShowColumns
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
 import mypackages.config as myconfig
@@ -1389,6 +1390,123 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
         
         # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
         super(WISCred, self).closeEvent(event)
+
+
+class ShowColumns(QDialog, Ui_DialogShowColumns):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('ShowColumnsGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
+        hide_columns = self.settings.value('HideColumns', [])
+        columns = {
+                    0: self.checkBoxID.setChecked,
+                    1: self.checkBoxName.setChecked,
+                    2: self.checkBoxPos.setChecked,
+                    3: self.checkBoxHeight.setChecked,
+                    4: self.checkBoxWeight.setChecked,
+                    5: self.checkBoxRating.setChecked,
+                    6: self.checkBoxRank.setChecked,
+                    7: self.checkBoxHometown.setChecked,
+                    8: self.checkBoxMiles.setChecked,
+                    9: self.checkBoxConsidering.setChecked,
+                    10: self.checkBoxATH.setChecked,
+                    11: self.checkBoxSPD.setChecked,
+                    12: self.checkBoxDUR.setChecked,
+                    13: self.checkBoxWE.setChecked,
+                    14: self.checkBoxSTA.setChecked,
+                    15: self.checkBoxSTR.setChecked,
+                    16: self.checkBoxBLK.setChecked,
+                    17: self.checkBoxTKL.setChecked,
+                    18: self.checkBoxHAN.setChecked,
+                    19: self.checkBoxGI.setChecked,
+                    20: self.checkBoxELU.setChecked,
+                    21: self.checkBoxTEC.setChecked,
+                    22: self.checkBoxR1.setChecked,
+                    23: self.checkBoxR2.setChecked,
+                    24: self.checkBoxR3.setChecked,
+                    25: self.checkBoxR4.setChecked,
+                    26: self.checkBoxR5.setChecked,
+                    27: self.checkBoxR6.setChecked,
+                    28: self.checkBoxGPA.setChecked,
+                    29: self.checkBoxPot.setChecked,
+                    30: self.checkBoxSigned.setChecked,
+                    31: self.checkBoxWatched.setChecked,
+                    32: self.checkBoxDivision.setChecked
+        }
+        if hide_columns != '':
+            for col in hide_columns:
+                c = int(col)
+                columns[c].__call__(False)
+                logger.info(f"Setting UI checkbox for column {c} to unchecked")
+        
+        
+    def accept(self):
+        columns = {
+                    0: self.checkBoxID.isChecked(),
+                    1: self.checkBoxName.isChecked(),
+                    2: self.checkBoxPos.isChecked(),
+                    3: self.checkBoxHeight.isChecked(),
+                    4: self.checkBoxWeight.isChecked(),
+                    5: self.checkBoxRating.isChecked(),
+                    6: self.checkBoxRank.isChecked(),
+                    7: self.checkBoxHometown.isChecked(),
+                    8: self.checkBoxMiles.isChecked(),
+                    9: self.checkBoxConsidering.isChecked(),
+                    10: self.checkBoxATH.isChecked(),
+                    11: self.checkBoxSPD.isChecked(),
+                    12: self.checkBoxDUR.isChecked(),
+                    13: self.checkBoxWE.isChecked(),
+                    14: self.checkBoxSTA.isChecked(),
+                    15: self.checkBoxSTR.isChecked(),
+                    16: self.checkBoxBLK.isChecked(),
+                    17: self.checkBoxTKL.isChecked(),
+                    18: self.checkBoxHAN.isChecked(),
+                    19: self.checkBoxGI.isChecked(),
+                    20: self.checkBoxELU.isChecked(),
+                    21: self.checkBoxTEC.isChecked(),
+                    22: self.checkBoxR1.isChecked(),
+                    23: self.checkBoxR2.isChecked(),
+                    24: self.checkBoxR3.isChecked(),
+                    25: self.checkBoxR4.isChecked(),
+                    26: self.checkBoxR5.isChecked(),
+                    27: self.checkBoxR6.isChecked(),
+                    28: self.checkBoxGPA.isChecked(),
+                    29: self.checkBoxPot.isChecked(),
+                    30: self.checkBoxSigned.isChecked(),
+                    31: self.checkBoxWatched.isChecked(),
+                    32: self.checkBoxDivision.isChecked()
+        }
+        logger.debug(f"Column checkbox states = {columns}")
+        columns_to_hide = []
+        for k, v in columns.items():
+            if v == False:
+                columns_to_hide.append(k)
+        logger.info(f"Saving columns to hide in registry = {columns_to_hide}")
+        self.settings.setValue('HideColumns', columns_to_hide)
+
+        # Save Windows geometry to registry
+        geometry = self.saveGeometry()
+        self.settings.setValue('ShowColumnsGeometry', geometry)
+        super().accept()
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('ShowColumnsGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(ShowColumns, self).closeEvent(event)
 
 
 class RoleRatings(QDialog, Ui_DialogRoleRatings):
@@ -5434,6 +5552,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"&WIS Credentials", None))
         self.actionBold_Attributes.setText(QCoreApplication.translate("MainWindow", u"&Bold Attributes", None))
         self.actionRole_Ratings.setText(QCoreApplication.translate("MainWindow", u"&Role Ratings", None))
+        self.actionShow_Columns.setText(QCoreApplication.translate("MainWindow", u"&Show Columns", None))
         self.actionAdvanced.setText(QCoreApplication.translate("MainWindow", u"&Advanced", None))
         self.actionAbout.setText(QCoreApplication.translate("MainWindow", u"&About", None))
         self.comboBoxPositionFilter.setEnabled(False)
@@ -5487,6 +5606,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionWatchlist_Only.triggered.connect(self.export_db_to_csv_watchlist)
         self.actionBold_Attributes.triggered.connect(self.open_Bold_Attributes)
         self.actionRole_Ratings.triggered.connect(self.open_Role_Ratings)
+        self.actionShow_Columns.triggered.connect(self.open_show_columns)
+        self.actionAdvanced.triggered.connect(self.open_advanced)
+        self.actionAbout.triggered.connect(self.open_help_about)
         self.comboBoxPositionFilter.activated.connect(self.position_filter)
         self.comboBoxMilesFilter.activated.connect(self.miles_filter)
         self.comboBoxDivisionFilter.activated.connect(self.division_filter)
@@ -5497,8 +5619,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonClearRatingsFilters.clicked.connect(self.clear_ratings_filter_fields)
         self.recruit_tableView.clicked.connect(self.tableclickaction)
         self.pushButtonDonatePayPal.clicked.connect(self.donation)
-        self.actionAdvanced.triggered.connect(self.open_advanced)
-        self.actionAbout.triggered.connect(self.open_help_about)
+        
         self.h_header.sectionMoved.connect(self.save_column_order)
         
         # Filter data structure used to track which filters are active
@@ -5883,6 +6004,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.comboBoxPositionFilter.setCurrentIndex(0)
             clear_model = False
     
+
     def open_New_Season(self):
         dialog = NewSeason()
         dialog.ui = Ui_DialogNewSeason()
@@ -5952,6 +6074,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.loadModel()
         logger.debug("Exiting Role Ratings dialog")
 
+    
+    def open_show_columns(self):
+        logger.info("Entering Show Columns dialog")
+        dialog = ShowColumns()
+        dialog.ui = Ui_DialogShowColumns()
+        dialog.exec_()
+        dialog.show()
+        logger.info("Exiting Show Columns dialog")
+        if db.databaseName() != "":
+            self.loadModel()
+        
 
     def open_advanced(self):
         logger.debug("Entering Advanced dialog")
@@ -6008,7 +6141,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # initializeModel(self.model)
         self.recruit_tableView.setModel(self.model)
         self.recruit_tableView.setEnabled(True)
-        self.recruit_tableView.setColumnHidden(30, True)
         self.comboBoxPositionFilter.setEnabled(True)
         self.checkBoxHideSigned.setEnabled(True)
         self.checkBoxUndecided.setEnabled(True)
@@ -6036,6 +6168,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             logger.debug(f"Restoring saved table header order state...")
             self.h_header.restoreState(self.settings.value("table_header_order", self.h_header.state()))
 
+        # Process hidden columns config
+        hidden = self.settings.value('HideColumns', [])
+        if hidden != []:
+            logger.info(f"Hiding columns = {hidden}")
+            for col in hidden:
+                c = int(col)
+                self.recruit_tableView.setColumnHidden(c, True)
 
 def load_config():
     config = configparser.ConfigParser()
