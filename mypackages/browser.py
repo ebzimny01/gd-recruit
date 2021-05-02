@@ -66,6 +66,11 @@ def get_recruitIDs(page_content, division):
             for a in considering_list:
                 considering += f"{a.text}\n"
             considering = considering[:-1] # removes newline at end
+        rank_text = td_tags[6].text
+        try:
+            rank = int(rank_text)
+        except:
+            rank = 999
         recruitIDs.append({
             'id': rid,
             'name': td_tags[2].text,
@@ -73,7 +78,7 @@ def get_recruitIDs(page_content, division):
             'height': td_tags[3].text,
             'weight': int(td_tags[4].text),
             'rating': int(td_tags[5].text),
-            'rank': td_tags[6].text,
+            'rank': rank,
             'hometown': td_tags[7].text,
             'miles': int(td_tags[8].text),
             'considering': considering,
@@ -90,32 +95,6 @@ def get_recruitIDs(page_content, division):
 def randsleep():
     s = uniform(0.1, 0.5)
     return s
-
-
-class TwoFactorAuthDialog(QDialog, Ui_DialogTwoFactorAuth):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setupUi(self)
-        self.pushButtonSubmit.setEnabled(False)
-        self.lineEdit_6_digit_code.textChanged.connect(self.submitbuttonstate)
-        self.pushButtonSubmit.clicked.connect(self.accept)
-        self.label_Format_Error.setVisible(False)
-
-    def submitbuttonstate(self):
-        sixdigitformat = re.compile(r'\d{6}')
-        linedit_contents = self.lineEdit_6_digit_code.text()
-        if sixdigitformat.match(linedit_contents):
-            self.pushButtonSubmit.setEnabled(True)
-            self.label_Format_Error.setVisible(False)
-        else:
-            self.label_Format_Error.setVisible(True)
-
-    def accept(self):
-        global code
-        global wait_for_code
-        code = self.lineEdit_6_digit_code.text()
-        wait_for_code = False
-        super().accept()
 
 
 def check_for_stored_cookies(coachid):
@@ -137,7 +116,7 @@ def check_for_stored_cookies(coachid):
         logger.info("storage_state is not empty")
     return storage_state
 
-@logger.catch()
+
 def wis_browser(f, d, progress = None):
     # Default settings #
     headless = True

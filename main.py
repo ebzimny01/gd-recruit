@@ -1,4 +1,4 @@
-version = "0.4.7"
+version = "0.4.8"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
 import sys
@@ -281,7 +281,7 @@ class InitializeWorker(QObject):
                 height TEXT,
                 weight INTEGER,
                 rating INTEGER,
-                rank TEXT,
+                rank INTEGER,
                 hometown TEXT,
                 miles INTEGER,
                 considering TEXT,
@@ -6572,6 +6572,11 @@ class TableModel(QSqlTableModel):
             if index.column() in [22, 23, 24, 25, 26, 27, 28]:
                 value = super(TableModel, self).data(index)
                 return "%.1f" % value
+            
+            if index.column() == 6:
+                value = super(TableModel, self).data(index)
+                if value == 999:
+                    return None
 
         # Add a checkmark icon if a player is watched
         if role == Qt.DecorationRole:
