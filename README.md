@@ -9,7 +9,10 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 
 ## What's New
 
-### Beta v0.4.6 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+### Beta v0.4.7 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+1. Added ability to configure which columns to show/hide. From the menu bar, select Options->Show Columns, and you will see a dialog that allows you to check (show) or uncheck (hide) specific columns.
+
+### Beta v0.4.6 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=l4CPw2SQCHlgKe2Q0Dnx46nrFJbofl.H)
 1. Added ability to grab recruits from one division higher than your team's division. Useful for D-III, D-II, and D-IAA only in case you want to see what the schools/coaches with better vision are recruiting/battling for. There is also Division Filter dropdown added.
 2. Fixed an issue where the considering background color highlights were being applied to incorrect schools.
 
