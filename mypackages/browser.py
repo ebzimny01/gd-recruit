@@ -409,7 +409,7 @@ def wis_browser(f, d, progress = None):
                                 div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
                                 div.wait_for_element_state(state="stable")
                                 contents = page.content()
-                                temp, next = get_recruitIDs(contents)
+                                temp, next = get_recruitIDs(contents, division)
                                 for t in temp:
                                     bindRecruitQuery(createRecruitQuery, t, 1)
                                 recruitIDs += temp
