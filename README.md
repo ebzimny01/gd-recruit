@@ -9,7 +9,10 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 
 ## What's New
 
-### Beta v0.4.7 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+### Beta v0.4.8 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe)
+1. Fixed a bug where the application would fail to properly initialize/re-initialize a season if recruit signings had already started happening.
+
+### Beta v0.4.7 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=xdSsJVD0f66F9_Yo5LJOjsCVn0yiGqU9)
 1. Added ability to configure which columns to show/hide. From the menu bar, select Options->Show Columns, and you will see a dialog that allows you to check (show) or uncheck (hide) specific columns.
 
 ### Beta v0.4.6 - [Download](https://gdrecruit.s3.amazonaws.com/beta/gdrecruit_beta.exe?versionId=l4CPw2SQCHlgKe2Q0Dnx46nrFJbofl.H)
