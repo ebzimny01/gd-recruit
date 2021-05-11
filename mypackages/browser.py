@@ -154,9 +154,12 @@ def wis_browser(f, d, progress = None):
         logger.info("Session requires interactive login.")
         logger.info(f"Setting headless = {headless}")
     with sync_playwright() as p:
-        browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1250' / 'firefox' / 'firefox.exe'
+        browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1234' / 'firefox' / 'firefox.exe'
         logger.info(f"Browser path = {browser_path}")
         logger.info(f"Browser path is valid? = {browser_path.exists()}")
+        if not browser_path.exists():
+            logger.error("Browser path is not valid!!!")
+            return False
         browser = p.firefox.launch(
             headless=headless,
             executable_path=browser_path)

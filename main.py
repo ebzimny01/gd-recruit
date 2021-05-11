@@ -360,6 +360,7 @@ class InitializeWorker(QObject):
         else:
             # Implies there was an error authenticating to WIS
             self.progress.emit(999999,1)
+            self.finished.emit()
 
 
 #https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
@@ -584,6 +585,7 @@ class MarkRecruitsWorker(QObject):
                 total_unsigned_watched = 0
             unsigned_table = page.find(id="recruits")
             watchlist = {}
+            myconfig.watchlist_length = len(watchlist)
             if total_unsigned_watched == 0 or "Not watching any recruits." in unsigned_table.text:
                 logger.info("There are no unsigned recruits in the watchlist.")
             else:
@@ -616,7 +618,8 @@ class MarkRecruitsWorker(QObject):
                     potential = potential_lookup[columns[9].text]
                     watchlist.update({rid: potential})
 
-            logger.info(f"Length of watchlist = {len(watchlist)}")
+            myconfig.watchlist_length = len(watchlist)
+            logger.info(f"Length of watchlist = {myconfig.watchlist_length}")
 
             # First we clear all watched recruits from the db
             if db.isOpen():
@@ -696,9 +699,12 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.progressBarInitializeRecruits.setValue(0)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
         self.checkBoxGrabHigherRecruits.stateChanged.connect(self.save_higher_recruit_config)
+        self.buttonBox.button(QDialogButtonBox.Close).clicked.connect(self.accept)
 
     def accept(self):
-        super().accept()
+        geometry = self.saveGeometry()
+        self.settings.setValue('GrabSeasonDataGeometry', geometry)
+        super().close()
 
 
     def save_higher_recruit_config(self):
@@ -724,6 +730,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         # Step 6: Start the thread
         self.thread.start()
         # Final resets
+        self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
         self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(255, 0, 0);")
         self.labelRecruitsInitialized.setText(f"Recruits Initialized = 0")
         self.pushButtonInitializeRecruits.setEnabled(False)
@@ -894,6 +901,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         logger.debug("Running initialized_finished function")
         self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
         self.labelRecruitsInitialized.setText(f"Initialized {myconfig.rids_all_length} Recruits...")
+        self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
 
     
     def queue_monitor_initialize_progress(self, n):
@@ -936,12 +944,14 @@ class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
         geometry = self.settings.value('UpdateConsideringGeometry', bytes('', 'utf-8'))
         self.restoreGeometry(geometry)
         self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
+        self.labelCheckmarkUpdateConsidering.setVisible(False)
         self.rid_queue = Queue()
         self.threadpool = QThreadPool()
         self.threadCount = QThreadPool.globalInstance().maxThreadCount()
         self.requests_session = requests.Session()
         self.recruit_considering = []
         self.queue_run_update_considering()
+        self.buttonBox.button(QDialogButtonBox.Close).clicked.connect(self.accept)
 
     
     def accept(self):
@@ -1013,6 +1023,7 @@ class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
         logger.debug("Running update_finished function")
         self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
         self.labelUpdateStatusText.setText("Update Considering action completed.")
+        self.labelCheckmarkUpdateConsidering.setVisible(True)
 
     
     def recruit_update(self, progress_callback):
@@ -1096,6 +1107,7 @@ class MarkWatchlistPotential(QDialog, Ui_DialogMarkWatchlistPotential):
         self.restoreGeometry(geometry)
         self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
         self.runMarkRecruitsJob()
+        self.buttonBox.button(QDialogButtonBox.Close).clicked.connect(self.accept)
 
     
     def accept(self):
@@ -1164,6 +1176,7 @@ class MarkWatchlistPotential(QDialog, Ui_DialogMarkWatchlistPotential):
             self.progressBarMarkWatchlist.setValue(80)
         if n == 1000:
             self.progressBarMarkWatchlist.setValue(100)
+            self.labelAuthWIS_MarkRecruits.setText(f"Processed {myconfig.watchlist_length} recruits from Watchlist.")
         if n == 2000:
             mw.statusbar.showMessage("ERROR: There was a problem loading Recruit Summary Page.")
         if n == 6:
@@ -5604,7 +5617,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.menuHelp.setTitle(QCoreApplication.translate("MainWindow", u"&Help", None))
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"&New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"&Load Season", None))
-        self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"&Grab Recruit Data", None))
+        self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"&Initialize Recruit Data", None))
         self.actionAll_Recruits.setText(QCoreApplication.translate("MainWindow", u"&All Recruits", None))
         self.actionWatchlist_Only.setText(QCoreApplication.translate("MainWindow", u"&Watchlist Only", None))
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"&WIS Credentials", None))
@@ -6221,9 +6234,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     
     def loadModel(self):
+        rids = query_Recruit_IDs("all", db)
+        myconfig.rids_all_length = len(rids)
         self.model = TableModel()
         # initializeModel(self.model)
         self.recruit_tableView.setModel(self.model)
+        #while self.model.canFetchMore():
+        #    self.model.fetchMore()
+        logger.info(f"Total Recruits = {myconfig.rids_all_length}")
+        mw.statusbar.showMessage(f"{myconfig.rids_all_length} recruits loaded.")
         self.recruit_tableView.setEnabled(True)
         self.comboBoxPositionFilter.setEnabled(True)
         self.checkBoxHideSigned.setEnabled(True)
@@ -6233,8 +6252,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboBoxDivisionFilter.setEnabled(True)
         self.pushButtonApplyRatingsFilters.setEnabled(True)
         self.pushButtonClearRatingsFilters.setEnabled(True)
-        self.pushButtonUpdateConsidering.setEnabled(True)
-        self.pushButtonMarkWatchlistPotential.setEnabled(True)
+        if myconfig.rids_all_length != 0:
+            self.pushButtonUpdateConsidering.setEnabled(True)
+            self.pushButtonMarkWatchlistPotential.setEnabled(True)
         self.lineEditConsideringTextSearch.setEnabled(True)
         self.lineEditfilterATH.setEnabled(True)
         self.lineEditfilterBLK.setEnabled(True)

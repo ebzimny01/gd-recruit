@@ -48,3 +48,4 @@ wis_gd_df = pd.read_csv(gdr_csv, header=0, index_col=0)
 
 rids_unsigned_length = 0
 rids_all_length = 0
+watchlist_length = 0
