@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1169</width>
+    <width>1083</width>
     <height>1265</height>
    </rect>
   </property>
@@ -326,6 +326,49 @@
           <string>D-III</string>
          </property>
         </item>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_2">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::MinimumExpanding</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButtonUpdateConsidering">
+        <property name="text">
+         <string>Update Considering</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_3">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButtonMarkWatchlistPotential">
+        <property name="text">
+         <string>Mark Watchlist/Potential</string>
+        </property>
        </widget>
       </item>
       <item>
@@ -803,8 +846,8 @@ background-color: green;</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1169</width>
-     <height>21</height>
+     <width>1083</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -875,7 +918,7 @@ background-color: green;</string>
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>Grab Recruit Data</string>
+    <string>Initialize Recruit Data</string>
    </property>
    <property name="font">
     <font>
