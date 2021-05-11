@@ -1,4 +1,4 @@
-version = "0.4.8"
+version = "0.5.1"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
 import sys
@@ -25,6 +25,8 @@ from mypackages.grab_season_data_widget import Ui_WidgetGrabSeasonData
 from mypackages.role_ratings_dialog import Ui_DialogRoleRatings
 from mypackages.role_ratings_update_db import Ui_DialogRoleRatingUpdateDB_Progress
 from mypackages.advanced_config_options import Ui_DialogAdvancedConfigOptions
+from mypackages.mark_watchlist_potential_dialog import Ui_DialogMarkWatchlistPotential
+from mypackages.update_considering_dialog import Ui_DialogUpdateConsidering
 from mypackages.show_columns import Ui_DialogShowColumns
 from mypackages.world_lookup import wid_world_list
 from mypackages.browser import *
@@ -88,6 +90,29 @@ def query_Recruit_IDs(type, dbconn):
     dbconn.close()
     logger.info("End of query_Recruit_IDs function")
     return rids
+
+
+def queue_rid_urls(q=Queue(), t=str()):
+        rids = query_Recruit_IDs(t, db)
+        if t == "all":
+            myconfig.rids_all_length = len(rids)
+            logger.info(f"All recruits = {myconfig.rids_unsigned_length}")
+            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid="
+            for each in rids:
+                rid = each[0]
+                position = each[1]
+                recruit = (rid, position, f"{url_base}{rid}")
+                logger.debug(f"Queuing ({t}): {recruit}")
+                q.put(recruit)
+        elif t == "unsigned":
+            myconfig.rids_unsigned_length = len(rids)
+            logger.info(f"Unsigned recruits = {myconfig.rids_unsigned_length}")
+            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid="
+            for rid in rids:
+                recruit = (rid, f"{url_base}{rid}")
+                logger.debug(f"Queuing ({t}): {recruit}")
+                q.put(recruit)
+            
 
 
 def calculate_role_rating(pos, ratings):
@@ -540,8 +565,8 @@ class MarkRecruitsWorker(QObject):
         #c = load_config()
         #config = c['config']
         
-        db_t.setDatabaseName(db.databaseName())
-        page = wis_browser("grab_watched_recruits", db_t, self.progress)
+        db_m.setDatabaseName(db.databaseName())
+        page = wis_browser("grab_watched_recruits", db_m, self.progress)
         if page == "":
             # Implies issues loading Recruit Summary page.
             self.progress.emit(2000)
@@ -594,8 +619,14 @@ class MarkRecruitsWorker(QObject):
             logger.info(f"Length of watchlist = {len(watchlist)}")
 
             # First we clear all watched recruits from the db
-            openDB(db_t)
-            queryUpdate = QSqlQuery(db_t)
+            if db.isOpen():
+                logger.debug("closing 'db' connection...")
+                db.close()
+            if db_t.isOpen():
+                logger.debug("closing 'db_t' connection...")
+                db_t.close()
+            openDB(db_m)
+            queryUpdate = QSqlQuery(db_m)
             if not queryUpdate.exec_(
                 """
                 UPDATE recruits SET watched = 0
@@ -605,7 +636,7 @@ class MarkRecruitsWorker(QObject):
             queryUpdate.finish()
 
             # Now we set watched = 1 for the rids in watchlist
-            query_watched_update = QSqlQuery(db_t)
+            query_watched_update = QSqlQuery(db_m)
             query_watched_update.prepare("UPDATE recruits "
                                         "SET watched = 1, "
                                         "pot = :pot "
@@ -617,7 +648,7 @@ class MarkRecruitsWorker(QObject):
                     logQueryError(query_watched_update)
             query_watched_update.finish()
 
-            db_t.close()
+            db_m.close()
 
             # Report done
             self.progress.emit(1000)
@@ -638,30 +669,19 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.threadCount = QThreadPool.globalInstance().maxThreadCount()
         self.requests_session = requests.Session()
         self.recruit_initialize_list = []
-        self.recruit_considering = []
-        self.rids_unsigned_length = 0
         self.rids_all = query_Recruit_IDs("all", db)
-        self.rids_all_length = len(self.rids_all)
-        if self.rids_all_length == 0:
+        myconfig.rids_all_length = len(self.rids_all)
+        if myconfig.rids_all_length == 0:
             self.pushButtonInitializeRecruits.setText(QCoreApplication.translate("MainWindow", u"&Initialize Recruits", None))
-            self.pushButtonUpdateConsideringSigned.setVisible(False)
-            self.pushButtonMarkRecruitsFromWatchlist.setVisible(False)
         else:
-            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
-            self.labelRecruitsInitialized.setText(f"Recruits Initialized = {self.rids_all_length}")
+            self.labelRecruitsInitialized.setText(f"Recruits Initialized = {myconfig.rids_all_length}")
             self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 128, 0);")
             self.pushButtonInitializeRecruits.setText(QCoreApplication.translate("MainWindow", u"&Re-Initialize Recruits", None))
-        
-        self.pushButtonUpdateConsideringSigned.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Update Considering / Signed", None))
-        self.pushButtonMarkRecruitsFromWatchlist.setText(QCoreApplication.translate("WidgetGrabSeasonData", u"&Mark Recruits From Watchlist", None))
 
         self.checkBoxGrabHigherRecruits.setChecked(myconfig.higher_division_recruits)
 
         # Hide all progress check marks and text until button is pressed
-        self.labelAuthWIS_MarkRecruits.setVisible(False)
         self.labelCheckMarkAuthWIS_Error.setVisible(False)
-        self.labelCheckMarkAuthWIS_Error_MarkRecruits.setVisible(False)
-        self.labelCheckMarkAuthWIS_MarkRecruits.setVisible(False)
         self.labelCheckMarkCreateDB.setVisible(False)
         self.labelCheckMarkAuthWIS.setVisible(False)
         self.labelCheckMarkGrabUnsigned.setVisible(False)
@@ -674,15 +694,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelGrabStaticData.setVisible(False)
         self.progressBarInitializeRecruits.setVisible(False)
         self.progressBarInitializeRecruits.setValue(0)
-        self.progressBarUpdateConsidering.setVisible(False)
-        self.progressBarUpdateConsidering.setValue(0)
-        self.labelCheckmarkUpdateConsidering.setVisible(False)
-        self.labelUpdateStatusText.setVisible(False)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
         self.checkBoxGrabHigherRecruits.stateChanged.connect(self.save_higher_recruit_config)
-        self.pushButtonUpdateConsideringSigned.clicked.connect(self.queue_run_update_considering)
-        self.pushButtonMarkRecruitsFromWatchlist.clicked.connect(self.runMarkRecruitsJob)
-        self.progressBarMarkWatchlist.setVisible(False)
 
     def accept(self):
         super().accept()
@@ -714,10 +727,6 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(255, 0, 0);")
         self.labelRecruitsInitialized.setText(f"Recruits Initialized = 0")
         self.pushButtonInitializeRecruits.setEnabled(False)
-        self.pushButtonMarkRecruitsFromWatchlist.setVisible(False)
-        self.pushButtonUpdateConsideringSigned.setVisible(False)
-        self.labelCheckmarkUpdateConsidering.setVisible(False)
-        self.labelUpdateStatusText.setVisible(False)
         self.labelCheckMarkCreateDB.setVisible(False)
         self.labelCheckMarkAuthWIS.setVisible(False)
         self.labelCheckMarkAuthWIS_Error.setVisible(False)
@@ -731,8 +740,6 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     def reportInitializeProgress(self, n, m):
         divisions = {1: 'D-IA', 2: 'D-IAA', 3: 'D-II', 4: 'D-III'}
         if n == 0:
-            self.progressBarMarkWatchlist.setVisible(False)
-            self.progressBarUpdateConsidering.setVisible(False)
             self.labelProgressCreateRecruitDB.setVisible(True)
             self.labelAuthWIS.setVisible(True)
             self.labelGrabUnsigned.setVisible(True)
@@ -781,10 +788,6 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         if n > 1000 and (n - 1000) == m:
             self.labelCheckMarkGrabStaticData.setVisible(True)
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {m}")
-            self.pushButtonUpdateConsideringSigned.setVisible(True)
-            self.pushButtonUpdateConsideringSigned.setEnabled(True)
-            self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
-            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
             self.checkBoxGrabHigherRecruits.setEnabled(True)
         if n == 999999:
             self.labelCheckMarkAuthWIS_Error.setVisible(True)
@@ -794,14 +797,46 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
     
     def queue_run_initialize_attributes(self):
         logger.info(f"Running queue_run_initialize_attributes function")
-        self.queue_rid_urls(self.rid_queue, "all")
-        self.labelRecruitsInitialized.setText(f"Initializing {self.rids_all_length} Recruits...")
-        self.progressBarInitializeRecruits.setRange(0, self.rids_all_length)
+        queue_rid_urls(self.rid_queue, "all")
+        self.labelRecruitsInitialized.setText(f"Initializing {myconfig.rids_all_length} Recruits...")
+        self.progressBarInitializeRecruits.setRange(0, myconfig.rids_all_length)
         self.progressBarInitializeRecruits.setValue(0)
         self.progressBarInitializeRecruits.value()
         self.stopped = False
         self.run_threads(self.recruit_initialize, self.completed)
 
+
+    def run_threads(self, process, on_complete):
+        # Step 1: Create thread object to monitor queue
+        self.thread = QThread()
+        # Step 2: Create a worker object
+        if process.__func__.__name__ == "recruit_initialize":
+            logger.debug("run_threads function -> recruit_initialize conditional statement")
+            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_initialize_list, myconfig.rids_all_length, "initialize")
+            # Step 3: Move worker to the thread
+            self.worker.moveToThread(self.thread)
+            # Step 4: Connect signals and slots
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished.connect(self.thread.quit)
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(self.queue_monitor_initialize_progress)
+            # Step 6: Start the thread
+            self.thread.start()
+            # Final resets
+            self.thread.finished.connect(self.initialize_finished)
+        else:
+            raise Exception
+
+        """Execute a function in the background with a worker"""
+        for i in range(self.threadCount - 1):
+            worker = Worker(fn=process)
+            self.threadpool.start(worker)
+            worker.signals.finished.connect(on_complete)
+            worker.signals.progress.connect(self.progress_fn)
+            #self.progressbar.setRange(0,0)
+        return
+    
     
     def recruit_initialize(self, progress_callback):
         while self.rid_queue.qsize() > 0:
@@ -843,34 +878,101 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 return
         return
 
-    
-    def queue_rid_urls(self, q=Queue(), t=str()):
-        rids = query_Recruit_IDs(t, db)
-        if t == "all":
-            self.rids_all_length = len(rids)
-            logger.info(f"All recruits = {self.rids_unsigned_length}")
-            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid="
-            for each in rids:
-                rid = each[0]
-                position = each[1]
-                recruit = (rid, position, f"{url_base}{rid}")
-                logger.debug(f"Queuing ({t}): {recruit}")
-                q.put(recruit)
-        elif t == "unsigned":
-            self.rids_unsigned_length = len(rids)
-            logger.info(f"Unsigned recruits = {self.rids_unsigned_length}")
-            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid="
-            url_suffix = "&section=Ratings"
-            for rid in rids:
-                recruit = (rid, f"{url_base}{rid}")
-                logger.debug(f"Queuing ({t}): {recruit}")
-                q.put(recruit)
-            
-    
+
+    def completed(self):
+        logger.debug(f"Running threading completed function")
+        return
+
+        
     def progress_fn(self, msg):
         #self.info.append(str(msg))
         logger.debug("Running progress_fn function")
         return
+
+       
+    def initialize_finished(self):
+        logger.debug("Running initialized_finished function")
+        self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
+        self.labelRecruitsInitialized.setText(f"Initialized {myconfig.rids_all_length} Recruits...")
+
+    
+    def queue_monitor_initialize_progress(self, n):
+        if n == 0:
+            logger.debug("Queue is empty.")
+            completed = myconfig.rids_all_length - n
+            self.progressBarInitializeRecruits.setValue(completed)
+            self.labelCheckMarkGrabStaticData.setVisible(True)
+        elif n > 0 and n < 1000000:
+            completed = myconfig.rids_all_length - n
+            self.progressBarInitializeRecruits.setValue(completed)
+        elif n == 1000000:
+            self.progressBarInitializeRecruits.setValue(0)
+        elif n > 1000000:
+            self.progressBarInitializeRecruits.setValue(n - 1000000)
+
+    
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('GrabSeasonDataGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(GrabSeasonData, self).closeEvent(event)
+
+
+class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('UpdateConsideringGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
+        self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
+        self.rid_queue = Queue()
+        self.threadpool = QThreadPool()
+        self.threadCount = QThreadPool.globalInstance().maxThreadCount()
+        self.requests_session = requests.Session()
+        self.recruit_considering = []
+        self.queue_run_update_considering()
+
+    
+    def accept(self):
+        geometry = self.saveGeometry()
+        self.settings.setValue('UpdateConsideringGeometry', geometry)
+        super().accept()
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('UpdateConsideringGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(UpdateConsidering, self).closeEvent(event)
+
+    
+    def queue_run_update_considering(self):
+        self.progressBarUpdateConsidering.setVisible(True)
+        queue_rid_urls(self.rid_queue, "unsigned")
+        self.progressBarUpdateConsidering.setRange(0, myconfig.rids_unsigned_length)
+        self.stopped = False
+        self.run_threads(self.recruit_update, self.completed)
 
     
     def run_threads(self, process, on_complete):
@@ -879,7 +981,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         # Step 2: Create a worker object
         if process.__func__.__name__ == "recruit_update":
             logger.debug("run_threads function -> recruit_update conditional statement")
-            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_considering, self.rids_unsigned_length, "update")
+            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_considering, myconfig.rids_unsigned_length, "update")
             # Step 3: Move worker to the thread
             self.worker.moveToThread(self.thread)
             # Step 4: Connect signals and slots
@@ -891,27 +993,9 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             # Step 6: Start the thread
             self.thread.start()
             # Final resets
-            self.pushButtonInitializeRecruits.setEnabled(False)
-            self.pushButtonUpdateConsideringSigned.setEnabled(False)
-            self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
-            self.labelUpdateStatusText.setText(f"Grabbing updates for {self.rids_unsigned_length} recruits...")
+            self.labelUpdateStatusText.setText(f"Grabbing updates for {myconfig.rids_unsigned_length} recruits...")
             self.labelUpdateStatusText.setVisible(True)
             self.thread.finished.connect(self.update_finished)
-        elif process.__func__.__name__ == "recruit_initialize":
-            logger.debug("run_threads function -> recruit_initialize conditional statement")
-            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_initialize_list, self.rids_all_length, "initialize")
-            # Step 3: Move worker to the thread
-            self.worker.moveToThread(self.thread)
-            # Step 4: Connect signals and slots
-            self.thread.started.connect(self.worker.run)
-            self.worker.finished.connect(self.thread.quit)
-            self.worker.finished.connect(self.worker.deleteLater)
-            self.thread.finished.connect(self.thread.deleteLater)
-            self.worker.progress.connect(self.queue_monitor_initialize_progress)
-            # Step 6: Start the thread
-            self.thread.start()
-            # Final resets
-            self.thread.finished.connect(self.initialize_finished)
         else:
             raise Exception
 
@@ -924,22 +1008,10 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             #self.progressbar.setRange(0,0)
         return
 
-    
-    def initialize_finished(self):
-        logger.debug("Running initialized_finished function")
-        self.pushButtonUpdateConsideringSigned.setVisible(True)
-        self.pushButtonUpdateConsideringSigned.setEnabled(True)
-        self.pushButtonMarkRecruitsFromWatchlist.setVisible(True)
-        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
-        self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
-        self.labelRecruitsInitialized.setText(f"Initialized {self.rids_all_length} Recruits...")
 
-    
     def update_finished(self):
         logger.debug("Running update_finished function")
-        self.pushButtonUpdateConsideringSigned.setEnabled(True)
-        self.pushButtonInitializeRecruits.setEnabled(True)
-        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+        self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
         self.labelUpdateStatusText.setText("Update Considering action completed.")
 
     
@@ -983,17 +1055,6 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         return
 
     
-    def queue_run_update_considering(self):
-        self.progressBarUpdateConsidering.setVisible(True)
-        self.pushButtonInitializeRecruits.setEnabled(False)
-        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
-        self.pushButtonUpdateConsideringSigned.setEnabled(False)
-        self.queue_rid_urls(self.rid_queue, "unsigned")
-        self.progressBarUpdateConsidering.setRange(0, self.rids_unsigned_length)
-        self.stopped = False
-        self.run_threads(self.recruit_update, self.completed)
-
-    
     def stop(self):
         self.stopped=True
         return
@@ -1002,40 +1063,64 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         logger.debug(f"Running threading completed function")
         return
 
-    
-    def queue_monitor_initialize_progress(self, n):
-        if n == 0:
-            logger.debug("Queue is empty.")
-            completed = self.rids_all_length - n
-            self.progressBarInitializeRecruits.setValue(completed)
-            self.labelCheckMarkGrabStaticData.setVisible(True)
-        elif n > 0 and n < 1000000:
-            completed = self.rids_all_length - n
-            self.progressBarInitializeRecruits.setValue(completed)
-        elif n == 1000000:
-            self.progressBarInitializeRecruits.setValue(0)
-        elif n > 1000000:
-            self.progressBarInitializeRecruits.setValue(n - 1000000)
 
-    
+    def progress_fn(self, msg):
+        #self.info.append(str(msg))
+        logger.debug("Running progress_fn function")
+        return
+
+
     def queue_monitor_update_progress(self, n):
         if n == 0:
             logger.debug("Queue is empty.")
-            completed = self.rids_unsigned_length - n
+            completed = myconfig.rids_unsigned_length - n
             self.progressBarUpdateConsidering.setValue(completed)
-        elif n > 0 and n <= self.rids_unsigned_length:
-            completed = self.rids_unsigned_length - n
+        elif n > 0 and n <= myconfig.rids_unsigned_length:
+            completed = myconfig.rids_unsigned_length - n
             self.progressBarUpdateConsidering.setValue(completed)
         elif n >= 1000000:
             if n == 1000000:
-                self.labelUpdateStatusText.setText(f"Saving {self.rids_unsigned_length} updates to database...")
+                self.labelUpdateStatusText.setText(f"Saving {myconfig.rids_unsigned_length} updates to database...")
             completed = n - 1000000
             self.progressBarUpdateConsidering.setValue(completed)
-            if completed == self.rids_unsigned_length:
+            if completed == myconfig.rids_unsigned_length:
                 self.labelCheckmarkUpdateConsidering.setVisible(True)
 
 
+class MarkWatchlistPotential(QDialog, Ui_DialogMarkWatchlistPotential):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setupUi(self)
+        self.settings = QSettings()
+        geometry = self.settings.value('MarkWatchlistPotentialGeometry', bytes('', 'utf-8'))
+        self.restoreGeometry(geometry)
+        self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
+        self.runMarkRecruitsJob()
+
     
+    def accept(self):
+        geometry = self.saveGeometry()
+        self.settings.setValue('MarkWatchlistPotentialGeometry', geometry)
+        super().accept()
+
+
+    def closeEvent(self, event):
+        # Now we define the closeEvent
+        # This is called whenever a window is closed.
+        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
+        
+        # First we need to get the current size and position of the window.
+        # This can be fetchesd using the built in saveGeometry() method. 
+        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
+        geometry = self.saveGeometry()
+
+        # Once we know the geometry we can save it in our settings under geometry
+        self.settings.setValue('MarkWatchlistPotentialGeometry', geometry)
+        
+        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
+        super(MarkWatchlistPotential, self).closeEvent(event)
+
+
     def runMarkRecruitsJob(self):
         logger.info("Button Pressed: Mark Recruits From Watchlist")
         # Step 1: Create a QThread object
@@ -1056,18 +1141,14 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelAuthWIS_MarkRecruits.setVisible(True)
         self.labelCheckMarkAuthWIS_Error_MarkRecruits.setVisible(False)
         self.labelCheckMarkAuthWIS_MarkRecruits.setVisible(False)
-        self.pushButtonInitializeRecruits.setEnabled(False)
-        self.pushButtonUpdateConsideringSigned.setEnabled(False)
-        self.pushButtonMarkRecruitsFromWatchlist.setEnabled(False)
         self.thread.finished.connect(
-            lambda: self.pushButtonMarkRecruitsFromWatchlist.setEnabled(True)
+            lambda: self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
         )
 
     
     def reportMarkRecruitsProgress(self, n):
         if n == 0:
             self.progressBarMarkWatchlist.setStyleSheet("color: blue")
-            self.progressBarUpdateConsidering.setVisible(False)
             self.progressBarMarkWatchlist.setVisible(True)
             self.progressBarMarkWatchlist.setEnabled(True)
             self.progressBarMarkWatchlist.setRange(0, 0)
@@ -1083,42 +1164,16 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             self.progressBarMarkWatchlist.setValue(80)
         if n == 1000:
             self.progressBarMarkWatchlist.setValue(100)
-            self.pushButtonInitializeRecruits.setEnabled(True)
-            self.pushButtonUpdateConsideringSigned.setEnabled(True)
         if n == 2000:
-            self.pushButtonInitializeRecruits.setEnabled(True)
-            self.pushButtonUpdateConsideringSigned.setEnabled(True)
             mw.statusbar.showMessage("ERROR: There was a problem loading Recruit Summary Page.")
         if n == 6:
-            twofactor_diag = TwoFactorAuthDialog()
-            twofactor_diag.ui = Ui_DialogTwoFactorAuth()
-            twofactor_diag.exec_()
-            twofactor_diag.show()
+            pass
         if n == 999999:
-            self.pushButtonInitializeRecruits.setEnabled(True)
-            self.pushButtonUpdateConsideringSigned.setEnabled(True)
             self.labelCheckMarkAuthWIS_Error_MarkRecruits.setVisible(True)
             self.progressBarMarkWatchlist.setVisible(False)
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
 
-
-    def closeEvent(self, event):
-        # Now we define the closeEvent
-        # This is called whenever a window is closed.
-        # It is passed an event which we can choose to accept or reject, but in this case we'll just pass it on after we're done.
         
-        # First we need to get the current size and position of the window.
-        # This can be fetchesd using the built in saveGeometry() method. 
-        # This is got back as a byte array. It won't really make sense to a human directly, but it makes sense to Qt.
-        geometry = self.saveGeometry()
-
-        # Once we know the geometry we can save it in our settings under geometry
-        self.settings.setValue('GrabSeasonDataGeometry', geometry)
-        
-        # Finally we pass the event to the class we inherit from. It can choose to accept or reject the event, but we don't need to deal with it ourselves
-        super(GrabSeasonData, self).closeEvent(event)
-
-
 class LoadSeason(QDialog, Ui_DialogLoadSeason):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -5540,6 +5595,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Disable all filters by default. They will be enabled when model is loaded.
         self.pushButtonClearRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Clear", None))
         self.pushButtonApplyRatingsFilters.setText(QCoreApplication.translate("MainWindow", u"&Apply", None))
+        self.pushButtonMarkWatchlistPotential.setText(QCoreApplication.translate("MainWindow", u"&Mark Watchlist/Potential", None))
+        self.pushButtonUpdateConsidering.setText(QCoreApplication.translate("MainWindow", u"&Update Considering", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
         self.menudata.setTitle(QCoreApplication.translate("MainWindow", u"&Data", None))
         self.menuExport_to_CSV.setTitle(QCoreApplication.translate("MainWindow", u"&Export to CSV", None))
@@ -5564,6 +5621,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboBoxDivisionFilter.setEnabled(False)
         self.pushButtonApplyRatingsFilters.setEnabled(False)
         self.pushButtonClearRatingsFilters.setEnabled(False)
+        self.pushButtonUpdateConsidering.setEnabled(False)
+        self.pushButtonMarkWatchlistPotential.setEnabled(False)
         self.lineEditConsideringTextSearch.setEnabled(False)
         self.lineEditfilterATH.setEnabled(False)
         self.lineEditfilterBLK.setEnabled(False)
@@ -5619,6 +5678,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.pushButtonApplyRatingsFilters.clicked.connect(self.apply_ratings_filters)
         self.pushButtonClearRatingsFilters.clicked.connect(self.clear_ratings_filter_fields)
         self.recruit_tableView.clicked.connect(self.tableclickaction)
+        self.pushButtonUpdateConsidering.clicked.connect(self.open_update_considering)
+        self.pushButtonMarkWatchlistPotential.clicked.connect(self.open_mark_watchlist_potential)
         self.pushButtonDonatePayPal.clicked.connect(self.donation)
         
         self.h_header.sectionMoved.connect(self.save_column_order)
@@ -6046,6 +6107,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if db.databaseName() != "":
             self.loadModel()
 
+
+    def open_update_considering(self):
+        dialog = UpdateConsidering()
+        dialog.ui = Ui_DialogUpdateConsidering()
+        dialog.exec_()
+        dialog.show()
+        logger.info("Exiting Update Considering dialog")
+        logger.info(f"database name = {db.databaseName()}")
+        if db.databaseName() != "":
+            self.loadModel()
+
+
+    def open_mark_watchlist_potential(self):
+        dialog = MarkWatchlistPotential()
+        dialog.ui = Ui_DialogMarkWatchlistPotential()
+        dialog.exec_()
+        dialog.show()
+        logger.info("Exiting Mark Watchlist/Potential dialog")
+        logger.info(f"database name = {db.databaseName()}")
+        if db.databaseName() != "":
+            self.loadModel()
+
     
     def open_Bold_Attributes(self):
         logger.debug("Entering Bold Attributes dialog")
@@ -6150,6 +6233,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.comboBoxDivisionFilter.setEnabled(True)
         self.pushButtonApplyRatingsFilters.setEnabled(True)
         self.pushButtonClearRatingsFilters.setEnabled(True)
+        self.pushButtonUpdateConsidering.setEnabled(True)
+        self.pushButtonMarkWatchlistPotential.setEnabled(True)
         self.lineEditConsideringTextSearch.setEnabled(True)
         self.lineEditfilterATH.setEnabled(True)
         self.lineEditfilterBLK.setEnabled(True)
@@ -6707,7 +6792,9 @@ if __name__ == "__main__":
     logger.info(f"Config file path = {myconfig.config_file}")
     logger.info(f"Role Ratings CSV file path = {myconfig.role_ratings_csv}")
     logger.info(f"Bold Attributes CSV file path = {myconfig.bold_attributes_csv}")
-    logger.info(f"gdr.csv path is = {myconfig.gdr_csv}")    
+    logger.info(f"gdr.csv path is = {myconfig.gdr_csv}")
+    logger.info(f"Checkmark icon path is = {myconfig.checkmarkicon}")
+    logger.info(f"X icon path is = {myconfig.x_icon}")
     c = load_config()
     config = c['config']
     coachid = c['coachid']
@@ -6771,6 +6858,7 @@ if __name__ == "__main__":
     db = QSqlDatabase.addDatabase('QSQLITE')
     # Database connection to be used by thread
     db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
+    db_m = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection_watchlist')
     mw = MainWindow()
     mw.setWindowTitle(window_title)
     mw.show() 
