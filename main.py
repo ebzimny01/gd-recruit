@@ -6691,6 +6691,19 @@ class TableModel(QSqlTableModel):
                 if value == 1:
                     return QIcon(self.checkmarkicon)
             
+            if index.column() in [1]:
+                if super(TableModel, self).data(self.index(index.row(), 31), Qt.DisplayRole) == 1:
+                    return QIcon(self.checkmarkicon)
+                else:
+                    return QIcon(self.blank_icon)
+
+            if index.column() in [9]:
+                value = super(TableModel, self).data(index)
+                if super(TableModel, self).data(self.index(index.row(), 30), Qt.DisplayRole) == 1 and self.teamname == value:
+                    return QIcon(self.checkmarkicon)
+                else:
+                    return QIcon(self.blank_icon)
+
             # Format considering text
             # Red not considering
             # Orange considering with others
