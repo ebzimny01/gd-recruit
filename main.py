@@ -52,42 +52,46 @@ def logQueryError(query):
 def query_Recruit_IDs(type, dbconn):
     openDB(dbconn)
     logger.info(f"query_Recruit_IDs: Database name = {dbconn.databaseName()} Connection name = {dbconn.connectionName()} Tables = {dbconn.tables()}")
-    queryRecruitIDs = QSqlQuery(dbconn)
     rids = []
-    if type == "all":
-        if not queryRecruitIDs.exec_("SELECT id,pos FROM recruits"):
-            logQueryError(queryRecruitIDs)
-        while queryRecruitIDs.next():
-            r = queryRecruitIDs.value('id')
-            position = queryRecruitIDs.value('pos')
-            rids.append([r, position])
-    elif type == "unsigned":
-        if not queryRecruitIDs.exec_("SELECT id FROM recruits WHERE signed=0"):
-            logQueryError(queryRecruitIDs)
-        while queryRecruitIDs.next():
-            rids.append(queryRecruitIDs.value('id'))
-    elif type == "update_role_ratings":
-        if not queryRecruitIDs.exec_("Select id,pos,ath,spd,dur,we,sta,str,blk,tkl,han,gi,elu,tec FROM recruits"):
-            logQueryError(queryRecruitIDs)
-        while queryRecruitIDs.next():
-            r = queryRecruitIDs.value('id')
-            pos = queryRecruitIDs.value('pos')
-            ath = queryRecruitIDs.value('ath')
-            spd = queryRecruitIDs.value('spd')
-            dur = queryRecruitIDs.value('dur')
-            we = queryRecruitIDs.value('we')
-            sta = queryRecruitIDs.value('sta')
-            strength = queryRecruitIDs.value('str')
-            blk = queryRecruitIDs.value('blk')
-            tkl = queryRecruitIDs.value('tkl')
-            han = queryRecruitIDs.value('han')
-            gi = queryRecruitIDs.value('gi')
-            elu = queryRecruitIDs.value('elu')
-            tec = queryRecruitIDs.value('tec')
-            rids.append([r, pos, ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec])
-    queryRecruitIDs.finish()
-    logger.info(f"Closing {dbconn.databaseName()}...")
-    dbconn.close()
+    if 'recruits' in dbconn.tables():
+        logger.debug("Found table 'recruits' in database")
+        queryRecruitIDs = QSqlQuery(dbconn)
+        if type == "all":
+            if not queryRecruitIDs.exec_("SELECT id,pos FROM recruits"):
+                logQueryError(queryRecruitIDs)
+            while queryRecruitIDs.next():
+                r = queryRecruitIDs.value('id')
+                position = queryRecruitIDs.value('pos')
+                rids.append([r, position])
+        elif type == "unsigned":
+            if not queryRecruitIDs.exec_("SELECT id FROM recruits WHERE signed=0"):
+                logQueryError(queryRecruitIDs)
+            while queryRecruitIDs.next():
+                rids.append(queryRecruitIDs.value('id'))
+        elif type == "update_role_ratings":
+            if not queryRecruitIDs.exec_("Select id,pos,ath,spd,dur,we,sta,str,blk,tkl,han,gi,elu,tec FROM recruits"):
+                logQueryError(queryRecruitIDs)
+            while queryRecruitIDs.next():
+                r = queryRecruitIDs.value('id')
+                pos = queryRecruitIDs.value('pos')
+                ath = queryRecruitIDs.value('ath')
+                spd = queryRecruitIDs.value('spd')
+                dur = queryRecruitIDs.value('dur')
+                we = queryRecruitIDs.value('we')
+                sta = queryRecruitIDs.value('sta')
+                strength = queryRecruitIDs.value('str')
+                blk = queryRecruitIDs.value('blk')
+                tkl = queryRecruitIDs.value('tkl')
+                han = queryRecruitIDs.value('han')
+                gi = queryRecruitIDs.value('gi')
+                elu = queryRecruitIDs.value('elu')
+                tec = queryRecruitIDs.value('tec')
+                rids.append([r, pos, ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec])
+        queryRecruitIDs.finish()
+        logger.info(f"Closing {dbconn.databaseName()}...")
+        dbconn.close()
+    else:
+        logger.debug("Table 'recruits' does not exist in database")
     logger.info("End of query_Recruit_IDs function")
     return rids
 
@@ -1212,9 +1216,9 @@ class LoadSeason(QDialog, Ui_DialogLoadSeason):
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
 
     def accept(self):
-        season_filename = os.path.join(myconfig.seasons_directory_path, self.comboBoxSelectSeason.currentText())
-        db.close()
-        db.setDatabaseName(season_filename)
+        myconfig.season_filename = os.path.join(myconfig.seasons_directory_path, self.comboBoxSelectSeason.currentText())
+        
+        myconfig.clear_model = True
         geometry = self.saveGeometry()
         self.settings.setValue('LoadSeasonGeometry', geometry)
         super().accept()
@@ -1272,11 +1276,9 @@ class NewSeason(QDialog, Ui_DialogNewSeason):
     def accept(self):
         selected = self.comboBoxTeamID.currentText()
         seasonnum = self.lineEditSeasonNumber.text()
-        season_filename = os.path.join(myconfig.seasons_directory_path, f"{self.coachid} - {seasonnum} - {selected}.db")
-        print(f"Setting database name to: {season_filename}")
-        db.setDatabaseName(season_filename)
-        db.close()
-        db.open()
+        myconfig.season_filename = os.path.join(myconfig.seasons_directory_path, f"{self.coachid} - {seasonnum} - {selected}.db")
+        logger.debug(f"Storing database name as: {myconfig.season_filename}")
+        myconfig.clear_model = True
         geometry = self.saveGeometry()
         self.settings.setValue('NewSeasonGeometry', geometry)
         super().accept()
@@ -1352,8 +1354,7 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
                     # Therefore have to clear the browser storage state.
                     global storage_state
                     storage_state = ""
-                    global clear_model
-                    clear_model = True
+                    myconfig.clear_model = True
                 self.labelCheckMarkcoachIDValidationError.setVisible(False)
                 self.labelCheckMarkcoachIDValidated.setVisible(True)
                 self.pushButton_LoginStoreCookie.setVisible(True)
@@ -5863,6 +5864,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             filter_string = separator.join(filter_string_list)
             return filter_string
 
+
+    def clear_ui_filter_controls(self):
+        # This resets the UI filter controls to defaults.
+        logger.info("Clearing/resetting UI filter controls to defaults...")
+        self.comboBoxPositionFilter.setCurrentIndex(0)
+        self.comboBoxMilesFilter.setCurrentIndex(0)
+        self.comboBoxDivisionFilter.setCurrentIndex(0)
+        self.checkBoxHideSigned.setChecked(False)
+        self.checkBoxUndecided.setChecked(False)
+        self.checkBoxWatched.setChecked(False)
+
     
     def clear_ratings_filter_fields(self):
         logger.info("Clear Ratings Filters button was clicked!")
@@ -6059,25 +6071,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage("No coachid configured")
             else:
                 self.statusbar.showMessage(f"Current coachid = {coachid} (No Auth Cookie)")
-        global clear_model
-        if clear_model:
-            logger.info("Clearing database name...")
-            db.setDatabaseName("")
-            logger.info("Clearing model...")
+        
+        if myconfig.clear_model:
             self.clearmodel()
-            logger.info("Clearing window title...")
-            self.setWindowTitle(f"{window_title}")
-            self.actionGrabSeasonData.setEnabled(False)
-            self.actionAll_Recruits.setEnabled(False)
-            self.actionWatchlist_Only.setEnabled(False)
-            self.string_filter =  self.get_clean_string_filter()
-            self.clear_ratings_filter_fields()
-            self.checkBoxHideSigned.setChecked(0)
-            self.checkBoxUndecided.setChecked(0)
-            self.checkBoxWatched.setChecked(0)
-            self.comboBoxMilesFilter.setCurrentIndex(0)
-            self.comboBoxPositionFilter.setCurrentIndex(0)
-            clear_model = False
     
 
     def open_New_Season(self):
@@ -6086,13 +6082,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show()
         logger.info("Exiting New Season dialog")
-        logger.info(f"database name = {db.databaseName()}")
-        if db.databaseName() != "":
-            self.setWindowTitle(f"{window_title} - {db.databaseName()}")
-            self.actionGrabSeasonData.setEnabled(True)
-            self.actionAll_Recruits.setEnabled(True)
-            self.actionWatchlist_Only.setEnabled(True)
-            self.loadModel()
+        logger.info(f"Season database name = {myconfig.season_filename}")
+        if myconfig.clear_model:
+            self.clearmodel()
+            if myconfig.season_filename != "":
+                self.loadModel()
        
                 
     def open_Load_Season(self):
@@ -6101,13 +6095,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show()
         logger.info("Exiting Load Season dialog")
-        logger.info(f"database name = {db.databaseName()}")
-        if db.databaseName() != "":
-            self.setWindowTitle(f"{window_title} - {db.databaseName()}")
-            self.actionGrabSeasonData.setEnabled(True)
-            self.actionAll_Recruits.setEnabled(True)
-            self.actionWatchlist_Only.setEnabled(True)
-            self.loadModel()
+        logger.info(f"Season database name = {myconfig.season_filename}")
+        if myconfig.clear_model:
+            self.clearmodel()
+            if myconfig.season_filename != "":
+                self.loadModel()
             
     
     def open_Grab_Season_Data(self):
@@ -6116,7 +6108,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show()
         logger.info("Exiting Grab Season Data dialog")
-        logger.info(f"database name = {db.databaseName()}")
+        logger.info(f"Season database name = {myconfig.season_filename}")
         if db.databaseName() != "":
             self.loadModel()
 
@@ -6127,7 +6119,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show()
         logger.info("Exiting Update Considering dialog")
-        logger.info(f"database name = {db.databaseName()}")
+        logger.info(f"Season database name = {myconfig.season_filename}")
         if db.databaseName() != "":
             self.loadModel()
 
@@ -6138,7 +6130,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.exec_()
         dialog.show()
         logger.info("Exiting Mark Watchlist/Potential dialog")
-        logger.info(f"database name = {db.databaseName()}")
+        logger.info(f"Season database name = {myconfig.season_filename}")
         if db.databaseName() != "":
             self.loadModel()
 
@@ -6168,7 +6160,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 update_dialog.ui = Ui_DialogRoleRatingUpdateDB_Progress()
                 update_dialog.exec_()
                 update_dialog.show()
-            self.loadModel()
+                self.loadModel()
         logger.debug("Exiting Role Ratings dialog")
 
     
@@ -6207,6 +6199,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
    
 
     def clearmodel(self):
+        logger.debug("Entering clearmodel() function...")
+        logger.debug("Clearing database name...")
+        db.setDatabaseName("")
+        logger.debug("Setting default window title...")
+        self.setWindowTitle(f"{window_title}")
+        self.actionGrabSeasonData.setEnabled(False)
+        self.actionAll_Recruits.setEnabled(False)
+        self.actionWatchlist_Only.setEnabled(False)
+        self.actionAll_Recruits.setEnabled(False)
+        self.actionWatchlist_Only.setEnabled(False)
+        self.string_filter = self.get_clean_string_filter()
+        self.clear_ratings_filter_fields()
+        self.clear_ui_filter_controls()
         self.recruit_tableView.setModel(None)
         self.recruit_tableView.setEnabled(False)
         self.comboBoxPositionFilter.setEnabled(False)
@@ -6215,6 +6220,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.checkBoxWatched.setEnabled(False)
         self.comboBoxMilesFilter.setEnabled(False)
         self.comboBoxDivisionFilter.setEnabled(False)
+        self.pushButtonUpdateConsidering.setEnabled(False)
+        self.pushButtonMarkWatchlistPotential.setEnabled(False)
         self.pushButtonApplyRatingsFilters.setEnabled(False)
         self.pushButtonClearRatingsFilters.setEnabled(False)
         self.lineEditConsideringTextSearch.setEnabled(False)
@@ -6231,56 +6238,67 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.lineEditfilterTKL.setEnabled(False)
         self.lineEditfilterWE.setEnabled(False)
         self.lineEditfilterGPA.setEnabled(False)
+        myconfig.clear_model = False
 
     
     def loadModel(self):
+        logger.debug("Entering loadModel() function...")
+        db.setDatabaseName(myconfig.season_filename)
+        logger.debug(f"Database name = {db.databaseName()}")
+        logger.debug(f"Updating window title to {window_title} - {db.databaseName()}")
+        self.setWindowTitle(f"{window_title} - {db.databaseName()}")
+        self.actionGrabSeasonData.setEnabled(True)
         rids = query_Recruit_IDs("all", db)
         myconfig.rids_all_length = len(rids)
-        self.model = TableModel()
-        # initializeModel(self.model)
-        self.recruit_tableView.setModel(self.model)
-        #while self.model.canFetchMore():
-        #    self.model.fetchMore()
-        logger.info(f"Total Recruits = {myconfig.rids_all_length}")
-        mw.statusbar.showMessage(f"{myconfig.rids_all_length} recruits loaded.")
-        self.recruit_tableView.setEnabled(True)
-        self.comboBoxPositionFilter.setEnabled(True)
-        self.checkBoxHideSigned.setEnabled(True)
-        self.checkBoxUndecided.setEnabled(True)
-        self.checkBoxWatched.setEnabled(True)
-        self.comboBoxMilesFilter.setEnabled(True)
-        self.comboBoxDivisionFilter.setEnabled(True)
-        self.pushButtonApplyRatingsFilters.setEnabled(True)
-        self.pushButtonClearRatingsFilters.setEnabled(True)
         if myconfig.rids_all_length != 0:
-            self.pushButtonUpdateConsidering.setEnabled(True)
-            self.pushButtonMarkWatchlistPotential.setEnabled(True)
-        self.lineEditConsideringTextSearch.setEnabled(True)
-        self.lineEditfilterATH.setEnabled(True)
-        self.lineEditfilterBLK.setEnabled(True)
-        self.lineEditfilterDUR.setEnabled(True)
-        self.lineEditfilterELU.setEnabled(True)
-        self.lineEditfilterGI.setEnabled(True)
-        self.lineEditfilterHAN.setEnabled(True)
-        self.lineEditfilterSPD.setEnabled(True)
-        self.lineEditfilterSTA.setEnabled(True)
-        self.lineEditfilterSTR.setEnabled(True)
-        self.lineEditfilterTEC.setEnabled(True)
-        self.lineEditfilterTKL.setEnabled(True)
-        self.lineEditfilterWE.setEnabled(True)
-        self.lineEditfilterGPA.setEnabled(True)
-        logger.debug("Checking for saved table header order state...")
-        if self.settings.contains("table_header_order"):
-            logger.debug(f"Restoring saved table header order state...")
-            self.h_header.restoreState(self.settings.value("table_header_order", self.h_header.state()))
+            self.model = TableModel()
+            # initializeModel(self.model)
+            self.recruit_tableView.setModel(self.model)
+            #while self.model.canFetchMore():
+            #    self.model.fetchMore()
+            logger.info(f"Total Recruits = {myconfig.rids_all_length}")
+            mw.statusbar.showMessage(f"{myconfig.rids_all_length} recruits loaded.")
+            self.actionAll_Recruits.setEnabled(True)
+            self.actionWatchlist_Only.setEnabled(True)
+            self.recruit_tableView.setEnabled(True)
+            self.comboBoxPositionFilter.setEnabled(True)
+            self.checkBoxHideSigned.setEnabled(True)
+            self.checkBoxUndecided.setEnabled(True)
+            self.checkBoxWatched.setEnabled(True)
+            self.comboBoxMilesFilter.setEnabled(True)
+            self.comboBoxDivisionFilter.setEnabled(True)
+            self.pushButtonApplyRatingsFilters.setEnabled(True)
+            self.pushButtonClearRatingsFilters.setEnabled(True)
+            if myconfig.rids_all_length != 0:
+                self.pushButtonUpdateConsidering.setEnabled(True)
+                self.pushButtonMarkWatchlistPotential.setEnabled(True)
+            self.lineEditConsideringTextSearch.setEnabled(True)
+            self.lineEditfilterATH.setEnabled(True)
+            self.lineEditfilterBLK.setEnabled(True)
+            self.lineEditfilterDUR.setEnabled(True)
+            self.lineEditfilterELU.setEnabled(True)
+            self.lineEditfilterGI.setEnabled(True)
+            self.lineEditfilterHAN.setEnabled(True)
+            self.lineEditfilterSPD.setEnabled(True)
+            self.lineEditfilterSTA.setEnabled(True)
+            self.lineEditfilterSTR.setEnabled(True)
+            self.lineEditfilterTEC.setEnabled(True)
+            self.lineEditfilterTKL.setEnabled(True)
+            self.lineEditfilterWE.setEnabled(True)
+            self.lineEditfilterGPA.setEnabled(True)
+            logger.debug("Checking for saved table header order state...")
+            if self.settings.contains("table_header_order"):
+                logger.debug(f"Restoring saved table header order state...")
+                self.h_header.restoreState(self.settings.value("table_header_order", self.h_header.state()))
 
-        # Process hidden columns config
-        hidden = self.settings.value('HideColumns', [])
-        if hidden != []:
-            logger.info(f"Hiding columns = {hidden}")
-            for col in hidden:
-                c = int(col)
-                self.recruit_tableView.setColumnHidden(c, True)
+            # Process hidden columns config
+            hidden = self.settings.value('HideColumns', [])
+            if hidden != []:
+                logger.info(f"Hiding columns = {hidden}")
+                for col in hidden:
+                    c = int(col)
+                    self.recruit_tableView.setColumnHidden(c, True)
+
 
 def load_config():
     config = configparser.ConfigParser()
@@ -6848,7 +6866,6 @@ if __name__ == "__main__":
         logger.info("Config.ini does not contain Logging section")
 
     # global variables
-    clear_model = False
     code = ""
     wait_for_code = False
     gdr_csv = ''
