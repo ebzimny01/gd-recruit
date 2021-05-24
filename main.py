@@ -857,7 +857,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             r = rid[0]
             position = rid[1]
             page = rid[2]
-            recruitpage = self.requests_session.get(page)
+            headers = {'User-Agent': 'gdrecruit-recruit-initialize/0.5.1 python-requests/2.25.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
+            recruitpage = self.requests_session.get(page, headers=headers)
             recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
             recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
             recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
@@ -1036,7 +1037,8 @@ class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
             logger.debug(f"Looking for the next Recruit ID...")
             rid = self.rid_queue.get()
             logger.debug(f"Processing {rid}")
-            recruitpage = self.requests_session.get(rid[1])
+            headers = {'User-Agent': 'gdrecruit-recruit-update/0.5.1 python-requests/2.25.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
+            recruitpage = self.requests_session.get(rid[1], headers=headers)
             recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
             teams_table = recruitpage_soup.find("table", id="tblTeams")
             teams_table_body = teams_table.find("tbody")
@@ -1341,7 +1343,8 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
             self.labelCookieStoredError.setVisible(False)
             self.pushButton_LoginStoreCookie.setVisible(False)
         else:
-            coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}")
+            headers = {'User-Agent': 'gdrecruit-validate-coach-profile/0.5.1 python-requests/2.25.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
+            coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}", headers=headers)
             if coach_profile_page.status_code == 200:
                 logger.info(f"Validated coach ID: {coachid} (status code = {coach_profile_page.status_code})")
                 config = self.c['config']
@@ -6393,7 +6396,8 @@ def update_active_teams(coachid):
     config.remove_section('Schools')
     config.add_section('Schools')
     requests_session = requests.Session()
-    coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}")
+    headers = {'User-Agent': 'gdrecruit-coach-update-active-teams/0.5.1 python-requests/2.25.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
+    coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}", headers=headers)
     if coach_profile_page.status_code == 200:
         logger.info(f"Request to grab {coachid} profile page successful.")
         coach_profile_page_soup = BeautifulSoup(coach_profile_page.content, "lxml")
