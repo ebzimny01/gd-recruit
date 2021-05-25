@@ -1344,7 +1344,9 @@ class WISCred(QDialog, Ui_WISCredentialDialog):
             self.pushButton_LoginStoreCookie.setVisible(False)
         else:
             headers = {'User-Agent': 'gdrecruit-validate-coach-profile/0.5.1 python-requests/2.25.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
-            coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}", headers=headers)
+            
+            coach_profile_page = requests_session.get(f"https://wis-dev.shub.dog/account/UserProfile/Games/GridironDynasty/?user={coachid}", headers=headers)
+            #coach_profile_page = requests_session.get(f"https://www.whatifsports.com/account/UserProfile/Games/GridironDynasty/?user={coachid}", headers=headers)
             if coach_profile_page.status_code == 200:
                 logger.info(f"Validated coach ID: {coachid} (status code = {coach_profile_page.status_code})")
                 config = self.c['config']

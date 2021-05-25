@@ -45,51 +45,66 @@ def openDB(database):
         logger.info(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
 
 
-def get_recruitIDs(page_content, division):
+def get_recruitIDs(page_content):
     recruitIDs = []
     recruitpage_soup = BeautifulSoup(page_content, "lxml")
-    select_Main_divGeneral = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_divGeneral")
-    recruitRows = select_Main_divGeneral.find_all("tr", id=False)
+    select_adv_recruit_table = recruitpage_soup.find(id="advanced-recruiting-table")
+    select_adv_recruit_table_tbody = select_adv_recruit_table.find("tbody")
+    recruitRows = select_adv_recruit_table_tbody.find_all("tr", id=False)
     logger.info("Scraping recruit info from Recruiting Search page...")
     for each in recruitRows:
-        recruit_link_tag = each.find(class_="recruitProfileLink")
-        href_tag = recruit_link_tag.attrs['href']
-        href_tag_re = re.search(r'(\d{8})', href_tag)
-        recruit = href_tag_re.group(1)
-        rid = int(recruit)
         td_tags = each.find_all("td")
         considering = ""
-        if td_tags[9].text.strip() == "undecided":
-            considering = "undecided"
-        else:
-            considering_list = td_tags[9].find_all("a")
-            for a in considering_list:
-                considering += f"{a.text}\n"
-            considering = considering[:-1] # removes newline at end
-        rank_text = td_tags[6].text
-        try:
-            rank = int(rank_text)
-        except:
+        if td_tags[9].text == "0":
             rank = 999
+        else:
+            rank = int(td_tags[9].text)
         recruitIDs.append({
-            'id': rid,
-            'name': td_tags[2].text,
-            'pos': td_tags[1].text,
-            'height': td_tags[3].text,
-            'weight': int(td_tags[4].text),
-            'rating': int(td_tags[5].text),
+            'id': td_tags[0].text,
+            'watched': int(td_tags[1].text),
+            'priority': int(td_tags[2].text),
+            'name': td_tags[3].text,
+            'pos': td_tags[4].text,
+            'height': td_tags[6].text,
+            'weight': int(td_tags[7].text),
+            'rating': int(td_tags[8].text),
             'rank': rank,
-            'hometown': td_tags[7].text,
-            'miles': int(td_tags[8].text),
-            'considering': considering,
-            'division': division
+            'hometown': td_tags[10].text,
+            'division': td_tags[12].text,
+            'miles': round(float(td_tags[13].text), None),
+            'signed': int(td_tags[14].text),
+            'gpa': float(td_tags[15].text),
+            'potential': td_tags[16].text,
+            'ath': int(td_tags[17].text),
+            'spd': int(td_tags[18].text),
+            'dur': int(td_tags[19].text),
+            'we': int(td_tags[20].text),
+            'sta': int(td_tags[21].text),
+            'str': int(td_tags[22].text),
+            'blk': int(td_tags[23].text),
+            'tkl': int(td_tags[24].text),
+            'han': int(td_tags[25].text),
+            'gi': int(td_tags[26].text),
+            'elu': int(td_tags[27].text),
+            'tec': int(td_tags[28].text),
+            '3_4': int(td_tags[29].text),
+            '4_3': int(td_tags[30].text),
+            '4_4': int(td_tags[31].text),
+            '5_2': int(td_tags[32].text),
+            'Nickel': int(td_tags[33].text),
+            'Dime': int(td_tags[34].text),
+            'IForm': int(td_tags[35].text),
+            'NDB': int(td_tags[36].text),
+            'Pro': int(td_tags[37].text),
+            'Shot': int(td_tags[38].text),
+            'Trips': int(td_tags[39].text),
+            'WB': int(td_tags[40].text),
+            'ST': int(td_tags[41].text),
+            'considering': considering
         })
-    next_link_tag = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_Main_lnkNextPage")
+    
     logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
-    if next_link_tag is not None:
-        return recruitIDs, True
-    else:
-        return recruitIDs, False
+    return recruitIDs
 
 
 def randsleep():
@@ -170,7 +185,9 @@ def wis_browser(f, d, progress = None):
             page = context.new_page()
             page.set_viewport_size({"width": 1900, "height": 1200})
             try:
-                page.goto("https://www.whatifsports.com/locker/", timeout=timer_expect_navigation)
+                #page.goto("https://www.whatifsports.com/locker/", timeout=timer_expect_navigation)
+                page.goto("https://wis-dev.shub.dog/locker/", timeout=timer_expect_navigation)
+                
             except TimeoutError as err:
                 logger.error(f"Exception during authentication section: {err.__class__}")
                 logger.error(f"Exception = {err}")
@@ -235,7 +252,8 @@ def wis_browser(f, d, progress = None):
             page = context.new_page()
             page.set_viewport_size({"width": 1900, "height": 1200})
             logger.info("Going to page https://www.whatifsports.com/locker/ ...")
-            page.goto("https://www.whatifsports.com/locker/")
+            #page.goto("https://www.whatifsports.com/locker/")
+            page.goto("https://wis-dev.shub.dog/locker/")
 
             with page.expect_navigation():
                 page.click("text=Login")
@@ -272,165 +290,38 @@ def wis_browser(f, d, progress = None):
                 logger.info(f"DB is open error: {d.isOpenError()}")
                 
                 teamID = re.search(r"(\d{5})", dbname)
-                print(teamID)
-                divisions_to_grab = []
-                divisions_to_grab.append(myconfig.wis_gd_df.division[int(teamID.group(1))])
-                logger.debug(f"TeamID {teamID.group(1)} division_to_grab = {divisions_to_grab}")
-                # Check for higher division configuration
-                if myconfig.higher_division_recruits and divisions_to_grab[0] != 'D-IA':
-                    # This means we need to determine which divisions
-                    # And then grab recruits from both
-                    data = {'D-III': 'D-II', 'D-II': 'D-IAA', 'D-IAA': 'D-IA'}
-                    divisions_to_grab.append(data[divisions_to_grab[0]])
-                    logger.debug(f"TeamID {teamID.group(1)} division_to_grab = {divisions_to_grab}")
 
                 recruitIDs = []
-                position_dropdown = {
-                    1 : "QB",
-                    2 : "RB",
-                    3 : "WR",
-                    4 : "TE",
-                    5 : "OL",
-                    6 : "DL",
-                    7 : "LB",
-                    8 : "DB",
-                    9 : "K",
-                    10 : "P"
-                    }
                 
                 logger.info("Begin scraping recruit IDs...")
                 
                 cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
                 logger.info(f"Setting cookie for teamid = {teamID}")
                 context.add_cookies([cookie_teamID])
-                page.goto("https://www.whatifsports.com/gd/recruiting/Search.aspx")
+                
+                page.goto("https://wis-dev.shub.dog/gd/recruiting/advanced.aspx")
+                #page.goto("https://www.whatifsports.com/gd/recruiting/advanced.aspx")
                 # assert page.url == "https://www.whatifsports.com/gd/recruiting/Search.aspx"
                 
-                division_selector = {'D-IA': "1", 'D-IAA': "2", 'D-II': "3", 'D-III': "4"}
+                # This section covers unsigned recruits
+                logger.info(f"Scraping recruits...")
                 
-                for division in divisions_to_grab:
-                    # This section covers unsigned recruits
-                    logger.info(f"Scraping unsigned recruit IDs for {division}...")
-                    # Thread progress signaling Scraping Unsigned recruits is beginning
-                    progress.emit(100, int(division_selector[division]))
                     
-                    # Range is 1 to 11 to cover the 10 player positions
-                    for i in range(1, 11):
-                        
-                        logger.info(f"Selecting position {position_dropdown[i]}")           
-                        # Select Position
-                        page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", f"{i}")
-                        
-                        # Select Division
-                        page.select_option("text=Projected Level: All D-IA D-IAA D-II D-III Results View: General Ratings Max Rec >> select", division_selector[division])
+                createRecruitQuery = get_create_recruit_query_object(d)
 
-                        # Select -1 = Unsigned
-                        page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "-1")
-                        
-                        # Click text=Recruit Search Options
-                        page.click("text=Recruit Search Options")
-                        
-                        # Select 300
-                        page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
-                        
-                        # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
-                        with page.expect_navigation():
-                            page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
-                        
-                        createRecruitQuery = get_create_recruit_query_object(d)
-
-                        next = True
-                        while next == True:
-                            div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
-                            div.wait_for_element_state(state="stable")
-                            contents = page.content()
-                            temp, next = get_recruitIDs(contents, division)
-                            for t in temp:
-                                bindRecruitQuery(createRecruitQuery, t, 0)
-                            recruitIDs += temp
-                            if next == True:
-                                # Click text=/.*Next \>\>.*/
-                                with page.expect_navigation():
-                                    page.click("text=/.*Next \>\>.*/")
-                        logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
-                        
-                        createRecruitQuery.finish()
-                        
-                        # Thread signaling progress with grabbing unsigned recruits
-                        progress.emit(100 + i, 1)
-                
-                    # This section covers signed recruits
-                    logger.info(f"Scraping signed recruit IDs for {division}...")
-                    # Thread progress signaling Scraping Signed recruits is beginning
-                    progress.emit(200, int(division_selector[division]))
-
-                    # First need to check if there are any signings at all.
-                    # If no signings then skip.
-
-                    # Select All
-                    page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", "")
+                div = page.query_selector('id=advanced-recruiting-table')
+                div.wait_for_element_state(state="stable")
+                contents = page.content()
+                temp = get_recruitIDs(contents)
+                for t in temp:
+                    bindRecruitQuery(createRecruitQuery, t, 0)
+                recruitIDs += temp
+                logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
                     
-                    # Select 1 = Signed
-                    page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
-
-                    # Select Division
-                    page.select_option("text=Projected Level: All D-IA D-IAA D-II D-III Results View: General Ratings Max Rec >> select", division_selector[division])
-
-                    # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
-                    with page.expect_navigation():
-                        page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
-
-
-                    no_recruit_check = BeautifulSoup(page.content(), "lxml")
-                    results_table = no_recruit_check.find(id="ctl00_ctl00_ctl00_Main_Main_Main_h3ResultsText")
-                    if results_table.text == "No recruits found":
-                        logger.info("No signings found so skipping signed recruits section...")
-                        # Thread progress signaling Scraping Signed recruits is done
-                        progress.emit(210, 1)
-                    else:
-                        for i in range(1, 11):
-                            
-                            logger.info(f"Selecting position {position_dropdown[i]}")           
-                            # Select Position
-                            page.select_option("text=Position: All Quarterback Running Back Wide Receiver Tight End Offensive Line De >> select", f"{i}")
-                            
-                            # Select Division
-                            page.select_option("text=Projected Level: All D-IA D-IAA D-II D-III Results View: General Ratings Max Rec >> select", division_selector[division])
-
-                            # Click text=Recruit Search Options
-                            page.click("text=Recruit Search Options")
-                            
-                            # Select 300 = number of search results
-                            page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_MaxRecords", "300")
-
-                            # Select 1 = Signed
-                            page.select_option("#ctl00_ctl00_ctl00_Main_Main_Main_DecisionStatus", "1")
-                            
-                            # Click #ctl00_ctl00_ctl00_Main_Main_Main_btnSearch
-                            with page.expect_navigation():
-                                page.click("#ctl00_ctl00_ctl00_Main_Main_Main_btnSearch")
-                            
-                            createRecruitQuery = get_create_recruit_query_object(d)
-
-                            next = True
-                            while next:
-                                div = page.query_selector('id=ctl00_ctl00_ctl00_Main_Main_Main_cbResults')
-                                div.wait_for_element_state(state="stable")
-                                contents = page.content()
-                                temp, next = get_recruitIDs(contents, division)
-                                for t in temp:
-                                    bindRecruitQuery(createRecruitQuery, t, 1)
-                                recruitIDs += temp
-                                if next == True:
-                                    # Click text=/.*Next \>\>.*/
-                                    with page.expect_navigation():
-                                        page.click("text=/.*Next \>\>.*/")
-                            logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
-
-                            createRecruitQuery.finish()
-
-                            # Thread signaling progress with grabbing signed recruits
-                            progress.emit(200 + i, 1)
+                createRecruitQuery.finish()
+                    
+                # Thread signaling progress with grabbing unsigned recruits
+                progress.emit(100, 1)
 
                 d.close()
                 context.close()
@@ -561,28 +452,28 @@ def bindRecruitQuery(query, i, signed=int()):
     query.bindValue(":hometown", i['hometown'])
     query.bindValue(":miles", i['miles'])
     query.bindValue(":considering", i['considering'])
-    query.bindValue(":ath", 0)
-    query.bindValue(":spd", 0)
-    query.bindValue(":dur", 0)
-    query.bindValue(":we", 0)
-    query.bindValue(":sta", 0)
-    query.bindValue(":str", 0)
-    query.bindValue(":blk", 0)
-    query.bindValue(":tkl", 0)
-    query.bindValue(":han", 0)
-    query.bindValue(":gi", 0)
-    query.bindValue(":elu", 0)
-    query.bindValue(":tec", 0)
+    query.bindValue(":ath", i['ath'])
+    query.bindValue(":spd", i['spd'])
+    query.bindValue(":dur", i['dur'])
+    query.bindValue(":we", i['we'])
+    query.bindValue(":sta", i['sta'])
+    query.bindValue(":str", i['str'])
+    query.bindValue(":blk", i['blk'])
+    query.bindValue(":tkl", i['tkl'])
+    query.bindValue(":han", i['han'])
+    query.bindValue(":gi", i['gi'])
+    query.bindValue(":elu", i['elu'])
+    query.bindValue(":tec", i['tec'])
     query.bindValue(":r1", 0.0)
     query.bindValue(":r2", 0.0)
     query.bindValue(":r3", 0.0)
     query.bindValue(":r4", 0.0)
     query.bindValue(":r5", 0.0)
     query.bindValue(":r6", 0.0)
-    query.bindValue(":gpa", 0.0)
-    query.bindValue(":pot", '')
-    query.bindValue(":signed", signed)
-    query.bindValue(":watched", 0)
+    query.bindValue(":gpa", i['gpa'])
+    query.bindValue(":pot", i['pot'])
+    query.bindValue(":signed", i['signed'])
+    query.bindValue(":watched", i['watched'])
     query.bindValue(":division", i['division'])
     if not query.exec_():
         logger.info(f"Last query error = {query.lastError()}")
