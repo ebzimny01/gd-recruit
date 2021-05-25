@@ -1,6 +1,6 @@
 from configparser import Error
 from loguru import logger
-
+import pandas as pd
 from os import stat
 from playwright.sync_api import sync_playwright
 from playwright._impl._api_types import Error, TimeoutError
@@ -17,7 +17,7 @@ from PySide2.QtWidgets import *
 from PySide2.QtSql import *
 from pathlib import Path
 import inspect
-from main import logQueryError, load_config
+from main import logQueryError, load_config, calculate_role_rating
 from mypackages.two_factor_auth import Ui_DialogTwoFactorAuth
 import mypackages.config as myconfig
 
@@ -45,13 +45,21 @@ def openDB(database):
         logger.info(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
 
 
-def get_recruitIDs(page_content):
+def get_recruitIDs(page_content, d, q, progress):
     recruitIDs = []
+    
     recruitpage_soup = BeautifulSoup(page_content, "lxml")
     select_adv_recruit_table = recruitpage_soup.find(id="advanced-recruiting-table")
     select_adv_recruit_table_tbody = select_adv_recruit_table.find("tbody")
-    recruitRows = select_adv_recruit_table_tbody.find_all("tr", id=False)
+    recruitRows = select_adv_recruit_table_tbody.find_all("tr", recursive=False, id=False)
     logger.info("Scraping recruit info from Recruiting Search page...")
+    i = 0
+    recruitRows_length = len(recruitRows)
+    progress.emit(100,1)
+    progress.emit(110,1)
+    progress.emit(200,1)
+    progress.emit(210,1)
+    progress.emit(1000, recruitRows_length)
     for each in recruitRows:
         td_tags = each.find_all("td")
         considering = ""
@@ -59,7 +67,7 @@ def get_recruitIDs(page_content):
             rank = 999
         else:
             rank = int(td_tags[9].text)
-        recruitIDs.append({
+        recruit = {
             'id': td_tags[0].text,
             'watched': int(td_tags[1].text),
             'priority': int(td_tags[2].text),
@@ -99,10 +107,29 @@ def get_recruitIDs(page_content):
             'Shot': int(td_tags[38].text),
             'Trips': int(td_tags[39].text),
             'WB': int(td_tags[40].text),
-            'ST': int(td_tags[41].text),
-            'considering': considering
-        })
-    
+            'ST': int(td_tags[41].text)
+        }
+        role_ratings = calculate_role_rating(recruit)
+        recruit['r1'] = float(role_ratings['r1'])
+        recruit['r2'] = float(role_ratings['r2'])
+        recruit['r3'] = float(role_ratings['r3'])
+        recruit['r4'] = float(role_ratings['r4'])
+        recruit['r5'] = float(role_ratings['r5'])
+        recruit['r6'] = float(role_ratings['r6'])
+        if td_tags[42].text == "":
+            recruit['considering'] = "undecided"
+        else:
+            consideringRows = td_tags[42].find_all("tr")
+            for each in consideringRows:
+                considering += f"{each.text}\n"
+            recruit['considering'] = considering[:-1]
+        recruitIDs.append(recruit)
+        i += 1
+        print(f"Appended {i} of {recruitRows_length}")
+        bindRecruitQuery(q, recruit, 0)
+        progress.emit(1000 + i, recruitRows_length)
+        print(f"Database progress {i} out of {recruitRows_length}")
+
     logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
     return recruitIDs
 
@@ -255,8 +282,8 @@ def wis_browser(f, d, progress = None):
             #page.goto("https://www.whatifsports.com/locker/")
             page.goto("https://wis-dev.shub.dog/locker/")
 
-            with page.expect_navigation():
-                page.click("text=Login")
+            #with page.expect_navigation():
+            #    page.click("text=Login")
 
             try:
                 logger.info(f"Waiting for My Locker...")
@@ -295,7 +322,8 @@ def wis_browser(f, d, progress = None):
                 
                 logger.info("Begin scraping recruit IDs...")
                 
-                cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+                #cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+                cookie_teamID = {'domain': 'wis-dev.shub.dog', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
                 logger.info(f"Setting cookie for teamid = {teamID}")
                 context.add_cookies([cookie_teamID])
                 
@@ -312,21 +340,18 @@ def wis_browser(f, d, progress = None):
                 div = page.query_selector('id=advanced-recruiting-table')
                 div.wait_for_element_state(state="stable")
                 contents = page.content()
-                temp = get_recruitIDs(contents)
-                for t in temp:
-                    bindRecruitQuery(createRecruitQuery, t, 0)
-                recruitIDs += temp
-                logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
-                    
-                createRecruitQuery.finish()
-                    
-                # Thread signaling progress with grabbing unsigned recruits
-                progress.emit(100, 1)
-
-                d.close()
+                temp = get_recruitIDs(contents, d, createRecruitQuery, progress)
+                                
                 context.close()
                 browser.close()
                 logger.info("Playwright browser closed.")
+                i = 0
+                
+                recruitIDs += temp
+                logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
+                createRecruitQuery.finish()
+                d.close()
+                logger.info("Recruit initialization in database is complete.")
                 return True
 
 
@@ -464,14 +489,14 @@ def bindRecruitQuery(query, i, signed=int()):
     query.bindValue(":gi", i['gi'])
     query.bindValue(":elu", i['elu'])
     query.bindValue(":tec", i['tec'])
-    query.bindValue(":r1", 0.0)
-    query.bindValue(":r2", 0.0)
-    query.bindValue(":r3", 0.0)
-    query.bindValue(":r4", 0.0)
-    query.bindValue(":r5", 0.0)
-    query.bindValue(":r6", 0.0)
+    query.bindValue(":r1", i['r1'])
+    query.bindValue(":r2", i['r2'])
+    query.bindValue(":r3", i['r3'])
+    query.bindValue(":r4", i['r4'])
+    query.bindValue(":r5", i['r5'])
+    query.bindValue(":r6", i['r6'])
     query.bindValue(":gpa", i['gpa'])
-    query.bindValue(":pot", i['pot'])
+    query.bindValue(":pot", i['potential'])
     query.bindValue(":signed", i['signed'])
     query.bindValue(":watched", i['watched'])
     query.bindValue(":division", i['division'])

@@ -27,6 +27,7 @@ config_file = os.path.join(cwd, "config", "config.ini")
 # Role Ratings Config
 show_update_role_ratings_dialog = False
 role_ratings_csv = os.path.join(cwd, "config", "role_ratings.csv")
+role_ratings_df = pd.DataFrame()
 
 # Bold Attributes Config
 bold_attributes_csv = os.path.join(cwd, "config", "bold_attributes.csv")
