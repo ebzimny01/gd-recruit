@@ -529,10 +529,10 @@ class Ui_MainWindow(object):
 
         self.label_DivisionFilter.setText(QCoreApplication.translate("MainWindow", u"Division", None))
         self.comboBoxDivisionFilter.setItemText(0, QCoreApplication.translate("MainWindow", u"All", None))
-        self.comboBoxDivisionFilter.setItemText(1, QCoreApplication.translate("MainWindow", u"D-IA", None))
-        self.comboBoxDivisionFilter.setItemText(2, QCoreApplication.translate("MainWindow", u"D-IAA", None))
-        self.comboBoxDivisionFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"D-II", None))
-        self.comboBoxDivisionFilter.setItemText(4, QCoreApplication.translate("MainWindow", u"D-III", None))
+        self.comboBoxDivisionFilter.setItemText(1, QCoreApplication.translate("MainWindow", u"D1A", None))
+        self.comboBoxDivisionFilter.setItemText(2, QCoreApplication.translate("MainWindow", u"D1AA", None))
+        self.comboBoxDivisionFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"D2", None))
+        self.comboBoxDivisionFilter.setItemText(4, QCoreApplication.translate("MainWindow", u"D3", None))
 
         self.pushButtonUpdateConsidering.setText(QCoreApplication.translate("MainWindow", u"Update Considering", None))
         self.pushButtonMarkWatchlistPotential.setText(QCoreApplication.translate("MainWindow", u"Mark Watchlist/Potential", None))

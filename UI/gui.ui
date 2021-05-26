@@ -308,22 +308,22 @@
         </item>
         <item>
          <property name="text">
-          <string>D-IA</string>
+          <string>D1A</string>
          </property>
         </item>
         <item>
          <property name="text">
-          <string>D-IAA</string>
+          <string>D1AA</string>
          </property>
         </item>
         <item>
          <property name="text">
-          <string>D-II</string>
+          <string>D2</string>
          </property>
         </item>
         <item>
          <property name="text">
-          <string>D-III</string>
+          <string>D3</string>
          </property>
         </item>
        </widget>
@@ -859,7 +859,7 @@ background-color: green;</string>
      <x>0</x>
      <y>0</y>
      <width>1083</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
