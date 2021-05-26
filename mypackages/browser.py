@@ -47,7 +47,7 @@ def openDB(database):
         logger.info(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
 
 
-def update_considering(page_contents, d, progress):
+def update_considering(page_contents, d, q, progress):
     
     recruitIDs = []
     recruitpage_soup = BeautifulSoup(page_contents, "lxml")
@@ -61,15 +61,10 @@ def update_considering(page_contents, d, progress):
     i = 0
     recruitRows_length = len(recruitRows)
     print(f"recruitRows length = {recruitRows_length}")
-    progress.emit(1000, recruitRows_length)
-    
-    openDB(d)
-    logger.info(f"Before update considering recruits: Database name = {d.databaseName()} Connection name = {d.connectionName()} Tables = {d.tables()}")
-    logger.info(f"DB is valid: {d.isValid()}")
-    logger.info(f"DB is open: {d.isOpen()}")
-    logger.info(f"DB is open error: {d.isOpenError()}")
-    createRecruitQuery = get_update_considering_query_object(d)
-    
+    progress.emit(1000, recruitRows_length)    
+
+    d.transaction()
+
     for each in recruitRows:
         td_tags = each.find_all("td")
         considering = ""
@@ -86,13 +81,11 @@ def update_considering(page_contents, d, progress):
             recruit['considering'] = considering[:-1]
         recruitIDs.append(recruit)
         i += 1
-        bindUpdateQuery(createRecruitQuery, recruit)
+        
+        bindUpdateQuery(q, recruit)
+        
         progress.emit(1000 + i, recruitRows_length)
-
-    createRecruitQuery.finish()
-    d.close()
-    logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
-    logger.info("Recruit update considering in database is complete.")
+    d.commit()
     return recruitIDs
 
 def get_recruitIDs(page_content, d, q, progress):
@@ -355,20 +348,21 @@ def wis_browser(f, d, progress = None):
                     return False
             else:
                 logger.info("Found 'My Locker' so authentication was successful.")
+
+            openDB(d)            
+            dbname = d.databaseName()
             
+            logger.info(f"Before scraping recruits: Database name = {d.databaseName()} Connection name = {d.connectionName()} Tables = {d.tables()}")
+            logger.info(f"DB is valid: {d.isValid()}")
+            logger.info(f"DB is open: {d.isOpen()}")
+            logger.info(f"DB is open error: {d.isOpenError()}")
+            
+            teamID = re.search(r"(\d{5})", dbname)
+
             if "scrape_recruit_IDs" in f:             
                 # Thread progress emit signal indicating WIS Auth is complete
-                progress.emit(2, 1)    
-                openDB(d)            
-                dbname = d.databaseName()
+                progress.emit(2, 1)
                 
-                logger.info(f"Before scraping recruits: Database name = {d.databaseName()} Connection name = {d.connectionName()} Tables = {d.tables()}")
-                logger.info(f"DB is valid: {d.isValid()}")
-                logger.info(f"DB is open: {d.isOpen()}")
-                logger.info(f"DB is open error: {d.isOpenError()}")
-                
-                teamID = re.search(r"(\d{5})", dbname)
-                print(f"teamID = {teamID.group()}")
                 team_division = myconfig.wis_gd_df.division[int(teamID.group())]
                 divs = {'D-IA': {'mapping': 'D1A', 'higher': 'D1A'},
                         'D-IAA': {'mapping': 'D1AA', 'higher': 'D1A'},
@@ -414,16 +408,12 @@ def wis_browser(f, d, progress = None):
                 createRecruitQuery.finish()
                 d.close()
                 logger.info("Recruit initialization in database is complete.")
+                
                 return True
 
             if "update_considering" in f:             
                 # Thread progress emit signal indicating WIS Auth is complete
                 progress.emit(2, 1)    
-                openDB(d)            
-                dbname = d.databaseName()
-                d.close()
-                
-                teamID = re.search(r"(\d{5})", dbname)
                 
                 #cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
                 cookie_teamID = {'domain': 'wis-dev.shub.dog', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
@@ -437,7 +427,7 @@ def wis_browser(f, d, progress = None):
                 # This section covers unsigned recruits
                 logger.info("Begin update considering for unsigned recruit IDs...")                
                     
-                
+                createUpdateQuery = get_update_considering_query_object(d)
 
                 div = page.query_selector('id=advanced-recruiting-table')
                 logger.debug("Waiting for advanced recruit search table to stabilize...")
@@ -448,8 +438,12 @@ def wis_browser(f, d, progress = None):
                 browser.close()
                 logger.info("Playwright browser closed.")
 
-                temp = update_considering(contents, d, progress)
-                                
+                recruitIDs = update_considering(contents, d,createUpdateQuery, progress)
+
+                createUpdateQuery.finish()
+                d.close()
+                logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
+                logger.info("Recruit update considering in database is complete.")            
                 
                 return True
 
@@ -601,8 +595,10 @@ def bindRecruitQuery(query, i, signed=int()):
     query.bindValue(":watched", i['watched'])
     query.bindValue(":division", i['division'])
     if not query.exec_():
-        logger.info(f"Last query error = {query.lastError()}")
+        logger.error(f"Last bindRecruitQuery error = {query.lastError()}")
         logQueryError(query)
+    else:
+        logger.debug(f"bindRecruitQuery bound values = {query.boundValues()}")
 
 
 def get_update_considering_query_object(d):
@@ -622,5 +618,7 @@ def bindUpdateQuery(query, i):
     query.bindValue(":considering", i['considering'])
     query.bindValue(":signed", i['signed'])
     if not query.exec_():
-        logger.info(f"Last query error = {query.lastError()}")
+        logger.error(f"Last bindUpdateQuery error = {query.lastError()}")
         logQueryError(query)
+    else:
+        logger.debug(f"bindUpdateQuery bound values = {query.boundValues()}")

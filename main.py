@@ -95,6 +95,7 @@ def query_Recruit_IDs(type, dbconn):
         dbconn.close()
     else:
         logger.debug("Table 'recruits' does not exist in database")
+        dbconn.close()
     logger.info("End of query_Recruit_IDs function")
     return rids            
 
