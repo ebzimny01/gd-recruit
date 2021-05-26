@@ -45,13 +45,47 @@ def openDB(database):
         logger.info(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
 
 
+def update_considering(page_contents, q, progress):
+    recruitIDs = []
+    recruitpage_soup = BeautifulSoup(page_contents, "lxml")
+    table_tbody = recruitpage_soup.find("tbody", class_="advanced-recruit-body")
+    recruitRows = []
+    for rid in myconfig.rids_unsigned:
+        recruitRows.append(table_tbody.find("tr", id=f"{rid}"))
+    i = 0
+    recruitRows_length = len(recruitRows)
+    progress.emit(1000, recruitRows_length)
+    for each in recruitRows:
+        td_tags = each.find_all("td")
+        considering = ""
+        recruit = {
+            'id': td_tags[0].text,
+            'signed': int(td_tags[14].text),
+        }
+        if td_tags[42].text == "no one":
+            recruit['considering'] = "undecided"
+        else:
+            consideringRows = td_tags[42].find_all("tr")
+            for each in consideringRows:
+                considering += f"{each.text}\n"
+            recruit['considering'] = considering[:-1]
+        recruitIDs.append(recruit)
+        i += 1
+        print(f"Appended {i} of {recruitRows_length}")
+        bindUpdateQuery(q, recruit)
+        progress.emit(1000 + i, recruitRows_length)
+        print(f"Database progress {i} out of {recruitRows_length}")
+
+    logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
+    return recruitIDs
+
 def get_recruitIDs(page_content, d, q, progress):
     recruitIDs = []
-    
     recruitpage_soup = BeautifulSoup(page_content, "lxml")
     select_adv_recruit_table = recruitpage_soup.find(id="advanced-recruiting-table")
     select_adv_recruit_table_tbody = select_adv_recruit_table.find("tbody")
     recruitRows = select_adv_recruit_table_tbody.find_all("tr", recursive=False, id=False)
+
     logger.info("Scraping recruit info from Recruiting Search page...")
     i = 0
     recruitRows_length = len(recruitRows)
@@ -62,75 +96,75 @@ def get_recruitIDs(page_content, d, q, progress):
     progress.emit(1000, recruitRows_length)
     for each in recruitRows:
         td_tags = each.find_all("td")
-        considering = ""
-        if td_tags[9].text == "0":
-            rank = 999
-        else:
-            rank = int(td_tags[9].text)
-        recruit = {
-            'id': td_tags[0].text,
-            'watched': int(td_tags[1].text),
-            'priority': int(td_tags[2].text),
-            'name': td_tags[3].text,
-            'pos': td_tags[4].text,
-            'height': td_tags[6].text,
-            'weight': int(td_tags[7].text),
-            'rating': int(td_tags[8].text),
-            'rank': rank,
-            'hometown': td_tags[10].text,
-            'division': td_tags[12].text,
-            'miles': round(float(td_tags[13].text), None),
-            'signed': int(td_tags[14].text),
-            'gpa': float(td_tags[15].text),
-            'potential': td_tags[16].text,
-            'ath': int(td_tags[17].text),
-            'spd': int(td_tags[18].text),
-            'dur': int(td_tags[19].text),
-            'we': int(td_tags[20].text),
-            'sta': int(td_tags[21].text),
-            'str': int(td_tags[22].text),
-            'blk': int(td_tags[23].text),
-            'tkl': int(td_tags[24].text),
-            'han': int(td_tags[25].text),
-            'gi': int(td_tags[26].text),
-            'elu': int(td_tags[27].text),
-            'tec': int(td_tags[28].text),
-            '3_4': int(td_tags[29].text),
-            '4_3': int(td_tags[30].text),
-            '4_4': int(td_tags[31].text),
-            '5_2': int(td_tags[32].text),
-            'Nickel': int(td_tags[33].text),
-            'Dime': int(td_tags[34].text),
-            'IForm': int(td_tags[35].text),
-            'NDB': int(td_tags[36].text),
-            'Pro': int(td_tags[37].text),
-            'Shot': int(td_tags[38].text),
-            'Trips': int(td_tags[39].text),
-            'WB': int(td_tags[40].text),
-            'ST': int(td_tags[41].text)
-        }
-        role_ratings = calculate_role_rating(recruit)
-        recruit['r1'] = float(role_ratings['r1'])
-        recruit['r2'] = float(role_ratings['r2'])
-        recruit['r3'] = float(role_ratings['r3'])
-        recruit['r4'] = float(role_ratings['r4'])
-        recruit['r5'] = float(role_ratings['r5'])
-        recruit['r6'] = float(role_ratings['r6'])
-        if td_tags[42].text == "":
-            recruit['considering'] = "undecided"
-        else:
-            consideringRows = td_tags[42].find_all("tr")
-            for each in consideringRows:
-                considering += f"{each.text}\n"
-            recruit['considering'] = considering[:-1]
-        recruitIDs.append(recruit)
+        # Only process and add row if division is in divisions_to_grab
+        if td_tags[12].text in myconfig.divisions_to_grab:
+            considering = ""
+            if td_tags[9].text == "0":
+                rank = 999
+            else:
+                rank = int(td_tags[9].text)
+            recruit = {
+                'id': td_tags[0].text,
+                'watched': int(td_tags[1].text),
+                'priority': int(td_tags[2].text),
+                'name': td_tags[3].text,
+                'pos': td_tags[4].text,
+                'height': td_tags[6].text,
+                'weight': int(td_tags[7].text),
+                'rating': int(td_tags[8].text),
+                'rank': rank,
+                'hometown': td_tags[10].text,
+                'division': td_tags[12].text,
+                'miles': round(float(td_tags[13].text), None),
+                'signed': int(td_tags[14].text),
+                'gpa': float(td_tags[15].text),
+                'potential': td_tags[16].text,
+                'ath': int(td_tags[17].text),
+                'spd': int(td_tags[18].text),
+                'dur': int(td_tags[19].text),
+                'we': int(td_tags[20].text),
+                'sta': int(td_tags[21].text),
+                'str': int(td_tags[22].text),
+                'blk': int(td_tags[23].text),
+                'tkl': int(td_tags[24].text),
+                'han': int(td_tags[25].text),
+                'gi': int(td_tags[26].text),
+                'elu': int(td_tags[27].text),
+                'tec': int(td_tags[28].text),
+                '3_4': int(td_tags[29].text),
+                '4_3': int(td_tags[30].text),
+                '4_4': int(td_tags[31].text),
+                '5_2': int(td_tags[32].text),
+                'Nickel': int(td_tags[33].text),
+                'Dime': int(td_tags[34].text),
+                'IForm': int(td_tags[35].text),
+                'NDB': int(td_tags[36].text),
+                'Pro': int(td_tags[37].text),
+                'Shot': int(td_tags[38].text),
+                'Trips': int(td_tags[39].text),
+                'WB': int(td_tags[40].text),
+                'ST': int(td_tags[41].text)
+            }
+            role_ratings = calculate_role_rating(recruit)
+            recruit['r1'] = float(role_ratings['r1'])
+            recruit['r2'] = float(role_ratings['r2'])
+            recruit['r3'] = float(role_ratings['r3'])
+            recruit['r4'] = float(role_ratings['r4'])
+            recruit['r5'] = float(role_ratings['r5'])
+            recruit['r6'] = float(role_ratings['r6'])
+            if td_tags[42].text == "":
+                recruit['considering'] = "undecided"
+            else:
+                consideringRows = td_tags[42].find_all("tr")
+                for each in consideringRows:
+                    considering += f"{each.text}\n"
+                recruit['considering'] = considering[:-1]
+            recruitIDs.append(recruit)            
+            bindRecruitQuery(q, recruit, 0)
         i += 1
-        print(f"Appended {i} of {recruitRows_length}")
-        bindRecruitQuery(q, recruit, 0)
         progress.emit(1000 + i, recruitRows_length)
-        print(f"Database progress {i} out of {recruitRows_length}")
 
-    logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
+    logger.info(f"Number of recruits added to database = {len(recruitIDs)}")
     return recruitIDs
 
 
@@ -317,6 +351,16 @@ def wis_browser(f, d, progress = None):
                 logger.info(f"DB is open error: {d.isOpenError()}")
                 
                 teamID = re.search(r"(\d{5})", dbname)
+                print(f"teamID = {teamID.group()}")
+                team_division = myconfig.wis_gd_df.division[int(teamID.group())]
+                divs = {'D-IA': {'mapping': 'D1A', 'higher': 'D1A'},
+                        'D-IAA': {'mapping': 'D1AA', 'higher': 'D1A'},
+                        'D-II': {'mapping': 'D2', 'higher': 'D1AA'},
+                        'D-III': {'mapping': 'D3', 'higher': 'D2'}
+                }
+                
+                myconfig.divisions_to_grab.add(divs[team_division]['mapping'])
+                myconfig.divisions_to_grab.add(divs[team_division]['higher'])
 
                 recruitIDs = []
                 
@@ -338,14 +382,15 @@ def wis_browser(f, d, progress = None):
                 createRecruitQuery = get_create_recruit_query_object(d)
 
                 div = page.query_selector('id=advanced-recruiting-table')
+                logger.debug("Waiting for advanced recruit search table to stabilize...")
                 div.wait_for_element_state(state="stable")
+                logger.debug("Advanced recruit search table has stabilized.")
                 contents = page.content()
-                temp = get_recruitIDs(contents, d, createRecruitQuery, progress)
-                                
                 context.close()
                 browser.close()
                 logger.info("Playwright browser closed.")
-                i = 0
+
+                temp = get_recruitIDs(contents, d, createRecruitQuery, progress)
                 
                 recruitIDs += temp
                 logger.info(f"Length of recruitIDs = {len(recruitIDs)}")
@@ -354,6 +399,48 @@ def wis_browser(f, d, progress = None):
                 logger.info("Recruit initialization in database is complete.")
                 return True
 
+            if "update_considering" in f:             
+                # Thread progress emit signal indicating WIS Auth is complete
+                progress.emit(2, 1)    
+                openDB(d)            
+                dbname = d.databaseName()
+                
+                logger.info(f"Before update considering recruits: Database name = {d.databaseName()} Connection name = {d.connectionName()} Tables = {d.tables()}")
+                logger.info(f"DB is valid: {d.isValid()}")
+                logger.info(f"DB is open: {d.isOpen()}")
+                logger.info(f"DB is open error: {d.isOpenError()}")
+                
+                teamID = re.search(r"(\d{5})", dbname)
+                
+                #cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+                cookie_teamID = {'domain': 'wis-dev.shub.dog', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+                logger.info(f"Setting cookie for teamid = {teamID}")
+                context.add_cookies([cookie_teamID])
+                
+                page.goto("https://wis-dev.shub.dog/gd/recruiting/advanced.aspx")
+                #page.goto("https://www.whatifsports.com/gd/recruiting/advanced.aspx")
+                # assert page.url == "https://www.whatifsports.com/gd/recruiting/Search.aspx"
+                
+                # This section covers unsigned recruits
+                logger.info("Begin update considering for unsigned recruit IDs...")                
+                    
+                createRecruitQuery = get_update_considering_query_object(d)
+
+                div = page.query_selector('id=advanced-recruiting-table')
+                logger.debug("Waiting for advanced recruit search table to stabilize...")
+                div.wait_for_element_state(state="stable")
+                logger.debug("Advanced recruit search table has stabilized.")
+                contents = page.content()
+                context.close()
+                browser.close()
+                logger.info("Playwright browser closed.")
+
+                temp = update_considering(contents, createRecruitQuery, progress)
+                                
+                createRecruitQuery.finish()
+                d.close()
+                logger.info("Recruit update considering in database is complete.")
+                return True
 
             if "grab_watched_recruits" in f:
                 logger.info("In grab_watched_recruits section of WISBrowser")
@@ -365,14 +452,16 @@ def wis_browser(f, d, progress = None):
                 teamID = re.search(r"\d{5}", dbname)
 
                 # Setting cookie for team id
-                cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+                #cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+                cookie_teamID = {'domain': 'wis-dev.shub.dog', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
                 logger.info(f"cookie_teamID = {cookie_teamID}")
                 context.add_cookies([cookie_teamID])
                 
                 logger.info("Loading Recruiting Summary page ...")
                 try:
                     with page.expect_navigation():
-                        page.goto("https://www.whatifsports.com/gd/recruiting")
+                        #page.goto("https://www.whatifsports.com/gd/recruiting")
+                        page.goto("https://wis-dev.shub.dog/gd/recruiting")
                     # assert page.url == "https://www.whatifsports.com/gd/recruiting"
                     progress.emit(2)
                     page.wait_for_load_state(state='networkidle')
@@ -461,7 +550,7 @@ def get_create_recruit_query_object(d):
                                                     ":signed, "
                                                     ":watched, "
                                                     ":division)"):
-        logger.info(f"Last query error = {createRecruitQuery.lastError()}")
+        logger.error(f"Last query error = {createRecruitQuery.lastError()}")
         logQueryError(createRecruitQuery)
     return createRecruitQuery
 
@@ -500,6 +589,27 @@ def bindRecruitQuery(query, i, signed=int()):
     query.bindValue(":signed", i['signed'])
     query.bindValue(":watched", i['watched'])
     query.bindValue(":division", i['division'])
+    if not query.exec_():
+        logger.info(f"Last query error = {query.lastError()}")
+        logQueryError(query)
+
+
+def get_update_considering_query_object(d):
+    logger.info(f"get_update_considering_query_object:\nDatabase name = {d.databaseName()}\nConnection name = {d.connectionName()}")
+    createRecruitQuery = QSqlQuery(d)
+    if not createRecruitQuery.prepare("UPDATE recruits "
+                            "SET signed = :signed, "
+                            "considering = :considering "
+                            "WHERE id = :id"):
+        logger.error(f"Last query error = {createRecruitQuery.lastError()}")
+        logQueryError(createRecruitQuery)
+    return createRecruitQuery
+    
+
+def bindUpdateQuery(query, i):
+    query.bindValue(":id", i['id'])
+    query.bindValue(":considering", i['considering'])
+    query.bindValue(":signed", i['signed'])
     if not query.exec_():
         logger.info(f"Last query error = {query.lastError()}")
         logQueryError(query)

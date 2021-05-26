@@ -93,30 +93,7 @@ def query_Recruit_IDs(type, dbconn):
     else:
         logger.debug("Table 'recruits' does not exist in database")
     logger.info("End of query_Recruit_IDs function")
-    return rids
-
-
-def queue_rid_urls(q=Queue(), t=str()):
-        rids = query_Recruit_IDs(t, db)
-        if t == "all":
-            myconfig.rids_all_length = len(rids)
-            logger.info(f"All recruits = {myconfig.rids_unsigned_length}")
-            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Ratings.aspx?rid="
-            for each in rids:
-                rid = each[0]
-                position = each[1]
-                recruit = (rid, position, f"{url_base}{rid}")
-                logger.debug(f"Queuing ({t}): {recruit}")
-                q.put(recruit)
-        elif t == "unsigned":
-            myconfig.rids_unsigned_length = len(rids)
-            logger.info(f"Unsigned recruits = {myconfig.rids_unsigned_length}")
-            url_base = "https://www.whatifsports.com/gd/RecruitProfile/Considering.aspx?rid="
-            for rid in rids:
-                recruit = (rid, f"{url_base}{rid}")
-                logger.debug(f"Queuing ({t}): {recruit}")
-                q.put(recruit)
-            
+    return rids            
 
 
 def calculate_role_rating(ratings):
@@ -352,6 +329,37 @@ class InitializeWorker(QObject):
         createRecruitTableQuery2.finish()
         logger.info(f"db tables = {db_t.tables()}")
         db_t.close()
+        
+        #Thread progress signaling DB was created
+        self.progress.emit(1, 1)
+        result = wis_browser("scrape_recruit_IDs", db_t, self.progress)
+        if result:
+            # After grabbing all Recruit IDs and storing in DB.
+            # This thread is finished and now need to signal 
+            # creation of new threads for grabbing static attributes of recruits.
+            self.finished.emit()
+        else:
+            # Implies there was an error authenticating to WIS
+            self.progress.emit(999999,1)
+            self.finished.emit()
+
+
+class UpdateWorker(QObject):
+    finished = Signal()
+    progress = Signal(int, int)
+    
+    
+    
+    def run(self):
+        """Long-running Update Recruit task goes here."""
+        logger.info("Started UpdateWorker.run function")
+        # Thread signaling start
+        self.progress.emit(0, 1)
+
+        db_t.setDatabaseName(db.databaseName())
+        openDB(db_t)
+        createRecruitTableQuery = QSqlQuery(db_t)
+        logger.info(f"db tables = {db_t.tables()}")
         
         #Thread progress signaling DB was created
         self.progress.emit(1, 1)
@@ -805,124 +813,12 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             mw.statusbar.showMessage("ERROR: There was a problem authenticating to WIS.")
             self.progressBarInitializeRecruits.setVisible(False)
 
-    
-    # This function is no longer needed as-is when using the new Advanced Search page to gather recruits
-    def queue_run_initialize_attributes(self):
-        logger.info(f"Running queue_run_initialize_attributes function")
-        queue_rid_urls(self.rid_queue, "all")
-        self.labelRecruitsInitialized.setText(f"Initializing {myconfig.rids_all_length} Recruits...")
-        self.progressBarInitializeRecruits.setRange(0, myconfig.rids_all_length)
-        self.progressBarInitializeRecruits.setValue(0)
-        self.progressBarInitializeRecruits.value()
-        self.stopped = False
-        self.run_threads(self.recruit_initialize, self.completed)
-
-    # This function is no longer needed as-is when using the new Advanced Search page to gather recruits
-    def run_threads(self, process, on_complete):
-        # Step 1: Create thread object to monitor queue
-        self.thread = QThread()
-        # Step 2: Create a worker object
-        if process.__func__.__name__ == "recruit_initialize":
-            logger.debug("run_threads function -> recruit_initialize conditional statement")
-            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_initialize_list, myconfig.rids_all_length, "initialize")
-            # Step 3: Move worker to the thread
-            self.worker.moveToThread(self.thread)
-            # Step 4: Connect signals and slots
-            self.thread.started.connect(self.worker.run)
-            self.worker.finished.connect(self.thread.quit)
-            self.worker.finished.connect(self.worker.deleteLater)
-            self.thread.finished.connect(self.thread.deleteLater)
-            self.worker.progress.connect(self.queue_monitor_initialize_progress)
-            # Step 6: Start the thread
-            self.thread.start()
-            # Final resets
-            self.thread.finished.connect(self.initialize_finished)
-        else:
-            raise Exception
-
-        """Execute a function in the background with a worker"""
-        for i in range(self.threadCount - 1):
-            worker = Worker(fn=process)
-            self.threadpool.start(worker)
-            worker.signals.finished.connect(on_complete)
-            worker.signals.progress.connect(self.progress_fn)
-            #self.progressbar.setRange(0,0)
-        return
-
-    # This function is no longer needed as-is when using the new Advanced Search page to gather recruits
-    def recruit_initialize(self, progress_callback):
-        while self.rid_queue.qsize() > 0:
-            logger.debug(f"Looking for the next Recruit ID...")
-            rid = self.rid_queue.get()
-            logger.debug(f"Processing {rid}")
-            r = rid[0]
-            position = rid[1]
-            page = rid[2]
-            headers = {'User-Agent': 'gdrecruit-recruit-initialize/0.5.1 python-requests/2.25.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
-            recruitpage = self.requests_session.get(page, headers=headers)
-            recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-            recruit_ratings_section = recruitpage_soup.find(class_="ratingsDisplayCtl")
-            recruit_ratings_values = recruit_ratings_section.find_all(class_="value")
-            gpa_section = recruitpage_soup.find(id="ctl00_ctl00_ctl00_Main_Main_gpa")
-            recruit = {
-                        'rid': r,
-                        'gpa': float(gpa_section.text),
-                        'ath': int(recruit_ratings_values[0].text),
-                        'spd': int(recruit_ratings_values[1].text),
-                        'dur': int(recruit_ratings_values[2].text),
-                        'we': int(recruit_ratings_values[3].text),
-                        'sta': int(recruit_ratings_values[4].text),
-                        'strength': int(recruit_ratings_values[5].text),
-                        'blk': int(recruit_ratings_values[6].text),
-                        'tkl': int(recruit_ratings_values[7].text),
-                        'han': int(recruit_ratings_values[8].text),
-                        'gi': int(recruit_ratings_values[9].text),
-                        'elu': int(recruit_ratings_values[10].text),
-                        'tec': int(recruit_ratings_values[11].text),
-                        'role_rating': ""
-            }
-
-            recruit['role_rating'] = calculate_role_rating(position, recruit)
-
-            self.recruit_initialize_list.append(recruit)
-            self.rid_queue.task_done()
-            progress_callback.emit(self.rid_queue.qsize())
-            if self.stopped == True:
-                return
-        return
-
-
-    def completed(self):
-        logger.debug(f"Running threading completed function")
-        return
-
-        
-    def progress_fn(self, msg):
-        #self.info.append(str(msg))
-        logger.debug("Running progress_fn function")
-        return
-
-       
+           
     def initialize_finished(self):
         logger.debug("Running initialized_finished function")
         self.labelRecruitsInitialized.setStyleSheet(u"color: rgb(0, 0, 255);")
         self.labelRecruitsInitialized.setText(f"Initialized {myconfig.rids_all_length} Recruits...")
         self.buttonBox.button(QDialogButtonBox.Close).setEnabled(True)
-
-    
-    def queue_monitor_initialize_progress(self, n):
-        if n == 0:
-            logger.debug("Queue is empty.")
-            completed = myconfig.rids_all_length - n
-            self.progressBarInitializeRecruits.setValue(completed)
-            self.labelCheckMarkGrabStaticData.setVisible(True)
-        elif n > 0 and n < 1000000:
-            completed = myconfig.rids_all_length - n
-            self.progressBarInitializeRecruits.setValue(completed)
-        elif n == 1000000:
-            self.progressBarInitializeRecruits.setValue(0)
-        elif n > 1000000:
-            self.progressBarInitializeRecruits.setValue(n - 1000000)
 
     
     def closeEvent(self, event):
@@ -951,12 +847,7 @@ class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
         self.restoreGeometry(geometry)
         self.buttonBox.button(QDialogButtonBox.Close).setEnabled(False)
         self.labelCheckmarkUpdateConsidering.setVisible(False)
-        self.rid_queue = Queue()
-        self.threadpool = QThreadPool()
-        self.threadCount = QThreadPool.globalInstance().maxThreadCount()
-        self.requests_session = requests.Session()
-        self.recruit_considering = []
-        self.queue_run_update_considering()
+        self.run_update_considering()
         self.buttonBox.button(QDialogButtonBox.Close).clicked.connect(self.accept)
 
     
@@ -983,47 +874,31 @@ class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
         super(UpdateConsidering, self).closeEvent(event)
 
     
-    def queue_run_update_considering(self):
+    def run_update_considering(self):
         self.progressBarUpdateConsidering.setVisible(True)
-        queue_rid_urls(self.rid_queue, "unsigned")
+        myconfig.rids_unsigned = query_Recruit_IDs("unsigned", db_t)
+        myconfig.rids_unsigned_length = len(myconfig.rids_unsigned)
         self.progressBarUpdateConsidering.setRange(0, myconfig.rids_unsigned_length)
-        self.stopped = False
-        self.run_threads(self.recruit_update, self.completed)
-
-    
-    def run_threads(self, process, on_complete):
-        # Step 1: Create thread object to monitor queue
+        logger.info("Button Pressed: Update Recruits")
+        # Step 1: Create a QThread object
         self.thread = QThread()
         # Step 2: Create a worker object
-        if process.__func__.__name__ == "recruit_update":
-            logger.debug("run_threads function -> recruit_update conditional statement")
-            self.worker = QueueMonitorWorker(self.rid_queue, self.recruit_considering, myconfig.rids_unsigned_length, "update")
-            # Step 3: Move worker to the thread
-            self.worker.moveToThread(self.thread)
-            # Step 4: Connect signals and slots
-            self.thread.started.connect(self.worker.run)
-            self.worker.finished.connect(self.thread.quit)
-            self.worker.finished.connect(self.worker.deleteLater)
-            self.thread.finished.connect(self.thread.deleteLater)
-            self.worker.progress.connect(self.queue_monitor_update_progress)
-            # Step 6: Start the thread
-            self.thread.start()
-            # Final resets
-            self.labelUpdateStatusText.setText(f"Grabbing updates for {myconfig.rids_unsigned_length} recruits...")
-            self.labelUpdateStatusText.setVisible(True)
-            self.thread.finished.connect(self.update_finished)
-        else:
-            raise Exception
-
-        """Execute a function in the background with a worker"""
-        for i in range(self.threadCount - 1):
-            worker = Worker(fn=process)
-            self.threadpool.start(worker)
-            worker.signals.finished.connect(on_complete)
-            worker.signals.progress.connect(self.progress_fn)
-            #self.progressbar.setRange(0,0)
-        return
-
+        self.worker = UpdateWorker()
+        # Step 3: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 4: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.progress.connect(self.queue_monitor_update_progress)
+        # Step 6: Start the thread
+        self.thread.start()
+        # Final resets
+        self.labelUpdateStatusText.setText(f"Grabbing updates for {myconfig.rids_unsigned_length} recruits...")
+        self.labelUpdateStatusText.setVisible(True)
+        self.thread.finished.connect(self.update_finished)
+      
 
     def update_finished(self):
         logger.debug("Running update_finished function")
@@ -1031,78 +906,15 @@ class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
         self.labelUpdateStatusText.setText("Update Considering action completed.")
         self.labelCheckmarkUpdateConsidering.setVisible(True)
 
-    
-    def recruit_update(self, progress_callback):
-        while self.rid_queue.qsize() > 0:
-            logger.debug(f"Length of queue = {self.rid_queue.qsize()}")
-            logger.debug(f"Looking for the next Recruit ID...")
-            rid = self.rid_queue.get()
-            logger.debug(f"Processing {rid}")
-            headers = {'User-Agent': 'gdrecruit-recruit-update/0.5.1 python-requests/2.25.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
-            recruitpage = self.requests_session.get(rid[1], headers=headers)
-            recruitpage_soup = BeautifulSoup(recruitpage.content, "lxml")
-            teams_table = recruitpage_soup.find("table", id="tblTeams")
-            teams_table_body = teams_table.find("tbody")
-            team_rows = teams_table_body.find_all("tr")
-            considering = ''
-            signed = 0
-            for row in team_rows:
-                team_data = row.find_all("td")
-                if "undecided" in team_data[0].text:
-                    considering = "undecided\n"
-                elif "already signed" in team_data[0].text:
-                    find_signed_with = recruitpage_soup.find("a", id="ctl00_ctl00_ctl00_Main_Main_signedWithTeam")
-                    href_tag = find_signed_with.attrs['href']
-                    href_tag_re = re.search(r'(\d{5})', href_tag)
-                    team_id = int(href_tag_re.group(1))
-                    considering = f"{myconfig.wis_gd_df.school_short[team_id]}\n"
-                    signed = 1
-                else:
-                    school = team_data[0].text
-                    coach = team_data[1].text
-                    division = team_data[2].text
-                    scholarships_total = team_data[3].text
-                    scholarships_open = team_data[4].text
-                    distance = team_data[5].text # WIS bug always shows N/A for distance???
-                    considering += f"{school} ({coach}) {division} {scholarships_total}|{scholarships_open}\n"
-            self.recruit_considering.append((rid[0], signed, considering))
-            self.rid_queue.task_done()    
-            progress_callback.emit(self.rid_queue.qsize())
-            if self.stopped == True:
-                return
-        return
 
-    
-    def stop(self):
-        self.stopped=True
-        return
-
-    def completed(self):
-        logger.debug(f"Running threading completed function")
-        return
-
-
-    def progress_fn(self, msg):
-        #self.info.append(str(msg))
-        logger.debug("Running progress_fn function")
-        return
-
-
-    def queue_monitor_update_progress(self, n):
-        if n == 0:
-            logger.debug("Queue is empty.")
-            completed = myconfig.rids_unsigned_length - n
-            self.progressBarUpdateConsidering.setValue(completed)
-        elif n > 0 and n <= myconfig.rids_unsigned_length:
-            completed = myconfig.rids_unsigned_length - n
-            self.progressBarUpdateConsidering.setValue(completed)
-        elif n >= 1000000:
-            if n == 1000000:
-                self.labelUpdateStatusText.setText(f"Saving {myconfig.rids_unsigned_length} updates to database...")
-            completed = n - 1000000
-            self.progressBarUpdateConsidering.setValue(completed)
-            if completed == myconfig.rids_unsigned_length:
-                self.labelCheckmarkUpdateConsidering.setVisible(True)
+    def queue_monitor_update_progress(self, n, m):
+        if n == 1000:
+            self.progressBarUpdateConsidering.setRange(0, m)
+        if n > 1000:
+            self.progressBarUpdateConsidering.setValue(n - 1000)
+        if (n - 1000) == m:
+            self.labelUpdateStatusText.setText(f"Saved {m} updates to database.")
+            self.labelCheckmarkUpdateConsidering.setVisible(True)
 
 
 class MarkWatchlistPotential(QDialog, Ui_DialogMarkWatchlistPotential):
@@ -5564,7 +5376,7 @@ class AdvancedDialog(QDialog, Ui_DialogAdvancedConfigOptions):
                     self.config.set('Logging', 'level', 'INFO')
                     start_logging('INFO')
             logger.info("Changes were made to Advanced Config Options. Writing changes to config file.")
-            (config)
+            write_config(config)
         
         geometry = self.saveGeometry()
         self.settings.setValue('AdvancedDialogGeometry', geometry)
