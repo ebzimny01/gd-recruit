@@ -1,3 +1,5 @@
+import debugpy
+#debugpy.debug_this_thread()
 version = "0.5.1"
 window_title = f"GD Recruit Assistant Beta ({version})"
 from asyncio.windows_events import NULL
@@ -47,6 +49,7 @@ from pathlib import Path
 def logQueryError(query):
     logger.error(f"{datetime.datetime.now()}: query: last error: {query.lastError()}")
     logger.error(f"{datetime.datetime.now()}: query: last query: {query.lastQuery()}")
+    logger.error(f"{datetime.datetime.now()}: query: bound values: {query.boundValues()}")
 
 
 def query_Recruit_IDs(type, dbconn):
@@ -356,14 +359,10 @@ class UpdateWorker(QObject):
         # Thread signaling start
         self.progress.emit(0, 1)
 
-        db_t.setDatabaseName(db.databaseName())
-        openDB(db_t)
-        createRecruitTableQuery = QSqlQuery(db_t)
-        logger.info(f"db tables = {db_t.tables()}")
-        
-        #Thread progress signaling DB was created
         self.progress.emit(1, 1)
-        result = wis_browser("scrape_recruit_IDs", db_t, self.progress)
+        db_t.setDatabaseName(db.databaseName())
+        print(f"db_t is open? = {db_t.isOpen()}")
+        result = wis_browser("update_considering", db_t, self.progress)
         if result:
             # After grabbing all Recruit IDs and storing in DB.
             # This thread is finished and now need to signal 
@@ -796,7 +795,7 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
                 self.labelCheckMarkGrabSigned.setVisible(True)
         if n == 1000:
             # Starting to grab recruit static data
-            self.labelRecruitsInitialized.setText(f"Initializing {m} Recruits...")
+            self.labelRecruitsInitialized.setText(f"Analyzing {m} Recruits...")
             self.progressBarInitializeRecruits.setRange(0, m)
             self.progressBarInitializeRecruits.setValue(0)
             self.progressBarInitializeRecruits.value()
@@ -876,6 +875,7 @@ class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
     
     def run_update_considering(self):
         self.progressBarUpdateConsidering.setVisible(True)
+        db_t.setDatabaseName(db.databaseName())
         myconfig.rids_unsigned = query_Recruit_IDs("unsigned", db_t)
         myconfig.rids_unsigned_length = len(myconfig.rids_unsigned)
         self.progressBarUpdateConsidering.setRange(0, myconfig.rids_unsigned_length)

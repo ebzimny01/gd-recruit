@@ -66,7 +66,7 @@ class Ui_DialogUpdateConsidering(object):
         font1.setPointSize(10)
         self.progressBarUpdateConsidering.setFont(font1)
         self.progressBarUpdateConsidering.setStyleSheet(u"")
-        self.progressBarUpdateConsidering.setValue(24)
+        self.progressBarUpdateConsidering.setValue(0)
         self.progressBarUpdateConsidering.setTextVisible(True)
 
         self.gridLayout.addWidget(self.progressBarUpdateConsidering, 1, 0, 1, 2)

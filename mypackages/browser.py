@@ -1,3 +1,5 @@
+import debugpy
+#debugpy.debug_this_thread()
 from configparser import Error
 from loguru import logger
 import pandas as pd
@@ -45,16 +47,29 @@ def openDB(database):
         logger.info(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
 
 
-def update_considering(page_contents, q, progress):
+def update_considering(page_contents, d, progress):
+    
     recruitIDs = []
     recruitpage_soup = BeautifulSoup(page_contents, "lxml")
     table_tbody = recruitpage_soup.find("tbody", class_="advanced-recruit-body")
     recruitRows = []
+    i = 0
     for rid in myconfig.rids_unsigned:
-        recruitRows.append(table_tbody.find("tr", id=f"{rid}"))
+        recruitRows.append(table_tbody.find("tr", recruitid=f"{rid}"))
+        i += 1
+        print(i)
     i = 0
     recruitRows_length = len(recruitRows)
+    print(f"recruitRows length = {recruitRows_length}")
     progress.emit(1000, recruitRows_length)
+    
+    openDB(d)
+    logger.info(f"Before update considering recruits: Database name = {d.databaseName()} Connection name = {d.connectionName()} Tables = {d.tables()}")
+    logger.info(f"DB is valid: {d.isValid()}")
+    logger.info(f"DB is open: {d.isOpen()}")
+    logger.info(f"DB is open error: {d.isOpenError()}")
+    createRecruitQuery = get_update_considering_query_object(d)
+    
     for each in recruitRows:
         td_tags = each.find_all("td")
         considering = ""
@@ -71,12 +86,13 @@ def update_considering(page_contents, q, progress):
             recruit['considering'] = considering[:-1]
         recruitIDs.append(recruit)
         i += 1
-        print(f"Appended {i} of {recruitRows_length}")
-        bindUpdateQuery(q, recruit)
+        bindUpdateQuery(createRecruitQuery, recruit)
         progress.emit(1000 + i, recruitRows_length)
-        print(f"Database progress {i} out of {recruitRows_length}")
 
+    createRecruitQuery.finish()
+    d.close()
     logger.info(f"Number of recruits found on page = {len(recruitIDs)}")
+    logger.info("Recruit update considering in database is complete.")
     return recruitIDs
 
 def get_recruitIDs(page_content, d, q, progress):
@@ -164,7 +180,8 @@ def get_recruitIDs(page_content, d, q, progress):
         i += 1
         progress.emit(1000 + i, recruitRows_length)
 
-    logger.info(f"Number of recruits added to database = {len(recruitIDs)}")
+    myconfig.rids_all_length = len(recruitIDs)
+    logger.info(f"Number of recruits added to database = {myconfig.rids_all_length}")
     return recruitIDs
 
 
@@ -404,11 +421,7 @@ def wis_browser(f, d, progress = None):
                 progress.emit(2, 1)    
                 openDB(d)            
                 dbname = d.databaseName()
-                
-                logger.info(f"Before update considering recruits: Database name = {d.databaseName()} Connection name = {d.connectionName()} Tables = {d.tables()}")
-                logger.info(f"DB is valid: {d.isValid()}")
-                logger.info(f"DB is open: {d.isOpen()}")
-                logger.info(f"DB is open error: {d.isOpenError()}")
+                d.close()
                 
                 teamID = re.search(r"(\d{5})", dbname)
                 
@@ -424,7 +437,7 @@ def wis_browser(f, d, progress = None):
                 # This section covers unsigned recruits
                 logger.info("Begin update considering for unsigned recruit IDs...")                
                     
-                createRecruitQuery = get_update_considering_query_object(d)
+                
 
                 div = page.query_selector('id=advanced-recruiting-table')
                 logger.debug("Waiting for advanced recruit search table to stabilize...")
@@ -435,11 +448,9 @@ def wis_browser(f, d, progress = None):
                 browser.close()
                 logger.info("Playwright browser closed.")
 
-                temp = update_considering(contents, createRecruitQuery, progress)
+                temp = update_considering(contents, d, progress)
                                 
-                createRecruitQuery.finish()
-                d.close()
-                logger.info("Recruit update considering in database is complete.")
+                
                 return True
 
             if "grab_watched_recruits" in f:
