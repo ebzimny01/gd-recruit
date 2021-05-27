@@ -61,9 +61,7 @@ def update_considering(page_contents, d, q, progress):
     i = 0
     recruitRows_length = len(recruitRows)
     print(f"recruitRows length = {recruitRows_length}")
-    progress.emit(1000, recruitRows_length)    
-
-    d.transaction()
+    progress.emit(1000, recruitRows_length)
 
     for each in recruitRows:
         td_tags = each.find_all("td")
@@ -85,7 +83,7 @@ def update_considering(page_contents, d, q, progress):
         bindUpdateQuery(q, recruit)
         
         progress.emit(1000 + i, recruitRows_length)
-    d.commit()
+
     return recruitIDs
 
 def get_recruitIDs(page_content, d, q, progress):
@@ -603,14 +601,14 @@ def bindRecruitQuery(query, i, signed=int()):
 
 def get_update_considering_query_object(d):
     logger.info(f"get_update_considering_query_object:\nDatabase name = {d.databaseName()}\nConnection name = {d.connectionName()}")
-    createRecruitQuery = QSqlQuery(d)
-    if not createRecruitQuery.prepare("UPDATE recruits "
+    createUpdateQuery = QSqlQuery(d)
+    if not createUpdateQuery.prepare("UPDATE recruits "
                             "SET signed = :signed, "
                             "considering = :considering "
                             "WHERE id = :id"):
-        logger.error(f"Last query error = {createRecruitQuery.lastError()}")
-        logQueryError(createRecruitQuery)
-    return createRecruitQuery
+        logger.error(f"Last query error = {createUpdateQuery.lastError()}")
+        logQueryError(createUpdateQuery)
+    return createUpdateQuery
     
 
 def bindUpdateQuery(query, i):
