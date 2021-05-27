@@ -6717,7 +6717,7 @@ if __name__ == "__main__":
     else:
         logger.debug("role_ratings_csv file path NOT found.")
         logger.debug("Creating role_ratings.csv file...")
-        myconfig.role_ratings_df = create_myconfig.role_ratings_df()
+        myconfig.role_ratings_df = myconfig.role_ratings_df()
         myconfig.role_ratings_df.to_csv(myconfig.role_ratings_csv)
 
     # Configure for High DPI
