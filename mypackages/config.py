@@ -3,6 +3,9 @@ import sys
 from pathlib import Path
 import pandas as pd
 
+version = "1.0.0"
+application_name = "GD Recruit Assistant"
+window_title = f"{application_name} ({version})"
 
 cwd = os.getcwd()
 
@@ -28,6 +31,7 @@ config_file = os.path.join(cwd, "config", "config.ini")
 show_update_role_ratings_dialog = False
 role_ratings_csv = os.path.join(cwd, "config", "role_ratings.csv")
 role_ratings_df = pd.DataFrame()
+role_ratings_df_hash = ""
 
 # Bold Attributes Config
 bold_attributes_csv = os.path.join(cwd, "config", "bold_attributes.csv")
@@ -54,4 +58,3 @@ watchlist_length = 0
 clear_model = False
 season_filename = ""
 
-divisions_to_grab = set()

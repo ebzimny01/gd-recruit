@@ -1,7 +1,5 @@
 import debugpy
-#debugpy.debug_this_thread()
-version = "0.5.1"
-window_title = f"GD Recruit Assistant Beta ({version})"
+debugpy.debug_this_thread()
 from asyncio.windows_events import NULL
 import sys
 import platform
@@ -47,7 +45,7 @@ from pathlib import Path
 
 
 def logQueryError(query):
-    logger.error(f"{datetime.datetime.now()}: query: last error: {query.lastError()}")
+    logger.error(f"{datetime.datetime.now()}: query: last error: {query.lastError().text()}")
     logger.error(f"{datetime.datetime.now()}: query: last query: {query.lastQuery()}")
     logger.error(f"{datetime.datetime.now()}: query: bound values: {query.boundValues()}")
 
@@ -226,7 +224,7 @@ class RoleRatingDBWorker(QObject):
         if db.databaseName() != "":
             # Returned list of lists should contain this data:
             # [r, pos, ath, spd, dur, we, sta, strength, blk, tkl, han, gi, elu, tec]
-            ratings_keys = ['ath', 'spd', 'dur', 'we', 'sta', 'strength', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
+            ratings_keys = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
             recruits = query_Recruit_IDs("update_role_ratings", db)
             openDB(db)
             query = QSqlQuery(db)
@@ -245,7 +243,8 @@ class RoleRatingDBWorker(QObject):
                     pos = r[1]
                     rating_values = r[2:]
                     ratings = dict(zip(ratings_keys, rating_values))
-                    role_ratings = calculate_role_rating(pos, ratings)
+                    ratings['pos'] = pos
+                    role_ratings = calculate_role_rating(ratings)
                     query.bindValue(":r1", float(role_ratings['r1']))
                     query.bindValue(":r2", float(role_ratings['r2']))
                     query.bindValue(":r3", float(role_ratings['r3']))
@@ -257,6 +256,13 @@ class RoleRatingDBWorker(QObject):
                         logQueryError(query)
                     bar.next()
                     self.progress.emit(round(bar.index / bar.max * 100))
+            
+            settings = QSettings()
+            dbname_short = db.databaseName().split('\\')[-1]
+            logger.info(f"Storing new role rating hash in registry for season...")
+            role_ratings_hash = settings.setValue(f"{dbname_short}/role_ratings_hash", myconfig.role_ratings_df_hash)
+            logger.debug(f"role_ratings_hash = {role_ratings_hash}")
+        
         query.finish()
         db.close()
         self.finished.emit()
@@ -699,14 +705,14 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckMarkAuthWIS_Error.setVisible(False)
         self.labelCheckMarkCreateDB.setVisible(False)
         self.labelCheckMarkAuthWIS.setVisible(False)
-        self.labelCheckMarkGrabUnsigned.setVisible(False)
-        self.labelCheckMarkGrabSigned.setVisible(False)
-        self.labelCheckMarkGrabStaticData.setVisible(False)
+        self.labelCheckMarkDivisionSearch1.setVisible(False)
+        self.labelCheckMarkDivisionSearch2.setVisible(False)
+        self.labelCheckMarkRecruitDataInitialized.setVisible(False)
         self.labelProgressCreateRecruitDB.setVisible(False)
         self.labelAuthWIS.setVisible(False)
-        self.labelGrabUnsigned.setVisible(False)
-        self.labelGrabSigned.setVisible(False)
-        self.labelGrabStaticData.setVisible(False)
+        self.labelDivisionSearch1.setVisible(False)
+        self.labelDivisionSearch2.setVisible(False)
+        self.labelRecruitDataInitialized.setVisible(False)
         self.progressBarInitializeRecruits.setVisible(False)
         self.progressBarInitializeRecruits.setValue(0)
         self.pushButtonInitializeRecruits.clicked.connect(self.runInitializeJob)
@@ -749,9 +755,9 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         self.labelCheckMarkCreateDB.setVisible(False)
         self.labelCheckMarkAuthWIS.setVisible(False)
         self.labelCheckMarkAuthWIS_Error.setVisible(False)
-        self.labelCheckMarkGrabUnsigned.setVisible(False)
-        self.labelCheckMarkGrabSigned.setVisible(False)
-        self.labelCheckMarkGrabStaticData.setVisible(False)
+        self.labelCheckMarkDivisionSearch1.setVisible(False)
+        self.labelCheckMarkDivisionSearch2.setVisible(False)
+        self.labelCheckMarkRecruitDataInitialized.setVisible(False)
         self.checkBoxGrabHigherRecruits.setEnabled(False)
         self.thread.finished.connect(self.initialize_finished)
 
@@ -761,39 +767,65 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
         if n == 0:
             self.labelProgressCreateRecruitDB.setVisible(True)
             self.labelAuthWIS.setVisible(True)
-            self.labelGrabUnsigned.setVisible(True)
-            self.labelGrabSigned.setVisible(True)
-            self.labelGrabStaticData.setVisible(True)
-            self.progressBarInitializeRecruits.setRange(0, 0)
-            self.progressBarInitializeRecruits.setVisible(True)
+            
         if n == 1:
             # DB created
             self.labelCheckMarkCreateDB.setVisible(True)
         if n == 2:
             # WIS Auth Completed
             self.labelCheckMarkAuthWIS.setVisible(True)
-        if n == 100:
-            # Starting to grab unsigned recruits
+            
+            if m == 1:
+                self.labelDivisionSearch1.setText("Grab Recruits from D-IA")
+                self.labelDivisionSearch1.setVisible(True)
+                self.labelCheckMarkDivisionSearch1.setVisible(True)
+            if m == 2:
+                self.labelDivisionSearch1.setText("Grab Recruits from D-IA")
+                self.labelDivisionSearch1.setVisible(True)
+                self.labelDivisionSearch2.setText("Grab Recruits from D-IAA")
+                self.labelDivisionSearch2.setVisible(True)
+                self.labelCheckMarkDivisionSearch1.setVisible(True)
+                self.labelCheckMarkDivisionSearch2.setVisible(True)
+            if m == 3:
+                self.labelDivisionSearch1.setText("Grab Recruits from D-IAA")
+                self.labelDivisionSearch1.setVisible(True)
+                self.labelCheckMarkDivisionSearch1.setVisible(True)
+            if m == 4:
+                self.labelDivisionSearch1.setText("Grab Recruits from D-IAA")
+                self.labelDivisionSearch1.setVisible(True)
+                self.labelDivisionSearch2.setText("Grab Recruits from D-IA")
+                self.labelDivisionSearch2.setVisible(True)
+                self.labelCheckMarkDivisionSearch1.setVisible(True)
+                self.labelCheckMarkDivisionSearch2.setVisible(True)
+            if m == 5:
+                self.labelDivisionSearch1.setText("Grab Recruits from D-II")
+                self.labelDivisionSearch1.setVisible(True)
+                self.labelCheckMarkDivisionSearch1.setVisible(True)
+            if m == 6:
+                self.labelDivisionSearch1.setText("Grab Recruits from D-II")
+                self.labelDivisionSearch1.setVisible(True)
+                self.labelDivisionSearch2.setText("Grab Recruits from D-IAA")
+                self.labelDivisionSearch2.setVisible(True)
+                self.labelCheckMarkDivisionSearch1.setVisible(True)
+                self.labelCheckMarkDivisionSearch2.setVisible(True)
+            if m == 7:
+                self.labelDivisionSearch1.setText("Grab Recruits from D-III")
+                self.labelDivisionSearch1.setVisible(True)
+                self.labelCheckMarkDivisionSearch1.setVisible(True)
+            if m == 8:
+                self.labelDivisionSearch1.setText("Grab Recruits from D-III")
+                self.labelDivisionSearch1.setVisible(True)
+                self.labelDivisionSearch2.setText("Grab Recruits from D-II")
+                self.labelDivisionSearch2.setVisible(True)
+                self.labelCheckMarkDivisionSearch1.setVisible(True)
+                self.labelCheckMarkDivisionSearch2.setVisible(True)
+            self.labelRecruitDataInitialized.setText("Saving Recruit Data...")
+            self.labelRecruitDataInitialized.setVisible(True)
+            self.labelCheckMarkRecruitDataInitialized.setVisible(False)
             self.progressBarInitializeRecruits.setRange(0, 100)
             self.progressBarInitializeRecruits.setValue(0)
             self.progressBarInitializeRecruits.setVisible(True)
-            self.labelGrabUnsigned.setText(f"Grab Unsigned Recruits for {divisions[m]}")
-            self.labelGrabSigned.setText(f"Grab Signed Recruits for {divisions[m]}")
-            self.labelCheckMarkGrabUnsigned.setVisible(False)
-            self.labelCheckMarkGrabSigned.setVisible(False)
-        if 100 < n <= 110:
-            self.progressBarInitializeRecruits.setValue((n - 100) * 10)
-            if n == 110:
-                self.labelCheckMarkGrabUnsigned.setVisible(True)
-        if n == 200:
-            # Starting to grab signed recruits
-            self.progressBarInitializeRecruits.setRange(0, 100)
-            self.progressBarInitializeRecruits.value()
-        if 200 < n <= 210:
-            self.progressBarInitializeRecruits.setValue((n - 200) * 10)
-            self.progressBarInitializeRecruits.value()
-            if n == 210:
-                self.labelCheckMarkGrabSigned.setVisible(True)
+
         if n == 1000:
             # Starting to grab recruit static data
             self.labelRecruitsInitialized.setText(f"Analyzing {m} Recruits...")
@@ -805,7 +837,8 @@ class GrabSeasonData(QDialog, Ui_WidgetGrabSeasonData):
             #print(percent_done)
             self.progressBarInitializeRecruits.setValue(n - 1000)
         if n > 1000 and (n - 1000) == m:
-            self.labelCheckMarkGrabStaticData.setVisible(True)
+            self.labelRecruitDataInitialized.setText("Recruit Data Saved")
+            self.labelCheckMarkRecruitDataInitialized.setVisible(True)
             self.labelRecruitsInitialized.setText(f"Recruits Initialized = {m}")
             self.checkBoxGrabHigherRecruits.setEnabled(True)
         if n == 999999:
@@ -876,6 +909,8 @@ class UpdateConsidering(QDialog, Ui_DialogUpdateConsidering):
     
     def run_update_considering(self):
         self.progressBarUpdateConsidering.setVisible(True)
+        if db.isOpen():
+            db.close()
         db_t.setDatabaseName(db.databaseName())
         myconfig.rids_unsigned = query_Recruit_IDs("unsigned", db_t)
         myconfig.rids_unsigned_length = len(myconfig.rids_unsigned)
@@ -4924,9 +4959,19 @@ class RoleRatings(QDialog, Ui_DialogRoleRatings):
         # Write to csv file
         list_total = ['ath', 'spd', 'dur', 'we', 'sta', 'str', 'blk', 'tkl', 'han', 'gi', 'elu', 'tec']
         myconfig.role_ratings_df['total'] = myconfig.role_ratings_df.loc[:,list_total].sum(axis=1)
-        logger.info("Saving role ratings to csv...")
-        myconfig.role_ratings_df.to_csv(myconfig.role_ratings_csv)
-        myconfig.show_update_role_ratings_dialog = True
+        current_hash = str(list(pd.util.hash_pandas_object(myconfig.role_ratings_df)))
+        if current_hash == myconfig.role_ratings_df_hash:
+            logger.info("No changes were detected to role ratings based on hash value comparison. Not saving to csv.")
+            myconfig.show_update_role_ratings_dialog = False
+        else:
+            logger.info("Changes were detected to role ratings based on hash value comparison.")
+            logger.debug(f"current_hash = {current_hash}")
+            logger.debug(f"myconfig.role_ratings_df_hash = {myconfig.role_ratings_df_hash}")
+            logger.info("Saving role ratings to csv...")
+            myconfig.role_ratings_df.to_csv(myconfig.role_ratings_csv)
+            myconfig.role_ratings_df_hash = current_hash
+            logger.debug(f"Updated myconfig.role_ratings_df_has to current_hash = {myconfig.role_ratings_df_hash}")
+            myconfig.show_update_role_ratings_dialog = True
 
         geometry = self.saveGeometry()
         self.settings.setValue('RoleRatingsGeometry', geometry)
@@ -5918,6 +5963,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if myconfig.clear_model:
             self.clearmodel()
             if myconfig.season_filename != "":
+                db.setDatabaseName(myconfig.season_filename)
+                # Need to check if role ratings have changed since last time season was loaded
+                shortname = myconfig.season_filename.split('\\')[-1]
+                stored_hash = self.settings.value(f"{shortname}/role_ratings_hash", myconfig.role_ratings_df_hash)
+                if stored_hash != myconfig.role_ratings_df_hash:
+                    logger.info("Season role rating hash value stored in registry does not match the current role ratings.")
+                    logger.debug(f"stored_hash = {stored_hash}")
+                    logger.debug(f"myconfig.role_ratings_df_hash = {myconfig.role_ratings_df_hash}")
+                    logger.debug("Showing Role Rating Update DB progress dialog")
+                    update_dialog = RoleRatingsUpdateDB()
+                    update_dialog.ui = Ui_DialogRoleRatingUpdateDB_Progress()
+                    update_dialog.exec_()
+                    update_dialog.show()
+                else:
+                    logger.info("Season role rating hash value stored in registry matches the current role rating hash value.")
                 self.loadModel()
             
     
@@ -6022,7 +6082,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("Clearing database name...")
         db.setDatabaseName("")
         logger.debug("Setting default window title...")
-        self.setWindowTitle(f"{window_title}")
+        self.setWindowTitle(f"{myconfig.window_title}")
         self.actionGrabSeasonData.setEnabled(False)
         self.actionAll_Recruits.setEnabled(False)
         self.actionWatchlist_Only.setEnabled(False)
@@ -6064,8 +6124,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("Entering loadModel() function...")
         db.setDatabaseName(myconfig.season_filename)
         logger.debug(f"Database name = {db.databaseName()}")
-        logger.debug(f"Updating window title to {window_title} - {db.databaseName()}")
-        self.setWindowTitle(f"{window_title} - {db.databaseName()}")
+        logger.debug(f"Updating window title to {myconfig.window_title} - {db.databaseName()}")
+        self.setWindowTitle(f"{myconfig.window_title} - {db.databaseName()}")
         self.actionGrabSeasonData.setEnabled(True)
         rids = query_Recruit_IDs("all", db)
         myconfig.rids_all_length = len(rids)
@@ -6648,8 +6708,8 @@ if __name__ == "__main__":
         logger.info('running in a PyInstaller bundle')
     else:
         logger.info('running in a normal Python process')
-    print(f"Running {window_title} . . . ")
-    logger.info(f"{window_title}")
+    print(f"Running {myconfig.window_title} . . . ")
+    logger.info(f"{myconfig.window_title}")
     logger.info(f"Platform System = {platform.system()}")
     logger.info(f"Platform System Alias= {platform.system_alias(platform.system(),platform.release(),platform.version())}")
     logger.info(f"Platform Win32 Version = {platform.win32_ver()}")
@@ -6719,6 +6779,8 @@ if __name__ == "__main__":
         logger.debug("Creating role_ratings.csv file...")
         myconfig.role_ratings_df = myconfig.role_ratings_df()
         myconfig.role_ratings_df.to_csv(myconfig.role_ratings_csv)
+    myconfig.role_ratings_df_hash = str(list(pd.util.hash_pandas_object(myconfig.role_ratings_df)))
+    logger.debug(f"myconfig.role_ratings_df_hash = {myconfig.role_ratings_df_hash}")
 
     # Configure for High DPI
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
@@ -6732,6 +6794,6 @@ if __name__ == "__main__":
     db_t = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection')
     db_m = QSqlDatabase.addDatabase('QSQLITE', connectionName='worker_connection_watchlist')
     mw = MainWindow()
-    mw.setWindowTitle(window_title)
+    mw.setWindowTitle(myconfig.window_title)
     mw.show() 
     sys.exit(app.exec_())
