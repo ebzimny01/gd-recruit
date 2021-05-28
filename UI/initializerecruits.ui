@@ -44,7 +44,7 @@
    <item row="0" column="0">
     <layout class="QGridLayout" name="gridLayout">
      <item row="7" column="3">
-      <widget class="QLabel" name="labelGrabUnsigned">
+      <widget class="QLabel" name="labelDivisionSearch1">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -70,7 +70,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Grab Unsigned Recruits</string>
+        <string>Grab Recruits from Division X</string>
        </property>
       </widget>
      </item>
@@ -122,7 +122,7 @@
       </spacer>
      </item>
      <item row="7" column="2">
-      <widget class="QLabel" name="labelCheckMarkGrabUnsigned">
+      <widget class="QLabel" name="labelCheckMarkDivisionSearch1">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -241,7 +241,7 @@
       </spacer>
      </item>
      <item row="8" column="3">
-      <widget class="QLabel" name="labelGrabSigned">
+      <widget class="QLabel" name="labelDivisionSearch2">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -267,7 +267,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Grab Signed Recruits</string>
+        <string>Grab Recruits from Division Y</string>
        </property>
       </widget>
      </item>
@@ -604,7 +604,7 @@
       </widget>
      </item>
      <item row="9" column="2">
-      <widget class="QLabel" name="labelCheckMarkGrabStaticData">
+      <widget class="QLabel" name="labelCheckMarkRecruitDataInitialized">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -635,7 +635,7 @@
       </widget>
      </item>
      <item row="8" column="2">
-      <widget class="QLabel" name="labelCheckMarkGrabSigned">
+      <widget class="QLabel" name="labelCheckMarkDivisionSearch2">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -713,7 +713,7 @@
       </spacer>
      </item>
      <item row="9" column="3">
-      <widget class="QLabel" name="labelGrabStaticData">
+      <widget class="QLabel" name="labelRecruitDataInitialized">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -739,7 +739,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Grab Recruit Static Ratings Data and GPA</string>
+        <string>Recruit Data Initialized in Database</string>
        </property>
       </widget>
      </item>
