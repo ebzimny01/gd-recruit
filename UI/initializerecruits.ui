@@ -739,7 +739,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Recruit Data Initialized in Database</string>
+        <string>Initializing Recruit Data . . . </string>
        </property>
       </widget>
      </item>
