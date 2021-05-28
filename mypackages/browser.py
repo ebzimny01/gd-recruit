@@ -250,7 +250,15 @@ def wis_browser(f, d, progress = None):
         logger.info("Session requires interactive login.")
         logger.info(f"Setting headless = {headless}")
     with sync_playwright() as p:
-        browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1250' / 'firefox' / 'firefox.exe'
+        if myconfig.os_platform == "Windows":
+            logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1250' / 'firefox' / 'firefox.exe'
+        elif myconfig.os_platform == "Linux":
+            logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1250' / 'firefox' / 'firefox'
+        else:
+            logger.error(f"{myconfig.os_platform} is not supported!")
+            return False
         logger.info(f"Browser path = {browser_path}")
         logger.info(f"Browser path is valid? = {browser_path.exists()}")
         if not browser_path.exists():

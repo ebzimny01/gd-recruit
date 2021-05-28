@@ -2,6 +2,9 @@ import os
 import sys
 from pathlib import Path
 import pandas as pd
+import platform
+
+os_platform = platform.system()
 
 version = "1.0.0"
 application_name = "GD Recruit Assistant"
