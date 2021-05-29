@@ -6777,7 +6777,7 @@ if __name__ == "__main__":
     else:
         logger.debug("role_ratings_csv file path NOT found.")
         logger.debug("Creating role_ratings.csv file...")
-        myconfig.role_ratings_df = myconfig.role_ratings_df()
+        myconfig.role_ratings_df = create_role_ratings_df()
         myconfig.role_ratings_df.to_csv(myconfig.role_ratings_csv)
     myconfig.role_ratings_df_hash = str(list(pd.util.hash_pandas_object(myconfig.role_ratings_df)))
     logger.debug(f"myconfig.role_ratings_df_hash = {myconfig.role_ratings_df_hash}")
