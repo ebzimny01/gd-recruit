@@ -267,7 +267,10 @@ def wis_browser(f, d, progress = None):
         browser = p.firefox.launch(
             headless=headless,
             executable_path=browser_path)
-        custom_headers = {'Application-Name': f'{myconfig.application_name} ({myconfig.version})'}
+        custom_headers = {'User-Agent': 'gdrecruit', 'Application-Name': f'{myconfig.application_name} ({myconfig.version})'}
+
+        
+
         if "auth_to_store_cookies" in f or storage_state == "":
             logger.info(f"Opening non-headless browser in order to have user complete auth process and store cookies.")
             context = browser.new_context()
@@ -276,8 +279,7 @@ def wis_browser(f, d, progress = None):
             page.set_viewport_size({"width": 1900, "height": 1200})
             
             try:
-                #page.goto("https://www.whatifsports.com/locker/", timeout=timer_expect_navigation)
-                page.goto("https://wis-dev.shub.dog/locker/", timeout=timer_expect_navigation)
+                page.goto(f"https://{myconfig.main_url}/locker/", timeout=timer_expect_navigation)
                 
             except TimeoutError as err:
                 logger.error(f"Exception during authentication section: {err.__class__}")
@@ -324,6 +326,7 @@ def wis_browser(f, d, progress = None):
                     return False
             else:
                 logger.info("Found 'My Locker' so authentication was successful.")
+                time.sleep(10)
                 cookiefile = os.path.join(myconfig.cookies_directory_path, f"browser_cookie_{coachid}.json")
                 logger.info(f"Store cookie state in {cookiefile}")
                 storage_state = context.storage_state()
@@ -333,7 +336,7 @@ def wis_browser(f, d, progress = None):
                 progress.emit(1)
                 return True
             finally:
-                time.sleep(2)
+                
                 context.close()
                 browser.close()
                 logger.info("Playwright browser closed.")
@@ -345,9 +348,7 @@ def wis_browser(f, d, progress = None):
             page.set_viewport_size({"width": 1900, "height": 1200})
             #page.pause()
             logger.info("Going to page https://www.whatifsports.com/locker/ ...")
-            #page.goto("https://www.whatifsports.com/locker/")
-            page.goto("https://wis-dev.shub.dog/locker/")
-
+            page.goto(f"https://{myconfig.main_url}/locker/")
             #with page.expect_navigation():
             #    page.click("text=Login")
 
@@ -381,8 +382,7 @@ def wis_browser(f, d, progress = None):
             
             teamID = re.search(r"(\d{5})", dbname)
 
-            #cookie_teamID = {'domain': 'www.whatifsports.com', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
-            cookie_teamID = {'domain': 'wis-dev.shub.dog', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
+            cookie_teamID = {'domain': f'{myconfig.main_url}', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
             logger.info(f"Setting cookie for teamid = {teamID}")
             context.add_cookies([cookie_teamID])
 
@@ -394,9 +394,8 @@ def wis_browser(f, d, progress = None):
                 logger.info("Loading Recruiting Summary page ...")
                 try:
                     with page.expect_navigation():
-                        #page.goto("https://www.whatifsports.com/gd/recruiting")
-                        page.goto("https://wis-dev.shub.dog/gd/recruiting")
-                    # assert page.url == "https://www.whatifsports.com/gd/recruiting"
+                        page.goto(f"https://{myconfig.main_url}/gd/recruiting")
+                        # assert page.url == "https://www.whatifsports.com/gd/recruiting"
                     progress.emit(2)
                     page.wait_for_load_state(state='networkidle')
                     # Click h3:has-text("Recruiting Summary")
@@ -418,14 +417,14 @@ def wis_browser(f, d, progress = None):
             else:
                 team_division = myconfig.wis_gd_df.division[int(teamID.group())]
                 # Dictionary lookup based on division and whether or not 'grab higher division' was enabled
-                division_to_page_mapping = {'D-IA': {False: 'https://wis-dev.shub.dog/gd/recruiting/Advanced.aspx?divisions=1&positions=1,2,3,4,5,6,7,8,9,10', 
-                                                    True: 'https://wis-dev.shub.dog/gd/recruiting/Advanced.aspx?divisions=1,2&positions=1,2,3,4,5,6,7,8,9,10'},
-                                            'D-IAA': {False: 'https://wis-dev.shub.dog/gd/recruiting/Advanced.aspx?divisions=2&positions=1,2,3,4,5,6,7,8,9,10', 
-                                                    True: 'https://wis-dev.shub.dog/gd/recruiting/Advanced.aspx?divisions=1,2&positions=1,2,3,4,5,6,7,8,9,10'},
-                                            'D-II':  {False: 'https://wis-dev.shub.dog/gd/recruiting/Advanced.aspx?divisions=3&positions=1,2,3,4,5,6,7,8,9,10', 
-                                                    True: 'https://wis-dev.shub.dog/gd/recruiting/Advanced.aspx?divisions=2,3&positions=1,2,3,4,5,6,7,8,9,10'},
-                                            'D-III': {False: 'https://wis-dev.shub.dog/gd/recruiting/Advanced.aspx?divisions=4&positions=1,2,3,4,5,6,7,8,9,10', 
-                                                    True: 'https://wis-dev.shub.dog/gd/recruiting/Advanced.aspx?divisions=3,4&positions=1,2,3,4,5,6,7,8,9,10'}
+                division_to_page_mapping = {'D-IA': {False: f'https://{myconfig.main_url}/gd/recruiting/Advanced.aspx?divisions=1&positions=1,2,3,4,5,6,7,8,9,10', 
+                                                    True: f'https://{myconfig.main_url}/gd/recruiting/Advanced.aspx?divisions=1,2&positions=1,2,3,4,5,6,7,8,9,10'},
+                                            'D-IAA': {False: f'https://{myconfig.main_url}/gd/recruiting/Advanced.aspx?divisions=2&positions=1,2,3,4,5,6,7,8,9,10', 
+                                                    True: f'https://{myconfig.main_url}/gd/recruiting/Advanced.aspx?divisions=1,2&positions=1,2,3,4,5,6,7,8,9,10'},
+                                            'D-II':  {False: f'https://{myconfig.main_url}/gd/recruiting/Advanced.aspx?divisions=3&positions=1,2,3,4,5,6,7,8,9,10', 
+                                                    True: f'https://{myconfig.main_url}/gd/recruiting/Advanced.aspx?divisions=2,3&positions=1,2,3,4,5,6,7,8,9,10'},
+                                            'D-III': {False: f'https://{myconfig.main_url}/gd/recruiting/Advanced.aspx?divisions=4&positions=1,2,3,4,5,6,7,8,9,10', 
+                                                    True: f'https://{myconfig.main_url}/gd/recruiting/Advanced.aspx?divisions=3,4&positions=1,2,3,4,5,6,7,8,9,10'}
                 }
                 division_emit_progress_mapping = {'D-IA': {False: 1, True: 2},
                                                   'D-IAA': {False: 3, True: 4},

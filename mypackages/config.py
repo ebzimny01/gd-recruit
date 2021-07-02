@@ -61,3 +61,5 @@ watchlist_length = 0
 clear_model = False
 season_filename = ""
 
+main_url = "www.whatifsports.com"
+#main_url = "wis-dev.shub.dog"
