@@ -1,7 +1,7 @@
 from platform import version
 from PySide2.QtCore import QSettings
-import debugpy
-debugpy.debug_this_thread()
+#import debugpy
+#debugpy.debug_this_thread()
 from configparser import Error
 from loguru import logger
 import pandas as pd

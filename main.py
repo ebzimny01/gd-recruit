@@ -1,5 +1,5 @@
-import debugpy
-debugpy.debug_this_thread()
+#import debugpy
+#debugpy.debug_this_thread()
 from asyncio.windows_events import NULL
 import sys
 import platform
