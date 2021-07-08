@@ -55,7 +55,7 @@ def parse_considering(content):
         each_td_tags = each.find_all("td")
         schoolid = int(each_td_tags[0].text)
         school_short = myconfig.wis_gd_df.school_short[schoolid]
-        coachid = "coach?"
+        coachid = each_td_tags[3].text
         school_division = myconfig.wis_gd_df.division[schoolid]
         miles_span = each_td_tags[2].find("span", class_="considering-miles")
         miles = round(float(miles_span.text))
