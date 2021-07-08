@@ -368,7 +368,7 @@ class UpdateWorker(QObject):
 
         self.progress.emit(1, 1)
         db_t.setDatabaseName(db.databaseName())
-        print(f"db_t is open? = {db_t.isOpen()}")
+        logger.debug(f"db_t is open? = {db_t.isOpen()}")
         result = wis_browser("update_considering", db_t, self.progress)
         if result:
             # After grabbing all Recruit IDs and storing in DB.
