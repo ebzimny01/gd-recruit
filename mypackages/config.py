@@ -6,7 +6,7 @@ import platform
 
 os_platform = platform.system()
 
-version = "1.0.0"
+version = "1.0.1"
 application_name = "GD Recruit Assistant"
 window_title = f"{application_name} ({version})"
 
