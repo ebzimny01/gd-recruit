@@ -49,7 +49,7 @@ def openDB(database):
         logger.info(f"Opened database {database.databaseName()} using connection {database.connectionName()}")
 
 
-def parse_considering(content):
+def parse_considering(content, signed):
     considering = ""
     for each in content:
         each_td_tags = each.find_all("td")
@@ -63,7 +63,10 @@ def parse_considering(content):
         miles = round(float(miles_span.text))
         total_scholarships = each_td_tags[5].text
         open_scholarships = each_td_tags[6].text                
-        considering += f"{school_short} ({coachid}) {school_division} {miles}mi {total_scholarships} | {open_scholarships}\n"
+        if signed == 0:
+            considering += f"{school_short} ({coachid}) {school_division} {miles}mi {total_scholarships} | {open_scholarships}\n"
+        elif signed == 1:
+            considering = f"{school_short} ({coachid}) {school_division}\n"
     considering = considering[:-1]
     return considering
 
@@ -94,7 +97,7 @@ def update_considering(page_content, d, q, progress):
                 recruit['considering'] = "undecided"
             else:
                 consideringRows = td_tags[42].find_all("tr")
-                recruit['considering'] = parse_considering(consideringRows)
+                recruit['considering'] = parse_considering(consideringRows, recruit['signed'])
             recruitIDs.append(recruit)
             i += 1
         
@@ -179,7 +182,7 @@ def get_recruitIDs(page_content, d, q, progress):
             recruit['considering'] = "undecided"
         else:
             consideringRows = td_tags[42].find_all("tr")
-            recruit['considering'] = parse_considering(consideringRows)
+            recruit['considering'] = parse_considering(consideringRows, recruit['signed'])
         recruitIDs.append(recruit)            
         bindRecruitQuery(q, recruit, 0)
         i += 1
