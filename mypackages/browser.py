@@ -56,6 +56,8 @@ def parse_considering(content):
         schoolid = int(each_td_tags[0].text)
         school_short = myconfig.wis_gd_df.school_short[schoolid]
         coachid = each_td_tags[3].text
+        if coachid == "":
+            coachid = "SIM AI"
         school_division = myconfig.wis_gd_df.division[schoolid]
         miles_span = each_td_tags[2].find("span", class_="considering-miles")
         miles = round(float(miles_span.text))
@@ -347,10 +349,11 @@ def wis_browser(f, d, progress = None):
             page.set_extra_http_headers(custom_headers)
             page.set_viewport_size({"width": 1900, "height": 1200})
             #page.pause()
-            logger.info("Going to page https://www.whatifsports.com/locker/ ...")
+            logger.info(f"Going to page https://{myconfig.main_url}/locker/ ...")
             page.goto(f"https://{myconfig.main_url}/locker/")
-            #with page.expect_navigation():
-            #    page.click("text=Login")
+            
+            if page.query_selector("text=Login"):
+                page.click("text=Login")
 
             try:
                 logger.info(f"Waiting for My Locker...")
