@@ -6617,7 +6617,12 @@ class TableModel(QSqlTableModel):
 
         # Format background of the entire row to light gray if a player is signed
         if role == Qt.BackgroundRole:
-            if super(TableModel, self).data(self.index(index.row(), 30), Qt.DisplayRole) == 1:
+            value = ""
+            if index.column() == 9:
+                value = super(TableModel, self).data(index)
+            if super(TableModel, self).data(self.index(index.row(), 30), Qt.DisplayRole) == 1 and self.team_filter in value:
+                return QBrush(Qt.green)
+            elif super(TableModel, self).data(self.index(index.row(), 30), Qt.DisplayRole) == 1:
                 return QBrush(Qt.lightGray)
         
             # Format considering text
