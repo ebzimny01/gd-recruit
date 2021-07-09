@@ -9,6 +9,11 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 
 ## What's New
 
+### v1.0.1 - [Download](https://gdrecruit.s3.amazonaws.com/v1/gdrecruit.exe) 
+1. New and improved method for gathering the recruiting data from WIS Gridiron Dynasty.
+2. Simplified workflow/dialog for initializing season recruiting data. "Update Considering" and "Mark Watchlist" buttons moved to the main window.
+3. For recruits you have signed, the "Considering" cell will be shaded green while the rest of the row will be shaded gray.
+
 ### Beta v0.4.8 - 
 1. Fixed a bug where the application would fail to properly initialize/re-initialize a season if recruit signings had already started happening.
 
