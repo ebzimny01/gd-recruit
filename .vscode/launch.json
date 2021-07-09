@@ -10,8 +10,9 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": false,
-            "env": {"DEBUG":"pw:browser*"}
+            "justMyCode": true,
+            "env": {"DEBUG":"pw:browser*"},
+            //"qt": "auto"
         }
     ]
 }

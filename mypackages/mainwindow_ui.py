@@ -12,7 +12,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1169, 1265)
+        MainWindow.resize(1083, 1265)
         self.actionNew_Season = QAction(MainWindow)
         self.actionNew_Season.setObjectName(u"actionNew_Season")
         font = QFont()
@@ -158,18 +158,41 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout.addWidget(self.comboBoxDivisionFilter)
 
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer_2)
+
+        self.pushButtonUpdateConsidering = QPushButton(self.centralwidget)
+        self.pushButtonUpdateConsidering.setObjectName(u"pushButtonUpdateConsidering")
+        font1 = QFont()
+        font1.setFamily(u"Arial")
+        font1.setPointSize(10)
+        self.pushButtonUpdateConsidering.setFont(font1)
+
+        self.horizontalLayout.addWidget(self.pushButtonUpdateConsidering)
+
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer_3)
+
+        self.pushButtonMarkWatchlistPotential = QPushButton(self.centralwidget)
+        self.pushButtonMarkWatchlistPotential.setObjectName(u"pushButtonMarkWatchlistPotential")
+        self.pushButtonMarkWatchlistPotential.setFont(font1)
+
+        self.horizontalLayout.addWidget(self.pushButtonMarkWatchlistPotential)
+
         self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         self.horizontalLayout.addItem(self.horizontalSpacer)
 
         self.pushButtonDonatePayPal = QPushButton(self.centralwidget)
         self.pushButtonDonatePayPal.setObjectName(u"pushButtonDonatePayPal")
-        font1 = QFont()
-        font1.setFamily(u"Arial")
-        font1.setPointSize(10)
-        font1.setBold(False)
-        font1.setWeight(50)
-        self.pushButtonDonatePayPal.setFont(font1)
+        font2 = QFont()
+        font2.setFamily(u"Arial")
+        font2.setPointSize(10)
+        font2.setBold(False)
+        font2.setWeight(50)
+        self.pushButtonDonatePayPal.setFont(font2)
         self.pushButtonDonatePayPal.setStyleSheet(u"color: white;\n"
 "background-color: green;")
 
@@ -405,7 +428,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1169, 21))
+        self.menubar.setGeometry(QRect(0, 0, 1083, 21))
         self.menuFile = QMenu(self.menubar)
         self.menuFile.setObjectName(u"menuFile")
         self.menudata = QMenu(self.menubar)
@@ -470,7 +493,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"GD Recruit Assistant", None))
         self.actionNew_Season.setText(QCoreApplication.translate("MainWindow", u"New Season", None))
         self.actionLoad_Season.setText(QCoreApplication.translate("MainWindow", u"Load Season", None))
-        self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"Grab Recruit Data", None))
+        self.actionGrabSeasonData.setText(QCoreApplication.translate("MainWindow", u"Initialize Recruit Data", None))
         self.actionWIS_Credentials.setText(QCoreApplication.translate("MainWindow", u"WIS Credentials", None))
         self.actionBold_Attributes.setText(QCoreApplication.translate("MainWindow", u"Bold Attributes", None))
         self.actionRole_Ratings.setText(QCoreApplication.translate("MainWindow", u"Role Ratings", None))
@@ -506,11 +529,13 @@ class Ui_MainWindow(object):
 
         self.label_DivisionFilter.setText(QCoreApplication.translate("MainWindow", u"Division", None))
         self.comboBoxDivisionFilter.setItemText(0, QCoreApplication.translate("MainWindow", u"All", None))
-        self.comboBoxDivisionFilter.setItemText(1, QCoreApplication.translate("MainWindow", u"D-IA", None))
-        self.comboBoxDivisionFilter.setItemText(2, QCoreApplication.translate("MainWindow", u"D-IAA", None))
-        self.comboBoxDivisionFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"D-II", None))
-        self.comboBoxDivisionFilter.setItemText(4, QCoreApplication.translate("MainWindow", u"D-III", None))
+        self.comboBoxDivisionFilter.setItemText(1, QCoreApplication.translate("MainWindow", u"D1A", None))
+        self.comboBoxDivisionFilter.setItemText(2, QCoreApplication.translate("MainWindow", u"D1AA", None))
+        self.comboBoxDivisionFilter.setItemText(3, QCoreApplication.translate("MainWindow", u"D2", None))
+        self.comboBoxDivisionFilter.setItemText(4, QCoreApplication.translate("MainWindow", u"D3", None))
 
+        self.pushButtonUpdateConsidering.setText(QCoreApplication.translate("MainWindow", u"Update Considering", None))
+        self.pushButtonMarkWatchlistPotential.setText(QCoreApplication.translate("MainWindow", u"Mark Watchlist/Potential", None))
 #if QT_CONFIG(tooltip)
         self.pushButtonDonatePayPal.setToolTip(QCoreApplication.translate("MainWindow", u"PayPal Donation Link", None))
 #endif // QT_CONFIG(tooltip)
