@@ -254,10 +254,10 @@ def wis_browser(f, d, progress = None):
     with sync_playwright() as p:
         if myconfig.os_platform == "Windows":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
-            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1250' / 'firefox' / 'firefox.exe'
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1316' / 'firefox' / 'firefox.exe'
         elif myconfig.os_platform == "Linux":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
-            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1250' / 'firefox' / 'firefox'
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1316' / 'firefox' / 'firefox'
         else:
             logger.error(f"{myconfig.os_platform} is not supported!")
             return False
@@ -385,9 +385,24 @@ def wis_browser(f, d, progress = None):
             
             teamID = re.search(r"(\d{5})", dbname)
 
-            cookie_teamID = {'domain': f'{myconfig.main_url}', 'expires': 1646455554, 'httpOnly': False, 'name': 'wispersisted', 'path': '/', 'sameSite': 'None', 'secure': False, 'value': f'gd_teamid={teamID.group()}'}
-            logger.info(f"Setting cookie for teamid = {teamID}")
-            context.add_cookies([cookie_teamID])
+            cookie_teamID = {'name': 'wispersisted', 'value': f'gd_teamid={teamID.group()}', 'domain': f'{myconfig.main_url}', 'path': '/', 'expires': -1, 'httpOnly': False, 'sameSite': 'None', 'secure': False}
+            logger.debug(f"teamid = {teamID}")
+            logger.debug(f"teamid.group() = {teamID.group()}")
+            try:
+                logger.info(f"Setting cookie for teamid = {teamID}")
+                logger.debug(f"cookie_teamID = {cookie_teamID}")
+                context.add_cookies([cookie_teamID])
+            except Exception as e:
+                logger.error(f"Exception adding wispersisted cookie: {e.__class__}")
+            else:
+                cookie_debug = context.cookies(f"https://{myconfig.main_url}")
+                logger.debug(f"Browser cookies for {myconfig.main_url} = {cookie_debug}")
+
+            # See closed issue #55. Would be good to add additional checks to confirm the cookie changes were actually made.
+            # For instance, iterate through the list of cookies in cookie_debug searching for the expected value of wispersisted.
+            # If wispersisted doesn't exist or doesn't match then throw exception.
+
+            #page.pause()
 
             if "grab_watched_recruits" in f:
                 logger.info("In grab_watched_recruits section of WISBrowser")
