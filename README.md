@@ -9,7 +9,11 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 
 ## What's New
 
-### v1.0.1 - [Download](https://gdrecruit.s3.amazonaws.com/v1/gdrecruit.exe) 
+### v1.0.2 - [Download](https://gdrecruit.s3.amazonaws.com/v1/gdrecruit.exe)
+1. Fixed issue with multiple teams. The application would only load recruits for the first team in your My Locker page.
+2. Updated the embedded Playwright Firefox browser to v1316.
+
+### v1.0.1 - [Download](https://s3.console.aws.amazon.com/s3/object/gdrecruit?region=us-east-1&prefix=v1/gdrecruit.exe&versionId=sVCWAhxlOY7WBR28sbGBsYYxVfhbI0HX) 
 1. New and improved method for gathering the recruiting data from WIS Gridiron Dynasty.
 2. Simplified workflow/dialog for initializing season recruiting data. "Update Considering" and "Mark Watchlist" buttons moved to the main window.
 3. For recruits you have signed, the "Considering" cell will be shaded green while the rest of the row will be shaded gray.
