@@ -1,6 +1,6 @@
 #import debugpy
 #debugpy.debug_this_thread()
-from asyncio.windows_events import NULL
+#from asyncio.windows_events import NULL
 import sys
 import platform
 from loguru import logger
@@ -12,10 +12,10 @@ import requests
 import traceback
 import sqlite3
 from playwright.async_api import async_playwright
-from PySide2.QtCore import *
-from PySide2.QtGui import *
-from PySide2.QtWidgets import *
-from PySide2.QtSql import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtSql import *
 from mypackages.mainwindow_ui import Ui_MainWindow
 from mypackages.wis_cred_dialog import Ui_WISCredentialDialog
 from mypackages.new_season_dialog import Ui_DialogNewSeason
@@ -58,19 +58,19 @@ def query_Recruit_IDs(type, dbconn):
         logger.debug("Found table 'recruits' in database")
         queryRecruitIDs = QSqlQuery(dbconn)
         if type == "all":
-            if not queryRecruitIDs.exec_("SELECT id,pos FROM recruits"):
+            if not queryRecruitIDs.exec("SELECT id,pos FROM recruits"):
                 logQueryError(queryRecruitIDs)
             while queryRecruitIDs.next():
                 r = queryRecruitIDs.value('id')
                 position = queryRecruitIDs.value('pos')
                 rids.append([r, position])
         elif type == "unsigned":
-            if not queryRecruitIDs.exec_("SELECT id FROM recruits WHERE signed=0"):
+            if not queryRecruitIDs.exec("SELECT id FROM recruits WHERE signed=0"):
                 logQueryError(queryRecruitIDs)
             while queryRecruitIDs.next():
                 rids.append(queryRecruitIDs.value('id'))
         elif type == "update_role_ratings":
-            if not queryRecruitIDs.exec_("Select id,pos,ath,spd,dur,we,sta,str,blk,tkl,han,gi,elu,tec FROM recruits"):
+            if not queryRecruitIDs.exec("Select id,pos,ath,spd,dur,we,sta,str,blk,tkl,han,gi,elu,tec FROM recruits"):
                 logQueryError(queryRecruitIDs)
             while queryRecruitIDs.next():
                 r = queryRecruitIDs.value('id')
@@ -252,7 +252,7 @@ class RoleRatingDBWorker(QObject):
                     query.bindValue(":r5", float(role_ratings['r5']))
                     query.bindValue(":r6", float(role_ratings['r6']))
                     query.bindValue(":id", rid)
-                    if not query.exec_():
+                    if not query.exec():
                         logQueryError(query)
                     bar.next()
                     self.progress.emit(round(bar.index / bar.max * 100))
@@ -288,7 +288,7 @@ class InitializeWorker(QObject):
         db_t.setDatabaseName(db.databaseName())
         openDB(db_t)
         createRecruitTableQuery = QSqlQuery(db_t)
-        if not createRecruitTableQuery.exec_(
+        if not createRecruitTableQuery.exec(
             """
             CREATE TABLE IF NOT EXISTS recruits (
                 id INTEGER PRIMARY KEY,
@@ -334,7 +334,7 @@ class InitializeWorker(QObject):
         # This next step ensures deletion of any prior data in recruits table
         createRecruitTableQuery2 = QSqlQuery(db_t)
         if db_t.tables() == ['recruits']:
-            if not createRecruitTableQuery2.exec_("DELETE from recruits"):
+            if not createRecruitTableQuery2.exec("DELETE from recruits"):
                 logQueryError(createRecruitTableQuery2)
         createRecruitTableQuery2.finish()
         logger.info(f"db tables = {db_t.tables()}")
@@ -506,7 +506,7 @@ class QueueMonitorWorker(QObject):
                     query.bindValue(":gpa", r['gpa'])
                     query.bindValue(":id", r['rid'])
 
-                    if not query.exec_():
+                    if not query.exec():
                         logQueryError(query)
                     counter += 1
                     self.progress.emit(counter)
@@ -527,7 +527,7 @@ class QueueMonitorWorker(QObject):
                     query.bindValue(":considering", considering[:-1]) # remove newline at end
                     query.bindValue(":signed", signed)
                     query.bindValue(":id", rid)
-                    if not query.exec_():
+                    if not query.exec():
                         logQueryError(query)
                     bar.next()
                     emit_progress += 1
@@ -648,7 +648,7 @@ class MarkRecruitsWorker(QObject):
                 db_t.close()
             openDB(db_m)
             queryUpdate = QSqlQuery(db_m)
-            if not queryUpdate.exec_(
+            if not queryUpdate.exec(
                 """
                 UPDATE recruits SET watched = 0
                 """
@@ -665,7 +665,7 @@ class MarkRecruitsWorker(QObject):
             for k, v in watchlist.items():
                 query_watched_update.bindValue(":id", k)
                 query_watched_update.bindValue(":pot", v)
-                if not query_watched_update.exec_():
+                if not query_watched_update.exec():
                     logQueryError(query_watched_update)
             query_watched_update.finish()
 
@@ -5918,7 +5918,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def open_WIS_cred(self):
         dialog = WISCred()
         dialog.ui = Ui_WISCredentialDialog()        
-        dialog.exec_()
+        dialog.exec()
         dialog.show()
         if self.check_stored_creds():
             # Grab coachid from config file
@@ -5942,7 +5942,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def open_New_Season(self):
         dialog = NewSeason()
         dialog.ui = Ui_DialogNewSeason()
-        dialog.exec_()
+        dialog.exec()
         dialog.show()
         logger.info("Exiting New Season dialog")
         logger.info(f"Season database name = {myconfig.season_filename}")
@@ -5955,7 +5955,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def open_Load_Season(self):
         dialog = LoadSeason()
         dialog.ui = Ui_DialogLoadSeason()
-        dialog.exec_()
+        dialog.exec()
         dialog.show()
         logger.info("Exiting Load Season dialog")
         logger.info(f"Season database name = {myconfig.season_filename}")
@@ -5973,7 +5973,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     logger.debug("Showing Role Rating Update DB progress dialog")
                     update_dialog = RoleRatingsUpdateDB()
                     update_dialog.ui = Ui_DialogRoleRatingUpdateDB_Progress()
-                    update_dialog.exec_()
+                    update_dialog.exec()
                     update_dialog.show()
                 else:
                     logger.info("Season role rating hash value stored in registry matches the current role rating hash value.")
@@ -5983,7 +5983,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def open_Grab_Season_Data(self):
         dialog = GrabSeasonData()
         dialog.ui = Ui_WidgetGrabSeasonData()
-        dialog.exec_()
+        dialog.exec()
         dialog.show()
         logger.info("Exiting Grab Season Data dialog")
         logger.info(f"Season database name = {myconfig.season_filename}")
@@ -5994,7 +5994,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def open_update_considering(self):
         dialog = UpdateConsidering()
         dialog.ui = Ui_DialogUpdateConsidering()
-        dialog.exec_()
+        dialog.exec()
         dialog.show()
         logger.info("Exiting Update Considering dialog")
         logger.info(f"Season database name = {myconfig.season_filename}")
@@ -6005,7 +6005,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def open_mark_watchlist_potential(self):
         dialog = MarkWatchlistPotential()
         dialog.ui = Ui_DialogMarkWatchlistPotential()
-        dialog.exec_()
+        dialog.exec()
         dialog.show()
         logger.info("Exiting Mark Watchlist/Potential dialog")
         logger.info(f"Season database name = {myconfig.season_filename}")
@@ -6017,7 +6017,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("Entering Bold Attributes dialog")
         dialog = BoldAttributes()
         dialog.ui = Ui_DialogBoldAttributes()
-        dialog.exec_()
+        dialog.exec()
         dialog.show() 
         logger.debug("Exiting Bold Attributes dialog")
         if db.databaseName() != "":
@@ -6029,14 +6029,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         myconfig.show_update_role_ratings_dialog = False
         dialog = RoleRatings()
         dialog.ui = Ui_DialogRoleRatings()
-        dialog.exec_()
+        dialog.exec()
         dialog.show()
         if db.databaseName() != "":
             if myconfig.show_update_role_ratings_dialog:
                 logger.debug("Showing Role Rating Update DB progress dialog")
                 update_dialog = RoleRatingsUpdateDB()
                 update_dialog.ui = Ui_DialogRoleRatingUpdateDB_Progress()
-                update_dialog.exec_()
+                update_dialog.exec()
                 update_dialog.show()
                 self.loadModel()
         logger.debug("Exiting Role Ratings dialog")
@@ -6046,7 +6046,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.info("Entering Show Columns dialog")
         dialog = ShowColumns()
         dialog.ui = Ui_DialogShowColumns()
-        dialog.exec_()
+        dialog.exec()
         dialog.show()
         logger.info("Exiting Show Columns dialog")
         if db.databaseName() != "":
@@ -6057,7 +6057,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         logger.debug("Entering Advanced dialog")
         dialog = AdvancedDialog()
         dialog.ui = Ui_DialogAdvancedConfigOptions()
-        dialog.exec_()
+        dialog.exec()
         dialog.show() 
         logger.debug("Exiting Advanced dialog")
 
@@ -6787,7 +6787,8 @@ if __name__ == "__main__":
 
     # Configure for High DPI
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
-    QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    # EnableHighDpiScaling is no longer used in PySide6
+    # QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     app = QApplication(sys.argv)
     
         
@@ -6799,4 +6800,4 @@ if __name__ == "__main__":
     mw = MainWindow()
     mw.setWindowTitle(myconfig.window_title)
     mw.show() 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

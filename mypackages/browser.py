@@ -1,5 +1,5 @@
 from platform import version
-from PySide2.QtCore import QSettings
+from PySide6.QtCore import QSettings
 #import debugpy
 #debugpy.debug_this_thread()
 from configparser import Error
@@ -17,8 +17,8 @@ import os
 from os import path
 from random import uniform
 import sys
-from PySide2.QtWidgets import *
-from PySide2.QtSql import *
+from PySide6.QtWidgets import *
+from PySide6.QtSql import *
 from pathlib import Path
 import inspect
 from main import logQueryError, load_config, calculate_role_rating
@@ -252,12 +252,13 @@ def wis_browser(f, d, progress = None):
         logger.info("Session requires interactive login.")
         logger.info(f"Setting headless = {headless}")
     with sync_playwright() as p:
+        firefox_version = 'firefox-1372'
         if myconfig.os_platform == "Windows":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
-            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1316' / 'firefox' / 'firefox.exe'
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / f'{firefox_version}' / 'firefox' / 'firefox.exe'
         elif myconfig.os_platform == "Linux":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
-            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1316' / 'firefox' / 'firefox'
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / f'{firefox_version}' / 'firefox' / 'firefox'
         else:
             logger.error(f"{myconfig.os_platform} is not supported!")
             return False
