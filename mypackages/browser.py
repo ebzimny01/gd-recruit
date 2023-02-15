@@ -261,7 +261,7 @@ def wis_browser(f, d, progress = None):
             browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / f'{firefox_version}' / 'firefox' / 'firefox'
         elif myconfig.os_platform == "Darwin":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
-            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / f'{firefox_version}' / 'firefox' / 'Nightly.app'
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / f'{firefox_version}' / 'firefox' / 'Nightly.app' / 'Contents' / 'MacOS' / 'firefox'
         else:
             logger.error(f"Playwright browser for '{myconfig.os_platform}' is not supported!")
             return False
