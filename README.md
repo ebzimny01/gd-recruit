@@ -9,7 +9,10 @@ Visit the [wiki section](https://github.com/ebzimny01/gd-recruit/wiki) for addit
 
 ## What's New
 
-### v1.0.2 - [Download](https://gdrecruit.s3.amazonaws.com/v1/gdrecruit.exe)
+### v1.0.4 - [Download](https://gdrecruit.s3.amazonaws.com/v1/gdrecruit.exe)
+1. Fixed authentication issue involving Cloudflare security checks. If the app stops allowing you to authenticate to Sportshub/WIS, then update to this version. The solution was to include the most recent build of Firefox v1422 in the app.
+
+### v1.0.2 - [Download](https://gdrecruit.s3.amazonaws.com/v1/gdrecruit.exe?versionId=zC7G1_z9OqgbiGYc33nk8iNBCU9wLrys)
 1. Fixed issue with multiple teams. The application would only load recruits for the first team in your My Locker page.
 2. Updated the embedded Playwright Firefox browser to v1316.
 
