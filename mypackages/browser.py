@@ -254,10 +254,16 @@ def wis_browser(f, d, progress = None):
     with sync_playwright() as p:
         if myconfig.os_platform == "Windows":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
-            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1316' / 'firefox' / 'firefox.exe'
+            # firefox
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1422' / 'firefox' / 'firefox.exe'
+            # Chromium 1076
+            # browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'chromium-1076' / 'chrome-win' / 'chrome.exe'
         elif myconfig.os_platform == "Linux":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
+            # firefox
             browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1316' / 'firefox' / 'firefox'
+            # Chromium 1076
+            # browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'chromium-1076' / 'chrome-linux' / 'chrome'
         else:
             logger.error(f"{myconfig.os_platform} is not supported!")
             return False
