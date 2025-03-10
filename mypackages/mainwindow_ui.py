@@ -1,11 +1,11 @@
-from PySide2.QtCore import *
-from PySide2.QtGui import *
-from PySide2.QtWidgets import *
-from PySide2.QtSql import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
+from PySide6.QtSql import *
 
-from PySide2.QtCore import *
-from PySide2.QtGui import *
-from PySide2.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 
 class Ui_MainWindow(object):
@@ -191,7 +191,7 @@ class Ui_MainWindow(object):
         font2.setFamily(u"Arial")
         font2.setPointSize(10)
         font2.setBold(False)
-        font2.setWeight(50)
+        font2.setWeight(QFont.Weight.Normal)  # Use QFont.Weight enum
         self.pushButtonDonatePayPal.setFont(font2)
         self.pushButtonDonatePayPal.setStyleSheet(u"color: white;\n"
 "background-color: green;")
