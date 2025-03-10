@@ -1,5 +1,5 @@
 from platform import version
-from PySide2.QtCore import QSettings
+from PySide6.QtCore import QSettings
 #import debugpy
 #debugpy.debug_this_thread()
 from configparser import Error
@@ -7,7 +7,7 @@ from loguru import logger
 import pandas as pd
 from os import stat
 from playwright.sync_api import sync_playwright
-from playwright._impl._api_types import Error, TimeoutError
+from playwright.sync_api import Error, TimeoutError
 from bs4 import BeautifulSoup
 import time
 import datetime
@@ -17,8 +17,8 @@ import os
 from os import path
 from random import uniform
 import sys
-from PySide2.QtWidgets import *
-from PySide2.QtSql import *
+from PySide6.QtWidgets import *
+from PySide6.QtSql import *
 from pathlib import Path
 import inspect
 from main import logQueryError, load_config, calculate_role_rating
@@ -255,13 +255,13 @@ def wis_browser(f, d, progress = None):
         if myconfig.os_platform == "Windows":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
             # firefox
-            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1422' / 'firefox' / 'firefox.exe'
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1471' / 'firefox' / 'firefox.exe'
             # Chromium 1076
             # browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'chromium-1076' / 'chrome-win' / 'chrome.exe'
         elif myconfig.os_platform == "Linux":
             logger.debug(f"Configuring Playwright Browser Path for {myconfig.os_platform}")
             # firefox
-            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1316' / 'firefox' / 'firefox'
+            browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'firefox-1471' / 'firefox' / 'firefox'
             # Chromium 1076
             # browser_path = Path(sys.modules['playwright'].__file__).parent / 'driver' / 'package' / '.local-browsers' / 'chromium-1076' / 'chrome-linux' / 'chrome'
         else:
@@ -302,11 +302,22 @@ def wis_browser(f, d, progress = None):
                     logger.error(f"Exception following WIS Authentication attempt: {err.__class__}")
                     logger.error(f"Exception = {err}")
                     return False
-            # Click text=Login
-            page.click("text=Login")
-            # Click input[name="username"]
-            logger.info("Clicking on WIS username field...")
-            page.click("input[name=\"username\"]")
+            # Click Login button
+            logger.info("Clicking on Login button...")
+            page.get_by_role("link", name="Login").click()
+
+            # Click email text box
+            logger.info("Clicking on email text box...")
+            page.get_by_role("textbox", name="Email address").click()            
+
+            # Once the user provides their email address, they must manually click the 'Continue' button.
+            # If the user has entered a password and clicked the 'Continue' button.            
+            # Once the user clicks 'Continue' button, the user must provide their password.
+            # Look for the password field and wait for it to be visible.
+            pwdfield = page.wait_for_selector("input[name='password']", timeout=timer_expect_navigation)
+            if pwdfield:
+                logger.info("Password field found.")
+                        
             try:
                 logger.info(f"Waiting for My Locker...")
                 page.wait_for_selector("h1:has-text(\"My Locker\")", timeout=timer_mylocker)
@@ -467,9 +478,10 @@ def wis_browser(f, d, progress = None):
                     recruit_search_url = settings.value(f"{dbname_short}/searchpage", division_to_page_mapping[team_division][True])
 
                 logger.debug(f"Going to advanced recruit search URL = {recruit_search_url}")
-                page.goto(recruit_search_url)
-                #page.goto("https://www.whatifsports.com/gd/recruiting/advanced.aspx")
-                # assert page.url == "https://www.whatifsports.com/gd/recruiting/Search.aspx"
+                try:
+                    page.goto(recruit_search_url)
+                except Exception as e:
+                    logger.error(f"Exception during page navigation: {e}")
 
                 div = page.query_selector('id=advanced-recruiting-table')
                 logger.debug("Waiting for advanced recruit search table to stabilize...")
